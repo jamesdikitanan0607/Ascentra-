@@ -37,6 +37,8 @@ CREATE TABLE profiles (
     location TEXT,
     phone TEXT,
     date_of_birth DATE,
+    skill_level TEXT DEFAULT 'rookie_rambler',
+    total_km_traveled DECIMAL(10,2) DEFAULT 0.0,
     privacy_settings JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -150,6 +152,7 @@ CREATE TABLE forum_posts (
     content TEXT NOT NULL,
     category TEXT DEFAULT 'General',
     tags TEXT[] DEFAULT '{}',
+    visibility TEXT DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
     is_pinned BOOLEAN DEFAULT false,
     is_locked BOOLEAN DEFAULT false,
     view_count INTEGER DEFAULT 0,
@@ -441,71 +444,92 @@ ALTER TABLE avatars ENABLE ROW LEVEL SECURITY;
 -- Basic RLS policies (users can read public content, manage their own content)
 
 -- Profiles policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON profiles
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
 CREATE POLICY "Users can insert their own profile" ON profiles
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    FOR INSERT WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
 CREATE POLICY "Users can update their own profile" ON profiles
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Activity policies (public activities viewable, users manage their own)
+DROP POLICY IF EXISTS "Public activities are viewable by everyone" ON saveactivity;
 CREATE POLICY "Public activities are viewable by everyone" ON saveactivity
     FOR SELECT USING (is_public = true OR auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own activities" ON saveactivity;
 CREATE POLICY "Users can insert their own activities" ON saveactivity
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own activities" ON saveactivity;
 CREATE POLICY "Users can update their own activities" ON saveactivity
     FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own activities" ON saveactivity;
 CREATE POLICY "Users can delete their own activities" ON saveactivity
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Similar policies for other activity tables
+DROP POLICY IF EXISTS "Public activities viewable" ON activities;
 CREATE POLICY "Public activities viewable" ON activities
     FOR SELECT USING (is_public = true OR auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users manage own activities" ON activities;
 CREATE POLICY "Users manage own activities" ON activities
     FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Public hikes viewable" ON hikes;
 CREATE POLICY "Public hikes viewable" ON hikes
     FOR SELECT USING (is_public = true OR auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users manage own hikes" ON hikes;
 CREATE POLICY "Users manage own hikes" ON hikes
     FOR ALL USING (auth.uid() = user_id);
 
 -- Social interaction policies
+DROP POLICY IF EXISTS "Activity likes viewable by all" ON activity_likes;
 CREATE POLICY "Activity likes viewable by all" ON activity_likes
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can manage their own likes" ON activity_likes;
 CREATE POLICY "Users can manage their own likes" ON activity_likes
     FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Activity comments viewable by all" ON activity_comments;
 CREATE POLICY "Activity comments viewable by all" ON activity_comments
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can manage their own comments" ON activity_comments;
 CREATE POLICY "Users can manage their own comments" ON activity_comments
     FOR ALL USING (auth.uid() = user_id);
 
 -- Forum policies
+DROP POLICY IF EXISTS "Forum posts viewable by all" ON forum_posts;
 CREATE POLICY "Forum posts viewable by all" ON forum_posts
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can create forum posts" ON forum_posts;
 CREATE POLICY "Users can create forum posts" ON forum_posts
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own forum posts" ON forum_posts;
 CREATE POLICY "Users can update their own forum posts" ON forum_posts
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Hiking spots policies (public viewable, verified users can add)
+DROP POLICY IF EXISTS "Hiking spots viewable by all" ON hiking_spots;
 CREATE POLICY "Hiking spots viewable by all" ON hiking_spots
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can add hiking spots" ON hiking_spots;
 CREATE POLICY "Authenticated users can add hiking spots" ON hiking_spots
     FOR INSERT WITH CHECK (auth.uid() = created_by);
 
+DROP POLICY IF EXISTS "Users can update their own hiking spots" ON hiking_spots;
 CREATE POLICY "Users can update their own hiking spots" ON hiking_spots
     FOR UPDATE USING (auth.uid() = created_by);
 
