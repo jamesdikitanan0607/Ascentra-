@@ -30,7 +30,6 @@ export default function EditProfileScreen({ navigation }) {
   const [bio, setBio] = useState('');
   const [skillLevel, setSkillLevel] = useState('rookie_rambler');
   const [avatarUrl, setAvatarUrl] = useState(null);
-  const [profilePicture, setProfilePicture] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -77,7 +76,6 @@ export default function EditProfileScreen({ navigation }) {
       setBio(profile.bio || '');
       setSkillLevel(profile.skill_level || 'rookie_rambler');
       setAvatarUrl(profile.avatar_url || null);
-      setProfilePicture(profile.profile_picture || null);
       setErrors({}); // Clear any previous errors
     }
   }, [profile]);
@@ -129,7 +127,6 @@ export default function EditProfileScreen({ navigation }) {
         bio: bio.trim(),
         skill_level: skillLevel,
         avatar_url: avatarUrl,
-        profile_picture: profilePicture,
       });
 
       if (success) {
@@ -245,9 +242,8 @@ export default function EditProfileScreen({ navigation }) {
           return;
         }
 
-        // Update state with the new avatar URL and profile picture
+        // Update state with the new avatar URL
         setAvatarUrl(urlData.publicUrl);
-        setProfilePicture(urlData.publicUrl);
 
         Alert.alert('Success', 'Avatar uploaded successfully!');
       }

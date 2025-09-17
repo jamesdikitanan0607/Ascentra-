@@ -7,19 +7,24 @@ import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import { linking } from './utils/linking';
 import { Session } from '@supabase/supabase-js';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProfileProvider } from './contexts/ProfileContext';
 
 // Navigation types
 export type RootStackParamList = {
+  MainTabs: undefined;
   Home: undefined;
   Login: undefined;
   Register: undefined;
   EmailConfirmation: { email: string };
   Posts: undefined;
   Comments: { postId: string };
-  Profile: { userId?: string };
+  Profile: { userId?: string; refresh?: boolean };
   EditProfile: undefined;
   ChangePassword: undefined;
+  Favorites: undefined;
   HikingSpotDetails: { spot: any };
+  HikingSpotLandingPage: { spotId: string };
   ActivityDetails: { activity: any };
   Tracking: undefined;
   HikeHistory: { userId?: string | null };
@@ -28,28 +33,69 @@ export type RootStackParamList = {
   HikeDetail: { hikeId: string };
   ActivityComments: { activityId: string };
   SaveConfirmation: { hikeId: string };
+  // Individual hiking spot screens (15 official spots)
+  MountBabag: undefined;
+  MountKanirag: undefined;
+  MountNaupa: undefined;
+  MountManunggal: undefined;
+  MountMago: undefined;
+  MountKapayas: undefined;
+  MountLantoy: undefined;
+  MountKalbasaan: undefined;
+  MountMauyog: undefined;
+  MountLanaya: undefined;
+  MountHambubuyog: undefined;
+  OsmenaPeak: undefined;
+  CasinoPeak: undefined;
+  BudlaanFalls: undefined;
+  SpartanTrail: undefined;
 };
 
 // Import screens
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
-import HikingSpotDetailsScreen from './screens/HikingSpotDetailsScreen';
-import ActivityDetailsScreen from './screens/ActivityDetailsScreen';
-import TrackScreen from './screens/TrackScreen';
-import TrackingScreen from './screens/TrackingScreen';
-import HikeHistoryScreen from './screens/HikeHistoryScreen';
 import EmailConfirmationScreen from './screens/EmailConfirmationScreen';
-import PostsScreen from './screens/PostsScreen';
-import CommentsScreen from './screens/CommentsScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import EditProfileScreen from './screens/EditProfileScreen';
-import ChangePasswordScreen from './screens/ChangePasswordScreen';
-import MediaViewerScreen from './screens/MediaViewerScreen';
-import SaveActivityScreen from './screens/SaveActivityScreen';
-import HikeDetailScreen from './screens/HikeDetailScreen';
-import ActivityCommentsScreen from './screens/ActivityCommentsScreen';
-import SaveConfirmationScreen from './screens/SaveConfirmationScreen';
+import BottomTabNavigator from './components/BottomTabNavigator';
+import { createLazyComponent } from './utils/performanceOptimizer';
+
+// Lazy load heavy screens for better performance
+const HistoryScreen = createLazyComponent(() => import('./screens/HistoryScreen'));
+const HikingSpotDetailsScreen = createLazyComponent(() => import('./screens/HikingSpotDetailsScreen'));
+const ActivityDetailsScreen = createLazyComponent(() => import('./screens/ActivityDetailsScreen'));
+const TrackScreen = createLazyComponent(() => import('./screens/TrackScreen'));
+const TrackingScreen = createLazyComponent(() => import('./screens/TrackingScreen'));
+const HikeHistoryScreen = createLazyComponent(() => import('./screens/HikeHistoryScreen'));
+const PostsScreen = createLazyComponent(() => import('./screens/PostsScreen'));
+const CommentsScreen = createLazyComponent(() => import('./screens/CommentsScreen'));
+const ProfileScreen = createLazyComponent(() => import('./screens/ProfileScreen'));
+const EditProfileScreen = createLazyComponent(() => import('./screens/EditProfileScreen'));
+const ChangePasswordScreen = createLazyComponent(() => import('./screens/ChangePasswordScreen'));
+const FavoritesScreen = createLazyComponent(() => import('./screens/FavoritesScreen'));
+const MediaViewerScreen = createLazyComponent(() => import('./screens/MediaViewerScreen'));
+const SaveActivityScreen = createLazyComponent(() => import('./screens/SaveActivityScreen'));
+const HikeDetailScreen = createLazyComponent(() => import('./screens/HikeDetailScreen'));
+const ActivityCommentsScreen = createLazyComponent(() => import('./screens/ActivityCommentsScreen'));
+const SaveConfirmationScreen = createLazyComponent(() => import('./screens/SaveConfirmationScreen'));
+
+// Lazy load individual hiking spot screens for better performance
+const MountBabagScreen = createLazyComponent(() => import('./screens/spots/MountBabagScreen'));
+const MountKaniragScreen = createLazyComponent(() => import('./screens/spots/MountKaniragScreen'));
+const MountNaupaScreen = createLazyComponent(() => import('./screens/spots/MountNaupaScreen'));
+const MountManunggalScreen = createLazyComponent(() => import('./screens/spots/MountManunggalScreen'));
+const MountMagoScreen = createLazyComponent(() => import('./screens/spots/MountMagoScreen'));
+const MountKapayasScreen = createLazyComponent(() => import('./screens/spots/MountKapayasScreen'));
+const MountLantoyScreen = createLazyComponent(() => import('./screens/spots/MountLantoyScreen'));
+const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen'));
+const MountMauyogScreen = createLazyComponent(() => import('./screens/spots/MountMauyogScreen'));
+const MountLanayaScreen = createLazyComponent(() => import('./screens/spots/MountLanayaScreen'));
+const MountHambubuyogScreen = createLazyComponent(() => import('./screens/spots/MountHambubuyogScreen'));
+const OsmenaPeakScreen = createLazyComponent(() => import('./screens/spots/OsmenaPeakScreen'));
+const CasinoPeakScreen = createLazyComponent(() => import('./screens/spots/CasinoPeakScreen'));
+const BudlaanFallsScreen = createLazyComponent(() => import('./screens/spots/BudlaanFallsScreen'));
+const SpartanTrailScreen = createLazyComponent(() => import('./screens/spots/SpartanTrailScreen'));
+
+import HikingSpotLandingPage from './screens/spots/HikingSpotLandingPage';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -72,79 +118,9 @@ async function getToken(key: string): Promise<string | null> {
   }
 }
 
-export default function App(): JSX.Element {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  // Initialize Supabase auth with stored tokens on startup
-  useEffect(() => {
-    async function initializeAuth() {
-      try {
-        // Try to get stored tokens
-        const accessToken = await getToken('supabase.access.token');
-        const refreshToken = await getToken('supabase.refresh.token');
-        
-        if (accessToken && refreshToken) {
-          // If we have tokens, try to set the session
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-          
-          if (error) {
-            console.log('Session restore error:', error.message);
-            // Clear invalid tokens
-            await SecureStore.deleteItemAsync('supabase.access.token');
-            await SecureStore.deleteItemAsync('supabase.refresh.token');
-          } else if (data?.session) {
-            console.log('Session restored successfully');
-            setSession(data.session);
-          }
-        }
-        
-        // If no stored tokens or session restore failed, check for active session
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          setSession(data.session);
-          
-          // Save the valid tokens
-          await saveToken('supabase.access.token', data.session.access_token);
-          await saveToken('supabase.refresh.token', data.session.refresh_token);
-        }
-      } catch (e) {
-        console.error('Auth initialization error:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    initializeAuth();
-    
-    // Set up auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log('Auth event:', event);
-        
-        setSession(newSession);
-        
-        // When a new session is created, store the tokens
-        if (newSession) {
-          await saveToken('supabase.access.token', newSession.access_token);
-          await saveToken('supabase.refresh.token', newSession.refresh_token);
-        } else {
-          // When session is ended, clear tokens
-          await SecureStore.deleteItemAsync('supabase.access.token');
-          await SecureStore.deleteItemAsync('supabase.refresh.token');
-        }
-      }
-    );
-    
-    return () => {
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
-    };
-  }, []);
+// AppContent component that uses the auth context
+function AppContent(): JSX.Element {
+  const { user, loading } = useAuth();
 
   // Simplified deep link handler
   const handleDeepLink = async ({ url }: { url: string }): Promise<void> => {
@@ -171,7 +147,6 @@ export default function App(): JSX.Element {
           
           if (!error && data?.session) {
             console.log("Session established via deep link");
-            setSession(data.session);
           }
         }
       } catch (e) {
@@ -211,17 +186,21 @@ export default function App(): JSX.Element {
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator>
-        {session && session.user ? (
+        {user ? (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Posts" component={PostsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MainTabs" component={BottomTabNavigator} options={{ headerShown: false }} />
             <Stack.Screen name="Comments" component={CommentsScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
             <Stack.Screen 
               name="HikingSpotDetails" 
               component={HikingSpotDetailsScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="HikingSpotLandingPage" 
+              component={HikingSpotLandingPage} 
               options={{ headerShown: false }}
             />
             <Stack.Screen 
@@ -249,6 +228,24 @@ export default function App(): JSX.Element {
             />
             <Stack.Screen name="ActivityComments" component={ActivityCommentsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SaveConfirmation" component={SaveConfirmationScreen} options={{ headerShown: false }} />
+            
+            {/* Individual hiking spot screens (15 official spots) */}
+            <Stack.Screen name="MountBabag" component={MountBabagScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountKanirag" component={MountKaniragScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountNaupa" component={MountNaupaScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountManunggal" component={MountManunggalScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountMago" component={MountMagoScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountKapayas" component={MountKapayasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountKalbasaan" component={MountKalbasaanScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountHambubuyog" component={MountHambubuyogScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="OsmenaPeak" component={OsmenaPeakScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CasinoPeak" component={CasinoPeakScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="BudlaanFalls" component={BudlaanFallsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="SpartanTrail" component={SpartanTrailScreen} options={{ headerShown: false }} />
+
           </>
         ) : (
           <>
@@ -263,6 +260,16 @@ export default function App(): JSX.Element {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App(): JSX.Element {
+  return (
+    <AuthProvider>
+      <ProfileProvider>
+        <AppContent />
+      </ProfileProvider>
+    </AuthProvider>
   );
 }
 

@@ -16,15 +16,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../App';
-import {
-  getUserFavorites,
-  removeFavorite,
-  HikingSpot,
-} from '../services/databaseService';
+import { HikingSpot } from '../types';
 import { FavoriteSpot } from '../types';
 // Using standard React Native components instead of missing design system components
 import { getHikingSpotImageSource } from '../utils/imageHelpers';
 import { useProfile } from '../contexts/ProfileContext';
+import { logErrorContext } from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = height * 0.7; // TikTok-like full screen cards
@@ -54,7 +51,7 @@ const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
               try {
                 await onRemoveFavorite(spot.id);
               } catch (error) {
-                console.error('Error removing favorite:', error);
+                logErrorContext('FavoriteSpotCard.handleRemoveFavorite', error);
               } finally {
                 setIsRemoving(false);
               }
@@ -106,20 +103,20 @@ const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
                 <View style={styles.statItem}>
                   <Ionicons name='star' size={16} color='#FFD700' />
                   <Text style={styles.statText}>
-                    {spot.rating?.toFixed(1) || 'N/A'}
+                    {(spot as any).rating?.toFixed(1) || 'N/A'}
                   </Text>
                 </View>
 
                 <View style={styles.statItem}>
                   <Ionicons name='people' size={16} color='#FFFFFF' />
                   <Text style={styles.statText}>
-                    {spot.review_count || 0} reviews
+                    {(spot as any).review_count || 0} reviews
                   </Text>
                 </View>
 
                 <View style={styles.difficultyBadge}>
                   <Text style={styles.difficultyText}>
-                    {spot.difficulty || 'Unknown'}
+                    {(spot as any).difficulty || (spot as any).difficulty_level || 'Unknown'}
                   </Text>
                 </View>
               </View>
@@ -199,7 +196,7 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
 
   const handleSpotPress = useCallback(
     (spot: HikingSpot) => {
-      navigation.navigate('HikingSpotDetails', { spot });
+      navigation.navigate('HikingSpotDetails', { spot: spot });
     },
     [navigation],
   );

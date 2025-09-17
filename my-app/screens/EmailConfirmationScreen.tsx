@@ -29,7 +29,7 @@ export default function EmailConfirmationScreen({ navigation, route }: EmailConf
   const [loading, setLoading] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<boolean>(false);
   const [cooldownTime, setCooldownTime] = useState<number>(0);
-  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const cooldownTimerRef = useRef<number | null>(null);
 
   // Function to resend verification email
   async function resendVerificationEmail(): Promise<void> {

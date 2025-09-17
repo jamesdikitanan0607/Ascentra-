@@ -17,7 +17,6 @@ import { supabase } from '../services/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ActivityFeedComponent from '../components/ActivityFeedComponent';
-// import FavoritesComponent from '../components/FavoritesComponent'; // Replaced with inline implementation
 import AchievementsComponent from '../components/AchievementsComponent';
 import FriendsComponent from '../components/FriendsComponent';
 import { getHikesForUser } from '../services/databaseService';
@@ -34,6 +33,7 @@ import { RootStackParamList } from '../App';
 import { useProgression } from '../hooks/useProgression';
 import { useProfile } from '../contexts/ProfileContext';
 import { useAuth } from '../contexts/AuthContext';
+import { logInfo, logError, logApiCall } from '../utils/logger';
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -42,8 +42,8 @@ type ProfileScreenNavigationProp = StackNavigationProp<
 type ProfileScreenRouteProp = RouteProp<RootStackParamList, 'Profile'>;
 
 interface ProfileScreenProps {
-  navigation: ProfileScreenNavigationProp;
-  route: ProfileScreenRouteProp;
+  navigation: any; // Use any to support both tab and stack navigation
+  route?: ProfileScreenRouteProp; // Make route optional for tab navigation
 }
 
 interface Profile {
@@ -98,7 +98,7 @@ export default function ProfileScreen({
   route,
   navigation,
 }: ProfileScreenProps) {
-  const { userId } = route.params || { userId: undefined };
+  const { userId } = route?.params || { userId: undefined };
   const { user: currentUser } = useAuth();
   const {
     profile: globalProfile,
@@ -141,11 +141,10 @@ export default function ProfileScreen({
 
   // Use progression hook for current user only
   const {
-    userStats: progressionStats,
+    progression: progressionStats,
     loading: progressionLoading,
-    skillLevelProgress,
-    nextLevelInfo,
-    fetchUserStats: fetchProgressionStats,
+    error: progressionError,
+    refetch: fetchProgressionStats,
   } = useProgression();
 
   // Skill level mapping
@@ -179,7 +178,7 @@ export default function ProfileScreen({
   // Handle refresh when navigating back from EditProfile
   useFocusEffect(
     React.useCallback(() => {
-      if (route.params?.refresh && currentUser) {
+      if (route?.params?.refresh && currentUser) {
         if (isOwnProfile) {
           // For own profile, refresh global context
           refreshProfile();
@@ -192,9 +191,9 @@ export default function ProfileScreen({
         fetchUserStats(targetId);
         fetchUserHikes(targetId);
         // Clear the refresh parameter
-        navigation.setParams({ refresh: undefined });
+        navigation.setParams && navigation.setParams({ refresh: undefined });
       }
-    }, [route.params?.refresh, currentUser, userId, isOwnProfile, refreshProfile, refreshFavorites]),
+    }, [route?.params?.refresh, currentUser, userId, isOwnProfile, refreshProfile, refreshFavorites]),
   );
 
   // Add function to fetch user hikes
@@ -211,7 +210,7 @@ export default function ProfileScreen({
 
       // Log details of first hike for debugging
       if (userHikes.length > 0) {
-        console.log('First hike details:', userHikes[0]);
+        logInfo('First hike details:', userHikes[0]);
       }
 
       // Sort by date (newest first)
@@ -240,12 +239,12 @@ export default function ProfileScreen({
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        logError('Error fetching profile:', error);
       } else {
         setOtherUserProfile(data);
       }
     } catch (error) {
-      console.error('Error in fetchOtherUserProfile:', error);
+      logError('Error in fetchOtherUserProfile:', error);
     } finally {
       setIsLoading(false);
     }
@@ -257,12 +256,7 @@ export default function ProfileScreen({
       // Build query based on whether viewing own profile or another user's profile
       let query = supabase
         .from('forum_posts')
-        .select(
-          `
-          *,
-          profiles!forum_posts_user_id_fkey (username, avatar_url)
-        `,
-        )
+        .select('*')
         .eq('user_id', id)
         .order('created_at', { ascending: false });
 
@@ -275,26 +269,36 @@ export default function ProfileScreen({
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching user posts:', error);
+        logError('Error fetching user posts:', error);
       } else {
-        // Transform data to match expected Post interface
-        const transformedPosts = data.map((post: any) => ({
-          id: post.id,
-          content: post.content,
-          image_url: post.image_url,
-          created_at: post.created_at,
-          user_id: post.user_id,
-          visibility: post.visibility,
-          likeCount: 0, // TODO: Implement likes for forum posts
-          commentCount: 0, // TODO: Implement comments count
-          isLiked: false, // TODO: Implement like status
-          profiles: post.profiles,
-        }));
+        // Fetch usernames separately
+        const postsWithProfiles = await Promise.all(
+          (data || []).map(async (post: any) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', post.user_id)
+              .single();
+            
+            return {
+              id: post.id,
+              content: post.content,
+              image_url: post.image_url,
+              created_at: post.created_at,
+              user_id: post.user_id,
+              visibility: post.visibility,
+              likeCount: 0, // TODO: Implement likes for forum posts
+              commentCount: 0, // TODO: Implement comments count
+              isLiked: false, // TODO: Implement like status
+              profiles: profileData || { username: 'Unknown User', avatar_url: null },
+            };
+          })
+        );
 
-        setPosts(transformedPosts);
+        setPosts(postsWithProfiles);
       }
     } catch (error) {
-      console.error('Error in fetchUserPosts:', error);
+      logError('Error in fetchUserPosts:', error);
     } finally {
       setPostsLoading(false);
     }
@@ -332,7 +336,7 @@ export default function ProfileScreen({
         totalDistance: totalDistance / 1000, // Convert to km
       });
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      logError('Error fetching user stats:', error);
     }
   }
 
@@ -465,11 +469,25 @@ export default function ProfileScreen({
     );
   }
 
-  if (isLoading) {
+  // Show loading indicator when profile is loading or when we don't have profile data yet
+  if ((isOwnProfile && profileLoading && !profile) || (!isOwnProfile && isLoading && !otherUserProfile)) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size='large' color='#2E7D32' />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name='arrow-back' size={24} color='#333' />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size='large' color='#2E7D32' />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -893,6 +911,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     flexDirection: 'row',
@@ -1328,11 +1351,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
   favoritesRow: {
     justifyContent: 'space-between',

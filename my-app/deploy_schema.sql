@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     username TEXT UNIQUE NOT NULL,
     full_name TEXT,
     avatar_url TEXT,
-    profile_picture TEXT,
     skill_level TEXT DEFAULT 'rookie_rambler' CHECK (skill_level IN ('rookie_rambler', 'weekend_warrior', 'trail_master', 'summit_seeker')),
     bio TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

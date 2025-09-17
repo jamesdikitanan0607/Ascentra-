@@ -31,7 +31,6 @@ export interface Profile {
   full_name?: string;
   bio?: string;
   avatar_url?: string;
-  profile_picture?: string;
   skill_level: string;
   cover_photo_url?: string;
   total_km_traveled?: number;

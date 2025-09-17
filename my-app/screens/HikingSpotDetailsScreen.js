@@ -17,6 +17,9 @@ import {
 import { supabase } from '../services/supabaseClient'
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
 import MapView, { Marker } from 'react-native-maps'
+import { useProfile } from '../contexts/ProfileContext'
+import TrailMapComponent from '../components/TrailMapComponent'
+import WeatherWidget from '../components/WeatherWidget'
 
 // Define a consistent color palette
 const COLORS = {
@@ -45,6 +48,9 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   const [user, setUser] = useState(null)
   const [coordinates, setCoordinates] = useState(null)
   const [userEmails, setUserEmails] = useState({});
+  
+  // Profile context for favorites functionality
+  const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
 
   const getImageSource = (path) => {
     if (path && (path.startsWith('http://') || path.startsWith('https://'))) {
@@ -52,18 +58,18 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     }
     
     const imageMap = {
-      '../assets/images/spot1.jpg': require('../assets/images/spot1.jpg'),
-      '../assets/images/spot2.jpg': require('../assets/images/spot2.jpg'),
-      '../assets/images/spot3.jpg': require('../assets/images/spot3.jpg'),
-      '../assets/images/spot4.jpg': require('../assets/images/spot4.jpg'),
-      '../assets/images/spot5.jpg': require('../assets/images/spot5.jpg'),
+      '../assets/images/spot1.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
+      '../assets/images/spot2.jpg': require('../assets/images/budlaanfalls/thumbnail.jpg'),
+      '../assets/images/spot3.jpg': require('../assets/images/mt naupa/thumbnail.jpg'),
+      '../assets/images/spot4.jpg': require('../assets/images/mt mago/thumbnail.jpg'),
+      '../assets/images/spot5.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
     };
     
     try {
-      return imageMap[path] || require('../assets/images/spot1.jpg');
+      return imageMap[path] || require('../assets/images/mt manunggal/thumbnail.jpg');
     } catch (error) {
-      console.log('Error loading image:', error);
-      return require('../assets/images/spot1.jpg');
+      console.warn('Failed to load image:', path, error);
+      return require('../assets/images/mt manunggal/thumbnail.jpg');
     }
   };
 
@@ -112,17 +118,33 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
         .from('hiking_spot_comments')
         .select(`
           id,
-          comment,
+          comment_text,
           rating,
           created_at,
-          user_id,
-          profiles:user_id(username)
+          user_id
         `)
         .eq('hiking_spot_id', spotId)
         .order('created_at', { ascending: false })
       
       if (commentError) throw commentError
-      setComments(commentData)
+      
+      // Fetch usernames separately
+      const commentsWithUsernames = await Promise.all(
+        (commentData || []).map(async (comment) => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', comment.user_id)
+            .single()
+          
+          return {
+            ...comment,
+            profiles: profileData ? { username: profileData.username } : { username: 'Unknown User' }
+          }
+        })
+      )
+      
+      setComments(commentsWithUsernames)
       
       fetchUserEmails(commentData);
 
@@ -167,7 +189,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
         .insert({
           hiking_spot_id: spotId,
           user_id: user.id,
-          comment: commentText.trim(),
+          comment_text: commentText.trim(),
           rating: userRating
         })
       
@@ -187,6 +209,27 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     }
   }
 
+  const handleFavoriteToggle = async () => {
+    if (favoritesLoading || !spot) return;
+    
+    try {
+      const isCurrentlyFavorited = isSpotFavorited(spot.id);
+      if (isCurrentlyFavorited) {
+        await removeFromFavorites(spot.id);
+      } else {
+        await addToFavorites({
+          id: spot.id,
+          name: spot.name,
+          location: spot.location,
+          image_path: spot.image_path
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorites');
+    }
+  };
+
   const openInMaps = (coords, label) => {
     const { latitude, longitude } = coords;
     const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
@@ -197,6 +240,20 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     });
     
     Linking.openURL(url);
+  };
+
+  const getDifficultyColor = (difficulty) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'easy':
+        return '#4CAF50';
+      case 'moderate':
+        return '#FF9800';
+      case 'hard':
+      case 'difficult':
+        return '#F44336';
+      default:
+        return COLORS.primary;
+    }
   };
 
   function RatingStars({ rating, onRatingChange, disabled = false, size = 24 }) {
@@ -289,51 +346,141 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
             <Text style={styles.location}>{spot.location}</Text>
           </View>
           
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
+              <Text style={styles.statValue}>{spot.distance || 'N/A'} km</Text>
+              <Text style={styles.statLabel}>Distance</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialIcons name="terrain" size={20} color={COLORS.primary} />
+              <Text style={styles.statValue}>{spot.elevation || 'N/A'} m</Text>
+              <Text style={styles.statLabel}>Elevation</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialIcons name="fitness-center" size={20} color={COLORS.primary} />
+              <Text style={styles.statValue}>{spot.difficulty || 'N/A'}</Text>
+              <Text style={styles.statLabel}>Difficulty</Text>
+            </View>
+          </View>
+          
+          {/* Favorite Button */}
+          <TouchableOpacity 
+            style={[
+              styles.favoriteButton,
+              isSpotFavorited(spot?.id) && styles.favoriteButtonActive
+            ]}
+            onPress={handleFavoriteToggle}
+            disabled={favoritesLoading}
+          >
+            <Ionicons 
+              name={isSpotFavorited(spot?.id) ? 'heart' : 'heart-outline'} 
+              size={24} 
+              color={isSpotFavorited(spot?.id) ? '#FF6B6B' : COLORS.primary} 
+            />
+            <Text style={[
+              styles.favoriteButtonText,
+              isSpotFavorited(spot?.id) && styles.favoriteButtonTextActive
+            ]}>
+              {isSpotFavorited(spot?.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+            </Text>
+          </TouchableOpacity>
+          
           <View style={styles.divider} />
           
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.sectionTitle}>📝 Description</Text>
             <Text style={styles.description}>{spot.description}</Text>
           </View>
-          
+
+          <View style={styles.divider} />
+
+          {/* Trail Map */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location</Text>
-            {coordinates ? (
-              <View style={styles.mapSection}>
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: coordinates.latitude,
-                    longitude: coordinates.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  provider="google"
-                >
-                  <Marker
-                    coordinate={coordinates}
-                    title={spot.name}
-                    description={spot.location}
-                    pinColor={COLORS.primary}
-                  />
-                </MapView>
-                <TouchableOpacity 
-                  style={styles.directionsButton}
-                  onPress={() => openInMaps(coordinates, spot.name)}
-                >
-                  <Text style={styles.directionsButtonText}>Get Directions</Text>
-                  <MaterialIcons name="directions" size={18} color="white" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="map-outline" size={40} color={COLORS.textMuted} />
-                <Text style={styles.mapPlaceholderText}>
-                  Map location not available
-                </Text>
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>🗺️ Trail Map</Text>
+            <TrailMapComponent
+              hikingSpotId={spot.id.toString()}
+              spotName={spot.name}
+              latitude={parseFloat(spot.latitude) || 0}
+              longitude={parseFloat(spot.longitude) || 0}
+            />
           </View>
+
+          <View style={styles.divider} />
+
+          {/* Trail Routes */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🥾 Trail Routes</Text>
+            <View style={styles.routesContainer}>
+              <View style={styles.routeCard}>
+                <View style={styles.routeHeader}>
+                  <Text style={styles.routeName}>Main Trail</Text>
+                  <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(spot.difficulty) }]}>
+                    <Text style={styles.difficultyText}>{spot.difficulty}</Text>
+                  </View>
+                </View>
+                <View style={styles.routeStats}>
+                  <View style={styles.routeStat}>
+                    <Ionicons name="trail-sign-outline" size={16} color={COLORS.textMuted} />
+                    <Text style={styles.routeStatText}>{spot.distance}</Text>
+                  </View>
+                  <View style={styles.routeStat}>
+                    <Ionicons name="time-outline" size={16} color={COLORS.textMuted} />
+                    <Text style={styles.routeStatText}>{spot.duration}</Text>
+                  </View>
+                  <View style={styles.routeStat}>
+                    <Ionicons name="trending-up-outline" size={16} color={COLORS.textMuted} />
+                    <Text style={styles.routeStatText}>{spot.elevation_gain}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Trail Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>ℹ️ Trail Information</Text>
+            <View style={styles.trailInfoContainer}>
+              <View style={styles.infoItem}>
+                <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoTitle}>Best Time to Visit</Text>
+                  <Text style={styles.infoText}>Early morning (6:00 AM - 9:00 AM) for cooler weather and better visibility</Text>
+                </View>
+              </View>
+              <View style={styles.infoItem}>
+                <Ionicons name="warning-outline" size={20} color={COLORS.accent} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoTitle}>Safety Tips</Text>
+                  <Text style={styles.infoText}>Bring plenty of water, wear proper hiking shoes, and inform someone of your hiking plans</Text>
+                </View>
+              </View>
+              <View style={styles.infoItem}>
+                <Ionicons name="leaf-outline" size={20} color={COLORS.secondary} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoTitle}>Trail Conditions</Text>
+                  <Text style={styles.infoText}>Well-maintained trail with clear markers. Some rocky sections may require careful footing</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Current Weather */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🌤️ Current Weather</Text>
+            <WeatherWidget
+              latitude={parseFloat(spot.latitude) || 0}
+              longitude={parseFloat(spot.longitude) || 0}
+              locationName={spot.location}
+            />
+          </View>
+
+          <View style={styles.divider} />
           
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Write a Review</Text>
@@ -417,7 +564,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
                       </View>
                     </View>
                     <View style={styles.commentBodyContainer}>
-                      <Text style={styles.commentText}>{comment.comment}</Text>
+                      <Text style={styles.commentText}>{comment.comment_text}</Text>
                     </View>
                   </View>
                 ))}
@@ -679,6 +826,69 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 16,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.separator,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginTop: 8,
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  favoriteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginVertical: 16,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    borderColor: '#FF6B6B',
+  },
+  favoriteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginLeft: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  favoriteButtonTextActive: {
+    color: '#FF6B6B',
+  },
   emptyReviewsContainer: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
@@ -782,5 +992,71 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: COLORS.text,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
+  },
+  // New section styles
+  routesContainer: {
+    gap: 12,
+  },
+  routeCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.separator,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  routeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  routeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  routeStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  routeStatText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  trailInfoContainer: {
+    gap: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
 })

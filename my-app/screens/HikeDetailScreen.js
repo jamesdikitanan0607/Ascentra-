@@ -40,7 +40,7 @@ export default function HikeDetailScreen({ route, navigation }) {
         
         setHike(hikeData);
       } catch (error) {
-        console.error('Error loading hike:', error);
+        // Error loading hike data
         alert('Failed to load hike details');
         navigation.goBack();
       } finally {
@@ -77,19 +77,12 @@ export default function HikeDetailScreen({ route, navigation }) {
     const latPadding = (maxLat - minLat) * 0.2;
     const lngPadding = (maxLng - minLng) * 0.2;
     
-    // Log coordinates for debugging
-    console.log('RouteCoordinates count:', hike.routeCoordinates.length);
-    console.log('First coordinate:', hike.routeCoordinates[0]);
-    console.log('Last coordinate:', hike.routeCoordinates[hike.routeCoordinates.length-1]);
-
-    // Log the calculated region
     const region = {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
       latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.01),
       longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.01)
     };
-    console.log('Map region:', region);
 
     return region;
   };
@@ -112,24 +105,22 @@ export default function HikeDetailScreen({ route, navigation }) {
     }
   };
   
-  // First, let's add more debugging to validate your coordinates data
+  // Validate coordinates data
   useEffect(() => {
     if (hike?.routeCoordinates?.length) {
-      console.log('ROUTE DATA CHECK:');
-      console.log(`Total points: ${hike.routeCoordinates.length}`);
-      console.log('Sample points:', 
-        hike.routeCoordinates.slice(0, 3).map(coord => 
-          `(${coord.latitude.toFixed(6)}, ${coord.longitude.toFixed(6)})`
-        )
-      );
-      
       // Check if coordinates are valid numbers
       const hasInvalidCoords = hike.routeCoordinates.some(
         coord => isNaN(coord.latitude) || isNaN(coord.longitude)
       );
       
       if (hasInvalidCoords) {
-        console.error('INVALID COORDINATES DETECTED');
+        // Handle invalid coordinates gracefully
+        setHike(prev => prev ? {
+          ...prev,
+          routeCoordinates: prev.routeCoordinates.filter(
+            coord => !isNaN(coord.latitude) && !isNaN(coord.longitude)
+          )
+        } : null);
       }
     }
   }, [hike]);
@@ -184,7 +175,7 @@ export default function HikeDetailScreen({ route, navigation }) {
             showsUserLocation={false}
             minZoomLevel={10} // Force a reasonable zoom level
             onMapReady={() => {
-              console.log('Map is ready');
+              // Map is ready
             }}
           >
             {/* Add a simple marker at the map center for reference */}

@@ -10,6 +10,7 @@ import { isUserLoggedIn } from '../services/supabaseClient';
 import HikeStats from '../components/HikeStats';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../App';
+import { logInfo, logError, logApiCall, logErrorContext } from '../utils/logger';
 
 // Type definitions
 
@@ -53,7 +54,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
   
   const mapRef = useRef<MapView>(null);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);  // For tracking total paused time
   const pauseStartTimeRef = useRef<number | null>(null); // When pause started
@@ -101,7 +102,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
           longitude: location.coords.longitude
         }];
       } catch (error) {
-        console.error('Initial location error:', error);
+        logError('Initial location error:', error);
         Alert.alert('Error', 'Could not get your current location. Please check your GPS settings and try again.')
       }
     })();
@@ -140,7 +141,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
       setIsLoggedIn(loggedIn);
       updateSyncStatus(isConnected, loggedIn);
     } catch (error) {
-      console.error('Error checking login status:', error);
+      logError('Error checking login status:', error);
       setIsLoggedIn(false);
       updateSyncStatus(isConnected, false);
     }
@@ -198,10 +199,10 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
       setTracking(true);
       setPaused(false);
       
-      console.log('Tracking started');
+      logInfo('Tracking started');
     } catch (error) {
       Alert.alert('Error', 'Could not start tracking. Please check your GPS signal and try again.');
-      console.error('Start tracking error:', error);
+      logError('Start tracking error:', error);
     }
   };
 
@@ -334,6 +335,11 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
         ? (currentTime - startTimeRef.current - pausedTimeRef.current) / 1000
         : 0;
       
+      setStats(prevStats => ({
+        ...prevStats,
+        duration: elapsedSeconds
+      }));
+      
       setStats(prevStats => {
         // Don't recalculate pace here - use the value from location tracking
         // This avoids pace changes when standing still
@@ -354,7 +360,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
   const pauseTracking = (): void => {
     if (paused) {
       // Resume tracking
-      console.log('Resuming tracking');
+      logInfo('Resuming tracking');
       
       // Calculate how long we were paused and add to total pause time
       const pauseDuration = pauseStartTimeRef.current 
@@ -369,7 +375,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
       setPaused(false);
     } else {
       // Pause tracking
-      console.log('Pausing tracking');
+      logInfo('Pausing tracking');
       
       // Store when we paused
       pauseStartTimeRef.current = new Date().getTime();
@@ -432,17 +438,17 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
         Math.abs(coord.longitude) <= 180
       );
       
-      console.log(`Saving activity with ${sanitizedCoordinates.length} valid coordinates`);
+      logInfo(`Saving activity with ${sanitizedCoordinates.length} valid coordinates`);
       
       if (sanitizedCoordinates.length < 2) {
-        console.warn('Warning: Less than 2 valid coordinates for this activity');
+        logError('Warning: Less than 2 valid coordinates for this activity');
       }
       
       // Log the first and last coordinates for debugging
       if (sanitizedCoordinates.length > 0) {
-        console.log('First coordinate:', JSON.stringify(sanitizedCoordinates[0]));
+        logInfo('First coordinate:', JSON.stringify(sanitizedCoordinates[0]));
         if (sanitizedCoordinates.length > 1) {
-          console.log('Last coordinate:', JSON.stringify(sanitizedCoordinates[sanitizedCoordinates.length - 1]));
+          logInfo('Last coordinate:', JSON.stringify(sanitizedCoordinates[sanitizedCoordinates.length - 1]));
         }
       }
       
@@ -462,7 +468,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
       // Close the modal
       setSaveModalVisible(false);
     } catch (error) {
-      console.error('Save operation error:', error);
+      logError('Save operation error:', error);
       Alert.alert('Error', 'An unexpected error occurred.');
     }
   };
