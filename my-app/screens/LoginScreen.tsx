@@ -75,18 +75,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
       setLoading(true);
       const session = await signInWithGoogle();
       
-      // Log the session for debugging
-      console.log("Session returned:", session ? "Session exists" : "No session");
-      
       if (session && session.session) {
         // Navigation will be handled automatically by the auth state change
-        console.log('Google sign-in successful');
+        // Google sign-in successful
       } else {
-        console.log("No valid session returned");
+        // No valid session returned
         Alert.alert("Login Error", "Could not retrieve session after login");
       }
     } catch (error: any) {
-      console.error("Google sign-in error in LoginScreen:", error);
+      // Google sign-in error
       Alert.alert("Login Error", error.message);
     } finally {
       setLoading(false);

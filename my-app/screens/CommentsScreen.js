@@ -15,6 +15,7 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { logInfo, logError, logApiCall } from '../utils/logger';
 
 export default function CommentsScreen({ route, navigation }) {
   const { postId } = route.params;
@@ -43,7 +44,7 @@ export default function CommentsScreen({ route, navigation }) {
     setPostLoading(true);
     try {
       // First, log the postId to debug
-      console.log("Fetching post with ID:", postId);
+      logInfo(`Fetching post with ID: ${postId}`);
       
       const { data: postData, error: postError } = await supabase
         .from('posts')
@@ -52,7 +53,7 @@ export default function CommentsScreen({ route, navigation }) {
         .single();
 
       if (postError) {
-        console.error('Error fetching post:', postError);
+        logError('Error fetching post:', postError);
         
         // Handle the "no rows" error more gracefully
         if (postError.code === 'PGRST116') {
@@ -79,7 +80,7 @@ export default function CommentsScreen({ route, navigation }) {
       });
       setPostLoading(false);
     } catch (err) {
-      console.error('Unexpected error:', err);
+      logError('Unexpected error in fetchPost:', err);
       Alert.alert('Error', 'An unexpected error occurred.');
       setPostLoading(false);
     }
@@ -96,7 +97,7 @@ export default function CommentsScreen({ route, navigation }) {
         .order('created_at', { ascending: true });
 
       if (commentError) {
-        console.error('Error fetching comments:', commentError);
+        logError('Error fetching comments:', commentError);
         Alert.alert('Error', 'Failed to load comments');
         return;
       }
@@ -117,7 +118,7 @@ export default function CommentsScreen({ route, navigation }) {
 
       setComments(enrichedComments);
     } catch (err) {
-      console.error('Unexpected error:', err);
+      logError('Unexpected error in fetchComments:', err);
     } finally {
       setLoading(false);
     }
@@ -140,19 +141,32 @@ export default function CommentsScreen({ route, navigation }) {
           content: newComment.trim()
         }])
         .select(`
-          *,
-          profiles:user_id (username, avatar_url)
+          *
         `);
-
+      
       if (error) {
-        console.error('Error adding comment:', error);
+        logError('Error adding comment:', error);
         Alert.alert('Error', 'Failed to post your comment');
       } else {
-        setComments([...comments, data[0]]);
+        // Fetch username separately for the new comment
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        const commentWithProfile = {
+          ...data[0],
+          profiles: profileData || { username: 'Unknown User', avatar_url: null }
+        };
+        
+        setComments([...comments, commentWithProfile]);
         setNewComment('');
       }
+
+
     } catch (err) {
-      console.error('Unexpected error:', err);
+      logError('Unexpected error in addComment:', err);
     } finally {
       setPosting(false);
     }
@@ -175,13 +189,13 @@ export default function CommentsScreen({ route, navigation }) {
                 .eq('id', commentId);
 
               if (error) {
-                console.error('Error deleting comment:', error);
+                logError('Error deleting comment:', error);
                 Alert.alert('Error', 'Failed to delete comment');
               } else {
                 setComments(comments.filter(comment => comment.id !== commentId));
               }
             } catch (err) {
-              console.error('Unexpected error:', err);
+              logError('Unexpected error in deleteComment:', err);
             }
           }
         }
@@ -191,7 +205,7 @@ export default function CommentsScreen({ route, navigation }) {
 
   async function checkPostExists() {
     try {
-      console.log("Checking if post exists with ID:", postId);
+      logInfo(`Checking if post exists with ID: ${postId}`);
       
       // Get all posts to see what's in the database
       const { data: allPosts, error: postsError } = await supabase
@@ -200,17 +214,17 @@ export default function CommentsScreen({ route, navigation }) {
         .limit(5);
       
       if (postsError) {
-        console.error("Error fetching posts list:", postsError);
+        logError('Error fetching posts list:', postsError);
       } else {
-        console.log("Available posts in database:", allPosts);
+        logInfo('Available posts in database:', allPosts);
       }
       
       // Check if we have valid UUID
       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
-      console.log("Is valid UUID format:", isValidUUID);
+      logInfo(`Is valid UUID format: ${isValidUUID}`);
       
     } catch (err) {
-      console.error("Error in checkPostExists:", err);
+      logError('Error in checkPostExists:', err);
     }
   }
 

@@ -9,7 +9,6 @@
  */
 export const sanitizeRouteCoordinates = (coordinates) => {
   if (!coordinates || !Array.isArray(coordinates)) {
-    console.warn('Invalid coordinates provided:', coordinates);
     return [];
   }
   
@@ -23,13 +22,11 @@ export const sanitizeRouteCoordinates = (coordinates) => {
       const lng = Number(coord.longitude || coord.lng);
       
       if (isNaN(lat) || isNaN(lng)) {
-        console.warn('Invalid coordinate values:', coord);
         return null;
       }
       
       // Ensure coordinates are within valid range
       if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-        console.warn('Coordinate out of range:', {lat, lng});
         return null;
       }
       
@@ -94,10 +91,7 @@ export const calculateMapRegion = (coordinates, padding = 0.2) => {
   const finalLatDelta = Math.max(latDelta, 0.01);
   const finalLngDelta = Math.max(lngDelta, 0.01);
   
-  console.log('Map region calculated:', {
-    center: [centerLat, centerLng],
-    delta: [finalLatDelta, finalLngDelta]
-  });
+  // Map region calculated
   
   return {
     latitude: centerLat,
@@ -113,17 +107,22 @@ export const calculateMapRegion = (coordinates, padding = 0.2) => {
  * @param {String} tag - Label for the log
  */
 export const logRouteDetails = (coordinates, tag = 'Route') => {
-  if (!coordinates || !Array.isArray(coordinates)) {
-    console.log(`${tag}: Invalid coordinates (${typeof coordinates})`);
+  // Debug function for route validation
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length === 0) {
     return;
   }
   
-  console.log(`${tag}: ${coordinates.length} points`);
+  // Validate first and last coordinates
+  const first = coordinates[0];
+  const last = coordinates[coordinates.length - 1];
   
-  if (coordinates.length > 0) {
-    console.log(`${tag} first:`, JSON.stringify(coordinates[0]));
-    if (coordinates.length > 1) {
-      console.log(`${tag} last:`, JSON.stringify(coordinates[coordinates.length - 1]));
-    }
-  }
+  return {
+    count: coordinates.length,
+    first: first,
+    last: last,
+    valid: coordinates.every(coord => 
+      typeof coord.latitude === 'number' && 
+      typeof coord.longitude === 'number'
+    )
+  };
 };

@@ -14,6 +14,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { supabase } from '../services/supabaseClient';
+import { logInfo, logError, logApiCall } from '../utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -58,7 +59,7 @@ export default function PostsScreen({ navigation }) {
         .order('created_at', { ascending: false });
 
       if (postsError) {
-        console.error('Error fetching posts:', postsError);
+        logError('Error fetching posts:', postsError);
         Alert.alert('Error', 'Failed to load posts');
         return;
       }
@@ -69,7 +70,7 @@ export default function PostsScreen({ navigation }) {
         .eq('user_id', user.id);
         
       if (userLikesError && userLikesError.code !== 'PGRST116') {
-        console.error('Error fetching user likes:', userLikesError);
+        logError('Error fetching user likes:', userLikesError);
       }
       
       const likedPostIds = new Set(userLikes?.map(like => like.post_id) || []);
@@ -82,7 +83,7 @@ export default function PostsScreen({ navigation }) {
           .single();
         
         if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error fetching profile:', profileError);
+          logError('Error fetching profile:', profileError);
         }
         
         const { count: likeCount } = await supabase
@@ -108,7 +109,7 @@ export default function PostsScreen({ navigation }) {
       
       setPosts(enrichedPosts);
     } catch (err) {
-      console.error('Unexpected error:', err);
+      logError('Unexpected error:', err);
     } finally {
       setRefreshing(false);
     }
@@ -116,35 +117,35 @@ export default function PostsScreen({ navigation }) {
 
   async function checkTablesExist() {
     try {
-      console.log('Checking if tables and buckets exist...');
+      logInfo('Checking if tables and buckets exist...');
       
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
         .select('*')
         .limit(1);
       
-      console.log('Posts table check:', postsError ? 'Error: ' + JSON.stringify(postsError) : 'Exists');
+      logApiCall('Posts table check:', postsError ? 'Error: ' + JSON.stringify(postsError) : 'Exists');
       
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .limit(1);
       
-      console.log('Profiles table check:', profilesError ? 'Error: ' + JSON.stringify(profilesError) : 'Exists');
+      logApiCall('Profiles table check:', profilesError ? 'Error: ' + JSON.stringify(profilesError) : 'Exists');
       
       const { data: likesData, error: likesError } = await supabase
         .from('likes')
         .select('*')
         .limit(1);
       
-      console.log('Likes table check:', likesError ? 'Error: ' + JSON.stringify(likesError) : 'Exists');
+      logApiCall('Likes table check:', likesError ? 'Error: ' + JSON.stringify(likesError) : 'Exists');
       
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select('*')
         .limit(1);
       
-      console.log('Comments table check:', commentsError ? 'Error: ' + JSON.stringify(commentsError) : 'Exists');
+      logApiCall('Comments table check:', commentsError ? 'Error: ' + JSON.stringify(commentsError) : 'Exists');
       
       if (user) {
         const { data: userProfile, error: userProfileError } = await supabase
@@ -153,10 +154,10 @@ export default function PostsScreen({ navigation }) {
           .eq('id', user.id)
           .single();
         
-        console.log('User profile check:', userProfileError ? 'Error: ' + JSON.stringify(userProfileError) : 'Exists');
+        logApiCall('User profile check:', userProfileError ? 'Error: ' + JSON.stringify(userProfileError) : 'Exists');
         
         if (userProfileError && userProfileError.code === 'PGRST116') {
-          console.log('Creating user profile...');
+          logInfo('Creating user profile...');
           
           const { data, error } = await supabase
             .from('profiles')
@@ -164,22 +165,22 @@ export default function PostsScreen({ navigation }) {
               { id: user.id, username: 'User' + user.id.substring(0, 4) }
             ]);
           
-          console.log('Profile creation:', error ? 'Error: ' + JSON.stringify(error) : 'Success');
+          logApiCall('Profile creation:', error ? 'Error: ' + JSON.stringify(error) : 'Success');
         }
       }
       
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
       
       if (bucketsError) {
-        console.error('Error listing buckets:', bucketsError);
+        logError('Error listing buckets:', bucketsError);
         return;
       }
       
       const storageBucketExists = buckets && buckets.some(bucket => bucket.name === 'storage');
-      console.log(`Storage bucket exists: ${storageBucketExists ? 'Yes' : 'No'}`);
+      logInfo(`Storage bucket exists: ${storageBucketExists ? 'Yes' : 'No'}`);
       
     } catch (error) {
-      console.error('Error checking tables and buckets:', error);
+      logError('Error checking tables and buckets:', error);
     }
   }
 
@@ -230,13 +231,13 @@ export default function PostsScreen({ navigation }) {
 
   async function uploadMedia(mediaFiles) {
     try {
-      console.log('Starting media upload process...');
+      logInfo('Starting media upload process...');
       
       const bucketName = 'storage';
-      console.log(`Using bucket: ${bucketName}`);
+      logInfo(`Using bucket: ${bucketName}`);
       
       const uploadPromises = mediaFiles.map(async (media, index) => {
-        console.log(`Processing media file ${index + 1}/${mediaFiles.length}, type: ${media.type}`);
+        logInfo(`Processing media file ${index + 1}/${mediaFiles.length}, type: ${media.type}`);
         
         const base64 = await FileSystem.readAsStringAsync(media.uri, {
           encoding: FileSystem.EncodingType.Base64,
@@ -249,14 +250,14 @@ export default function PostsScreen({ navigation }) {
         const folderPath = isVideo ? 'videos' : 'images';
         const filePath = `${folderPath}/${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
         
-        console.log(`Uploading to ${bucketName}/${filePath}`);
+        logInfo(`Uploading to ${bucketName}/${filePath}`);
         
         const { data, error } = await supabase.storage
           .from(bucketName)
           .upload(filePath, decode(base64), { contentType });
         
         if (error) {
-          console.error(`Upload error for file ${index + 1}:`, error);
+          logError(`Upload error for file ${index + 1}:`, error);
           throw error;
         }
         
@@ -265,7 +266,7 @@ export default function PostsScreen({ navigation }) {
           .getPublicUrl(filePath);
         
         const publicUrl = urlData?.publicUrl;
-        console.log(`Successfully uploaded file ${index + 1}, URL: ${publicUrl}`);
+        logInfo(`Successfully uploaded file ${index + 1}, URL: ${publicUrl}`);
         
         return {
           url: publicUrl,
@@ -274,10 +275,10 @@ export default function PostsScreen({ navigation }) {
       });
       
       const results = await Promise.all(uploadPromises);
-      console.log(`Successfully uploaded ${results.length} files`);
+      logInfo(`Successfully uploaded ${results.length} files`);
       return results;
     } catch (error) {
-      console.error('Error in uploadMedia function:', error);
+      logError('Error in uploadMedia function:', error);
       throw error;
     }
   }
@@ -300,11 +301,11 @@ export default function PostsScreen({ navigation }) {
       
       if (selectedMedia.length > 0) {
         try {
-          console.log(`Uploading ${selectedMedia.length} media files...`);
+          logInfo(`Uploading ${selectedMedia.length} media files...`);
           mediaUrls = await uploadMedia(selectedMedia);
-          console.log(`Successfully uploaded ${mediaUrls.length} files`);
+          logInfo(`Successfully uploaded ${mediaUrls.length} files`);
         } catch (uploadError) {
-          console.error('Media upload failed:', uploadError);
+          logError('Media upload failed:', uploadError);
           Alert.alert(
             'Upload Error', 
             'Failed to upload media. Please try again later or check your internet connection.'
@@ -324,7 +325,7 @@ export default function PostsScreen({ navigation }) {
         .select();
       
       if (error) {
-        console.error('Database insert error:', error);
+        logError('Database insert error:', error);
         throw error;
       }
       
@@ -334,7 +335,7 @@ export default function PostsScreen({ navigation }) {
       fetchPosts();
       
     } catch (error) {
-      console.error('Error creating post:', error);
+      logError('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post. Please try again later.');
     } finally {
       setIsPosting(false);
@@ -401,7 +402,7 @@ export default function PostsScreen({ navigation }) {
       }));
       
     } catch (error) {
-      console.error('Error toggling like:', error);
+      logError('Error toggling like:', error);
       
       setPosts(posts.map(post => {
         if (post.id === postId) {

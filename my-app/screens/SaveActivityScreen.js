@@ -95,10 +95,10 @@ export default function SaveActivityScreen({ navigation, route }) {
         // Add selected media to state
         setMediaFiles([...mediaFiles, ...newMedia].slice(0, 10)); // Limit to 10 total
         
-        console.log(`Added ${newMedia.length} media files`);
+        // Media files added successfully
       }
     } catch (error) {
-      console.error('Error picking media:', error);
+      // Error picking media
       Alert.alert('Error', 'Failed to load selected media. Please try again.');
     }
   };
@@ -135,7 +135,7 @@ export default function SaveActivityScreen({ navigation, route }) {
           setDebugInfo(prev => `User ID check: ${userId} (${isNotGuest ? 'logged in' : 'guest'})\n${prev}`);
         }
       } catch (error) {
-        console.error('Error checking login status:', error);
+        // Error checking login status
         setIsLoggedIn(false);
         setDebugInfo(prev => `Login check error: ${error.message}\n${prev}`);
       }
@@ -243,7 +243,7 @@ export default function SaveActivityScreen({ navigation, route }) {
         name: media.fileName || media.uri.split('/').pop()
       }));
       
-      console.log('Processed media files:', processedMedia.length, 'items');
+      // Processed media files
       setDebugInfo(prev => prev + `Processed ${processedMedia.length} media files\n`);
       
       // Prepare enriched hike data
@@ -296,22 +296,22 @@ export default function SaveActivityScreen({ navigation, route }) {
           
           if (syncResult) {
             setSyncStatus('synced');
-            console.log('Activity saved and manually synced to cloud');
+            // Activity saved and manually synced to cloud
           } else {
             setSyncStatus('failed');
-            console.log('Manual sync failed');
+            // Manual sync failed
           }
         } catch (syncError) {
-          console.error('Manual sync error:', syncError);
+          // Manual sync error
           setDebugInfo(prev => prev + `Manual sync error: ${syncError.message}\n`);
           setSyncStatus('failed');
         }
       } else if (!isLoggedIn) {
         setSyncStatus('local-only');
-        console.log('Activity saved locally only (not logged in)');
+        // Activity saved locally only (not logged in)
       } else {
         setSyncStatus('local-only');
-        console.log('Activity saved locally only (offline)');
+        // Activity saved locally only (offline)
       }
       
       // Show appropriate message
@@ -340,7 +340,7 @@ export default function SaveActivityScreen({ navigation, route }) {
       }, 1000);
       
     } catch (error) {
-      console.error('Failed to save activity:', error);
+      // Failed to save activity
       setDebugInfo(prev => prev + `Save error: ${error.message}\n${error.stack || ''}\n`);
       setSyncStatus('failed');
       Alert.alert(

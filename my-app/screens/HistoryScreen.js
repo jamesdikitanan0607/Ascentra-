@@ -16,6 +16,7 @@ import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAllHikes, syncUnsentHikes, debugStorage } from '../services/databaseService';
 import { formatDate, formatDistance, formatDuration } from '../utils/formatters';
+import { logInfo, logError, logApiCall } from '../utils/logger';
 
 export default function HistoryScreen({ navigation }) {
   const [hikes, setHikes] = useState([]);
@@ -27,24 +28,24 @@ export default function HistoryScreen({ navigation }) {
   // Load hikes from local storage
   const loadHikes = useCallback(async () => {
     try {
-      console.log('Starting to load hikes from local storage...');
+      logInfo('Starting to load hikes from local storage...');
       setLoading(true);
       
       // Debug storage first to see what's there
       await debugStorage();
       
       const allHikes = await getAllHikes();
-      console.log(`Successfully loaded ${allHikes.length} hikes`);
+      logInfo(`Successfully loaded ${allHikes.length} hikes`);
       
       // Sort hikes by date (newest first)
       const sortedHikes = allHikes.sort((a, b) => {
         return new Date(b.date) - new Date(a.date);
       });
       
-      console.log('Hikes sorted by date, setting state...');
+      logInfo('Hikes sorted by date, setting state...');
       setHikes(sortedHikes);
     } catch (error) {
-      console.error('Error loading hikes:', error);
+      logError('Error loading hikes:', error);
       Alert.alert('Error', 'Failed to load hike history.');
     } finally {
       setLoading(false);
@@ -86,7 +87,7 @@ export default function HistoryScreen({ navigation }) {
       Alert.alert('Sync Complete', result.message);
       loadHikes(); // Reload hikes after sync attempt
     } catch (error) {
-      console.error('Sync error:', error);
+      logError('Sync error:', error);
       Alert.alert('Sync Error', 'Failed to sync hikes with server.');
     }
   };
@@ -95,7 +96,7 @@ export default function HistoryScreen({ navigation }) {
   const testLocalStorage = async () => {
     try {
       const hikesStr = await AsyncStorage.getItem('@ascentra_hikes');
-      console.log('Raw AsyncStorage data:', hikesStr ? hikesStr.substring(0, 100) + '...' : 'null');
+      logInfo('Raw AsyncStorage data:', hikesStr ? hikesStr.substring(0, 100) + '...' : 'null');
       
       Alert.alert(
         'Storage Debug', 
@@ -106,7 +107,7 @@ export default function HistoryScreen({ navigation }) {
       // Force reload after checking
       loadHikes();
     } catch (error) {
-      console.error('Test storage error:', error);
+      logError('Test storage error:', error);
       Alert.alert('Error', 'Failed to test storage: ' + error.message);
     }
   };

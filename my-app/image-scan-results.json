@@ -1,0 +1,382 @@
+{
+  "timestamp": "2025-09-16T16:53:55.910Z",
+  "validImages": [
+    {
+      "file": "acentra.png",
+      "size": 45676,
+      "extension": ".png"
+    },
+    {
+      "file": "ascentra.png",
+      "size": 39982,
+      "extension": ".png"
+    },
+    {
+      "file": "budlaanfalls\\2.jpg",
+      "size": 6533441,
+      "extension": ".jpg"
+    },
+    {
+      "file": "budlaanfalls\\3.jpg",
+      "size": 3442624,
+      "extension": ".jpg"
+    },
+    {
+      "file": "budlaanfalls\\4.jpg",
+      "size": 3003380,
+      "extension": ".jpg"
+    },
+    {
+      "file": "budlaanfalls\\5.jpg",
+      "size": 2438961,
+      "extension": ".jpg"
+    },
+    {
+      "file": "budlaanfalls\\thumbnail.jpg",
+      "size": 105816,
+      "extension": ".jpg"
+    },
+    {
+      "file": "casino peak\\2.jpg",
+      "size": 366981,
+      "extension": ".jpg"
+    },
+    {
+      "file": "casino peak\\3.jpg",
+      "size": 87868,
+      "extension": ".jpg"
+    },
+    {
+      "file": "casino peak\\4.webp",
+      "size": 74174,
+      "extension": ".webp"
+    },
+    {
+      "file": "casino peak\\5.webp",
+      "size": 466090,
+      "extension": ".webp"
+    },
+    {
+      "file": "casino peak\\thumbnail.jpg",
+      "size": 437802,
+      "extension": ".jpg"
+    },
+    {
+      "file": "logo.png",
+      "size": 48290,
+      "extension": ".png"
+    },
+    {
+      "file": "mount hambubuyog\\2.jpg",
+      "size": 819236,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount hambubuyog\\3.jpg",
+      "size": 561494,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount hambubuyog\\4.jpg",
+      "size": 680186,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount hambubuyog\\5.jpg",
+      "size": 826601,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount hambubuyog\\thumbnail.jpg",
+      "size": 327973,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount latoy\\2.jpg",
+      "size": 86929,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount latoy\\3.jpg",
+      "size": 504388,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount latoy\\4.png",
+      "size": 181887,
+      "extension": ".png"
+    },
+    {
+      "file": "mount latoy\\5.jpg",
+      "size": 122385,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mount latoy\\thumbnail.webp",
+      "size": 136894,
+      "extension": ".webp"
+    },
+    {
+      "file": "mount-babag\\01_thumb.webp",
+      "size": 599727,
+      "extension": ".webp"
+    },
+    {
+      "file": "mount-babag\\04.webp",
+      "size": 514183,
+      "extension": ".webp"
+    },
+    {
+      "file": "mount-babag\\05.webp",
+      "size": 636261,
+      "extension": ".webp"
+    },
+    {
+      "file": "mt kalbasan\\2.jpg",
+      "size": 255571,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kalbasan\\3.jpg",
+      "size": 148996,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kalbasan\\4.jpg",
+      "size": 138792,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kalbasan\\5.jpg",
+      "size": 147392,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kalbasan\\thumbnail.jpg",
+      "size": 194893,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kapayas\\2.jpg",
+      "size": 167390,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kapayas\\3.jpg",
+      "size": 83331,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kapayas\\4.webp",
+      "size": 156814,
+      "extension": ".webp"
+    },
+    {
+      "file": "mt kapayas\\5.jpg",
+      "size": 170735,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt kapayas\\thumbnail.webp",
+      "size": 121850,
+      "extension": ".webp"
+    },
+    {
+      "file": "mt lanaya\\2.jpg",
+      "size": 3310120,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt lanaya\\3.jpg",
+      "size": 110164,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt lanaya\\4.jpg",
+      "size": 176267,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt lanaya\\5.jpg",
+      "size": 80261,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt lanaya\\thumbnail.jpg",
+      "size": 59368,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mago\\2.webp",
+      "size": 478488,
+      "extension": ".webp"
+    },
+    {
+      "file": "mt mago\\3.jpg",
+      "size": 619607,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mago\\4.jpg",
+      "size": 499002,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mago\\5.webp",
+      "size": 1220676,
+      "extension": ".webp"
+    },
+    {
+      "file": "mt mago\\thumbnail.jpg",
+      "size": 226867,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt manunggal\\2.jpg",
+      "size": 480292,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt manunggal\\3.jpg",
+      "size": 1093170,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt manunggal\\4.jpg",
+      "size": 228174,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt manunggal\\5.jpg",
+      "size": 337619,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt manunggal\\thumbnail.jpg",
+      "size": 498990,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mauyog\\2.jpg",
+      "size": 1067092,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mauyog\\3.jpg",
+      "size": 68602,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mauyog\\4.jpg",
+      "size": 109928,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mauyog\\5.jpg",
+      "size": 314680,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt mauyog\\thumbnail.jpg",
+      "size": 116271,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt naupa\\2.jpg",
+      "size": 290921,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt naupa\\3.jpg",
+      "size": 529442,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt naupa\\4.jpg",
+      "size": 136873,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt naupa\\5.jpg",
+      "size": 3023594,
+      "extension": ".jpg"
+    },
+    {
+      "file": "mt naupa\\thumbnail.jpg",
+      "size": 1175362,
+      "extension": ".jpg"
+    },
+    {
+      "file": "osmena peak\\2.jpg",
+      "size": 367954,
+      "extension": ".jpg"
+    },
+    {
+      "file": "osmena peak\\3.jpg",
+      "size": 674822,
+      "extension": ".jpg"
+    },
+    {
+      "file": "osmena peak\\4.jpg",
+      "size": 272685,
+      "extension": ".jpg"
+    },
+    {
+      "file": "osmena peak\\5.jpg",
+      "size": 263277,
+      "extension": ".jpg"
+    },
+    {
+      "file": "osmena peak\\thumbnail.jpg",
+      "size": 109102,
+      "extension": ".jpg"
+    },
+    {
+      "file": "spartantrail\\5.jpg",
+      "size": 588708,
+      "extension": ".jpg"
+    }
+  ],
+  "issues": [
+    {
+      "file": "mount-babag\\02.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mount-babag\\03.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mt kan-irag\\01_thumb.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mt kan-irag\\02.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mt kan-irag\\03.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mt kan-irag\\04.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    },
+    {
+      "file": "mt kan-irag\\05.jpg",
+      "issue": "Invalid file signature - corrupted or wrong format",
+      "severity": "high"
+    }
+  ],
+  "summary": {
+    "totalValid": 67,
+    "totalIssues": 7,
+    "highSeverityIssues": 7
+  }
+}

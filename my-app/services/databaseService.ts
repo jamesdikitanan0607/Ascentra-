@@ -80,16 +80,13 @@ export const getCurrentUserId = async (): Promise<string> => {
       const userId = data?.session?.user?.id;
       
       if (userId) {
-        console.log('User is logged in with ID:', userId);
         return userId;
       }
     }
     
     // If no user is logged in or session retrieval failed, use 'guest'
-    console.log('No user logged in, using guest ID');
     return 'guest';
   } catch (error) {
-    console.error('Error getting current user:', error);
     return 'guest';
   }
 };
@@ -104,15 +101,12 @@ const getUserHikesKey = async (): Promise<string> => {
 export const debugStorage = async (): Promise<boolean> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    console.log('All AsyncStorage keys:', keys);
     
     // Show which users have hike data
     const hikeKeys = keys.filter(key => key.startsWith('@ascentra_hikes_'));
-    console.log('User hike keys:', hikeKeys);
     
     return true;
   } catch (error) {
-    console.error('Error debugging storage:', error);
     return false;
   }
 };
@@ -125,7 +119,6 @@ export const saveHikeToLocalDB = async (hikeData: HikeData): Promise<string> => 
     
     // Sanitize route coordinates before saving
     const sanitizedCoordinates = sanitizeRouteCoordinates(hikeData.routeCoordinates);
-    console.log(`Sanitized ${hikeData.routeCoordinates?.length || 0} coordinates to ${sanitizedCoordinates.length} valid points`);
     
     // Prepare data object with all fields
     const hikeToSave = {
@@ -195,15 +188,12 @@ export const saveHikeToLocalDB = async (hikeData: HikeData): Promise<string> => 
         // Save updated sync status
         await AsyncStorage.setItem(storageKey, JSON.stringify(hikes));
       } catch (syncError) {
-        console.error('Failed to sync with Supabase:', syncError);
         // We still saved locally, so no need to throw
       }
     }
     
-    console.log(`Hike saved locally with ID: ${hikeId}, includes ${hikeToSave.routeCoordinates.length} route points and ${hikeToSave.media.length} media items`);
     return hikeId;
   } catch (error) {
-    console.error('Error saving hike to local DB:', error);
     throw error;
   }
 };
@@ -211,18 +201,14 @@ export const saveHikeToLocalDB = async (hikeData: HikeData): Promise<string> => 
 // Export the sync function so it can be used by other components
 export const syncHikeToSupabase = async (hike: SavedHike, userId: string): Promise<boolean> => {
   try {
-    console.log('Starting direct Supabase sync for hike:', hike.id);
-    
     // Check if userId is guest, if so, we can't sync
     if (!userId || userId === 'guest') {
-      console.error('Cannot sync with guest account');
       return false;
     }
     
     // First verify the user is actually logged in
     const isLoggedIn = await isUserLoggedIn();
     if (!isLoggedIn) {
-      console.error('User appears to be logged out, cannot sync');
       return false;
     }
     
@@ -244,11 +230,7 @@ export const syncHikeToSupabase = async (hike: SavedHike, userId: string): Promi
       media: hike.media
     };
 
-    console.log('Prepared Supabase data:', {
-      id: supabaseHike.id,
-      user_id: supabaseHike.user_id,
-      title: supabaseHike.title,
-    });
+    // Prepared Supabase data for sync
 
     // Verify the table exists
     try {
@@ -258,13 +240,11 @@ export const syncHikeToSupabase = async (hike: SavedHike, userId: string): Promi
         .limit(1);
         
       if (tableError) {
-        console.error('Table verification error:', tableError.message);
         if (tableError.message.includes('does not exist')) {
           throw new Error('The "saveactivity" table does not exist in your Supabase database');
         }
       }
     } catch (verifyError) {
-      console.error('Table verification error:', verifyError);
       throw verifyError;
     }
 
@@ -274,11 +254,8 @@ export const syncHikeToSupabase = async (hike: SavedHike, userId: string): Promi
       .upsert(supabaseHike);
 
     if (error) {
-      console.error('Supabase sync error:', error);
       throw new Error(`Supabase sync error: ${error.message}`);
     }
-    
-    console.log('Supabase sync successful');
     
     // Update local storage to mark as synced
     const storageKey = `@ascentra_hikes_${userId}`;
@@ -295,10 +272,8 @@ export const syncHikeToSupabase = async (hike: SavedHike, userId: string): Promi
       await AsyncStorage.setItem(storageKey, JSON.stringify(updatedHikes));
     }
     
-    console.log(`Successfully synced hike ${hike.id} to Supabase`);
     return true;
   } catch (error) {
-    console.error('Error syncing to Supabase:', error);
     throw error;
   }
 };
@@ -310,7 +285,6 @@ export const syncAllHikesToSupabase = async (): Promise<SyncResult> => {
     
     // Only sync for logged in users
     if (userId === 'guest') {
-      console.log('Cannot sync for guest users');
       return { success: false, reason: 'Not logged in' };
     }
     
@@ -319,7 +293,6 @@ export const syncAllHikesToSupabase = async (): Promise<SyncResult> => {
     const hikesStr = await AsyncStorage.getItem(storageKey);
     
     if (!hikesStr) {
-      console.log('No local hikes to sync');
       return { success: true, synced: 0 };
     }
     
@@ -336,7 +309,6 @@ export const syncAllHikesToSupabase = async (): Promise<SyncResult> => {
         hike.synced = true;
         syncedCount++;
       } catch (error) {
-        console.error(`Failed to sync hike ${hike.id}:`, error);
         errors.push({ hikeId: hike.id, error: (error as Error).message });
       }
     }
@@ -351,7 +323,6 @@ export const syncAllHikesToSupabase = async (): Promise<SyncResult> => {
       errors: errors
     };
   } catch (error) {
-    console.error('Error in bulk sync to Supabase:', error);
     return { success: false, error: (error as Error).message };
   }
 };
@@ -363,7 +334,6 @@ export const fetchHikesFromSupabase = async (): Promise<SyncResult> => {
     
     // Only fetch for logged in users
     if (userId === 'guest') {
-      console.log('Cannot fetch from Supabase for guest users');
       return { success: false, reason: 'Not logged in' };
     }
     
@@ -378,7 +348,6 @@ export const fetchHikesFromSupabase = async (): Promise<SyncResult> => {
     }
     
     if (!data || data.length === 0) {
-      console.log('No hikes found in Supabase');
       return { success: true, imported: 0 };
     }
     
@@ -426,7 +395,6 @@ export const fetchHikesFromSupabase = async (): Promise<SyncResult> => {
       total: appHikes.length 
     };
   } catch (error: any) {
-    console.error('Error fetching from Supabase:', error);
     return { success: false, error: error.message };
   }
 };
@@ -462,18 +430,15 @@ export const deleteHike = async (hikeId: string): Promise<boolean> => {
           .eq('user_id', userId);
           
         if (error) {
-          console.error('Error deleting from Supabase:', error);
           // Continue anyway since local delete succeeded
         }
       } catch (supabaseError) {
-        console.error('Failed to delete from Supabase:', supabaseError);
         // Continue anyway since local delete succeeded
       }
     }
     
     return true;
   } catch (error) {
-    console.error('Error deleting hike:', error);
     throw error;
   }
 };
@@ -485,21 +450,16 @@ export const getHikesForUser = async (userId?: string): Promise<SavedHike[]> => 
     const targetUserId = userId || await getCurrentUserId();
     const storageKey = `@ascentra_hikes_${targetUserId}`;
     
-    console.log('Fetching hikes for user with key:', storageKey);
-    
     // Get hikes with user-specific key
     const hikesStr = await AsyncStorage.getItem(storageKey);
     
     if (!hikesStr) {
-      console.log('No hikes found for this user');
       return [];
     }
     
     const hikes = JSON.parse(hikesStr);
-    console.log(`Found ${hikes.length} hikes for user ${targetUserId}`);
     return hikes;
   } catch (error) {
-    console.error('Error getting hikes for user:', error);
     return [];
   }
 };
@@ -514,7 +474,6 @@ export const getHikeById = async (hikeId: string): Promise<SavedHike | null> => 
     // Get all hikes from storage
     const hikesStr = await AsyncStorage.getItem(storageKey);
     if (!hikesStr) {
-      console.log(`No hikes found for user ${userId}`);
       return null;
     }
     
@@ -523,7 +482,6 @@ export const getHikeById = async (hikeId: string): Promise<SavedHike | null> => 
     const hike = hikes.find((h: SavedHike) => h.id.toString() === hikeId.toString());
     
     if (!hike) {
-      console.log(`Hike with ID ${hikeId} not found`);
       return null;
     }
     
@@ -531,18 +489,10 @@ export const getHikeById = async (hikeId: string): Promise<SavedHike | null> => 
     if (hike.routeCoordinates && Array.isArray(hike.routeCoordinates)) {
       // Use our sanitization utility
       hike.routeCoordinates = sanitizeRouteCoordinates(hike.routeCoordinates);
-      
-      console.log(`Retrieved hike "${hike.title}" (ID: ${hikeId}) with ${hike.routeCoordinates.length} valid route points`);
-      
-      // If we have less than 2 points, log a warning
-      if (hike.routeCoordinates.length < 2) {
-        console.warn(`Warning: Hike ${hikeId} has less than 2 valid coordinates for map display`);
-      }
     }
     
     return hike;
   } catch (error) {
-    console.error('Error getting hike by ID:', error);
     throw error;
   }
 };
@@ -554,18 +504,14 @@ export const getAllHikes = async (): Promise<SavedHike[]> => {
     const userId = await getCurrentUserId();
     const storageKey = `@ascentra_hikes_${userId}`;
     
-    console.log('Fetching all hikes with key:', storageKey);
-    
     // Get hikes with user-specific key
     const hikesStr = await AsyncStorage.getItem(storageKey);
     
     if (!hikesStr) {
-      console.log('No hikes found for current user');
       return [];
     }
     
     const hikes = JSON.parse(hikesStr);
-    console.log(`Found ${hikes.length} hikes for current user`);
     
     // If user is logged in, also try to fetch from Supabase to ensure data is in sync
     if (userId !== 'guest') {
@@ -577,18 +523,15 @@ export const getAllHikes = async (): Promise<SavedHike[]> => {
         const updatedHikesStr = await AsyncStorage.getItem(storageKey);
         if (updatedHikesStr) {
           const updatedHikes = JSON.parse(updatedHikesStr);
-          console.log(`After sync, found ${updatedHikes.length} hikes`);
           return updatedHikes;
         }
       } catch (syncError) {
-        console.warn('Could not sync with Supabase, using local data only:', syncError);
         // Continue with local data if sync fails
       }
     }
     
     return hikes;
   } catch (error) {
-    console.error('Error getting hikes from local DB:', error);
     return [];
   }
 };

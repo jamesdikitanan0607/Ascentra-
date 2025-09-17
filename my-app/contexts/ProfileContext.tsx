@@ -66,56 +66,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, authLoading]);
 
-  // Set up real-time listener for profile changes
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const profileSubscription = supabase
-      .channel('profile-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        async (payload) => {
-          console.log('Profile change detected:', payload);
-          
-          if (payload.eventType === 'UPDATE' && payload.new) {
-            // Update local state with new data
-            const updatedProfile: Profile = {
-              id: payload.new.id,
-              user_id: payload.new.user_id,
-              username: payload.new.username || '',
-              full_name: payload.new.full_name || '',
-              bio: payload.new.bio || '',
-              avatar_url: payload.new.avatar_url,
-              profile_picture: payload.new.profile_picture,
-              skill_level: payload.new.skill_level || 'rookie_rambler',
-              cover_photo_url: payload.new.cover_photo_url,
-              total_km_traveled: payload.new.total_km_traveled || 0,
-              created_at: payload.new.created_at,
-              updated_at: payload.new.updated_at,
-            };
-            
-            setProfile(updatedProfile);
-            await saveProfileToCache(updatedProfile);
-          } else if (payload.eventType === 'INSERT' && payload.new) {
-            // Handle new profile creation
-            await fetchProfile(user.id);
-          }
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(profileSubscription);
-    };
-  }, [user?.id]);
-
   const loadProfileFromCache = async () => {
     try {
       const cachedProfile = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
@@ -186,12 +136,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         const profileData: Profile = {
           id: data.id,
-          user_id: data.user_id,
+          user_id: data.id, // Use id as user_id since profiles.id references auth.users(id)
           username: data.username || '',
           full_name: data.full_name || '',
           bio: data.bio || '',
           avatar_url: data.avatar_url,
-          profile_picture: data.profile_picture,
           skill_level: data.skill_level || 'rookie_rambler',
           cover_photo_url: data.cover_photo_url,
           total_km_traveled: data.total_km_traveled || 0,
@@ -203,8 +152,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         await saveProfileToCache(profileData);
       } else {
         // Create default profile if none exists
-        const defaultProfile: Partial<Profile> = {
-          id: targetUserId,
+        const defaultProfile = {
+          id: targetUserId, // Use id as the primary key that references auth.users(id)
           username: '',
           full_name: '',
           bio: '',
@@ -224,12 +173,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         if (newProfile) {
           const profileData: Profile = {
             id: newProfile.id,
-            user_id: newProfile.user_id,
+            user_id: newProfile.id, // Use id as user_id since profiles.id references auth.users(id)
             username: newProfile.username || '',
             full_name: newProfile.full_name || '',
             bio: newProfile.bio || '',
             avatar_url: newProfile.avatar_url,
-            profile_picture: newProfile.profile_picture,
             skill_level: newProfile.skill_level || 'rookie_rambler',
             cover_photo_url: newProfile.cover_photo_url,
             total_km_traveled: newProfile.total_km_traveled || 0,

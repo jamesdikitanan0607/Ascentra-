@@ -1,0 +1,977 @@
+[
+  {
+    "spot_slug": "budlaan-falls",
+    "routes": [
+      {
+        "name": "Falls Viewing Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3156,
+        "start_lng": 123.8234,
+        "end_lat": 10.3162,
+        "end_lng": 123.8241,
+        "distance_km": 1.2,
+        "elevation_gain_m": 75,
+        "duration_minutes": 45,
+        "highlight": "Short walk to beautiful waterfall viewing area."
+      },
+      {
+        "name": "Lower Falls Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3156,
+        "start_lng": 123.8234,
+        "end_lat": 10.3168,
+        "end_lng": 123.8248,
+        "distance_km": 2.8,
+        "elevation_gain_m": 120,
+        "duration_minutes": 75,
+        "highlight": "Scenic trail to lower falls with swimming holes."
+      },
+      {
+        "name": "Upper Falls Circuit",
+        "difficulty": "Moderate",
+        "start_lat": 10.3156,
+        "start_lng": 123.8234,
+        "end_lat": 10.3175,
+        "end_lng": 123.8255,
+        "distance_km": 4.1,
+        "elevation_gain_m": 280,
+        "duration_minutes": 110,
+        "highlight": "Complete circuit visiting multiple waterfall tiers."
+      },
+      {
+        "name": "Ridge Explorer Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.3154,
+        "start_lng": 123.8232,
+        "end_lat": 10.3182,
+        "end_lng": 123.8268,
+        "distance_km": 5.2,
+        "elevation_gain_m": 380,
+        "duration_minutes": 140,
+        "highlight": "Challenging ridge hike with waterfall and valley views."
+      },
+      {
+        "name": "Summit Falls Challenge",
+        "difficulty": "Advanced",
+        "start_lat": 10.3152,
+        "start_lng": 123.8228,
+        "end_lat": 10.3189,
+        "end_lng": 123.8275,
+        "distance_km": 6.5,
+        "elevation_gain_m": 480,
+        "duration_minutes": 185,
+        "highlight": "Extreme trail to hidden upper falls and summit viewpoint."
+      }
+    ]
+  },
+  {
+    "spot_slug": "casino-peak",
+    "routes": [
+      {
+        "name": "Casino Base Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.2945,
+        "start_lng": 123.8567,
+        "end_lat": 10.2952,
+        "end_lng": 123.8574,
+        "distance_km": 1.8,
+        "elevation_gain_m": 90,
+        "duration_minutes": 50,
+        "highlight": "Gentle introduction to Casino Peak's lower slopes."
+      },
+      {
+        "name": "Midway Lookout Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.2945,
+        "start_lng": 123.8567,
+        "end_lat": 10.2958,
+        "end_lng": 123.8581,
+        "distance_km": 3.2,
+        "elevation_gain_m": 180,
+        "duration_minutes": 85,
+        "highlight": "Moderate climb to scenic midway viewpoint."
+      },
+      {
+        "name": "Peak Approach Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.2945,
+        "start_lng": 123.8567,
+        "end_lat": 10.2965,
+        "end_lng": 123.8588,
+        "distance_km": 4.5,
+        "elevation_gain_m": 270,
+        "duration_minutes": 115,
+        "highlight": "Steady ascent through pine forest to peak approach."
+      },
+      {
+        "name": "Summit Ridge Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.2943,
+        "start_lng": 123.8565,
+        "end_lat": 10.2972,
+        "end_lng": 123.8595,
+        "distance_km": 5.8,
+        "elevation_gain_m": 390,
+        "duration_minutes": 145,
+        "highlight": "Steep ridge climb with panoramic mountain views."
+      },
+      {
+        "name": "Casino Peak Summit",
+        "difficulty": "Advanced",
+        "start_lat": 10.2941,
+        "start_lng": 123.8563,
+        "end_lat": 10.2975,
+        "end_lng": 123.8598,
+        "distance_km": 6.8,
+        "elevation_gain_m": 470,
+        "duration_minutes": 190,
+        "highlight": "Ultimate summit challenge with 360-degree views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-hambubuyog",
+    "routes": [
+      {
+        "name": "Hambubuyog Nature Walk",
+        "difficulty": "Easy",
+        "start_lat": 10.4123,
+        "start_lng": 123.9234,
+        "end_lat": 10.4129,
+        "end_lng": 123.9241,
+        "distance_km": 1.5,
+        "elevation_gain_m": 65,
+        "duration_minutes": 40,
+        "highlight": "Easy nature walk through diverse forest ecosystem."
+      },
+      {
+        "name": "Forest Loop Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.4123,
+        "start_lng": 123.9234,
+        "end_lat": 10.4135,
+        "end_lng": 123.9248,
+        "distance_km": 3.0,
+        "elevation_gain_m": 140,
+        "duration_minutes": 80,
+        "highlight": "Circular trail through old-growth forest with bird watching."
+      },
+      {
+        "name": "Ridgeline Explorer",
+        "difficulty": "Moderate",
+        "start_lat": 10.4123,
+        "start_lng": 123.9234,
+        "end_lat": 10.4142,
+        "end_lng": 123.9255,
+        "distance_km": 4.3,
+        "elevation_gain_m": 260,
+        "duration_minutes": 105,
+        "highlight": "Ridge trail with stunning valley and ocean views."
+      },
+      {
+        "name": "Peak Ascent Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.4121,
+        "start_lng": 123.9232,
+        "end_lat": 10.4148,
+        "end_lng": 123.9262,
+        "distance_km": 5.4,
+        "elevation_gain_m": 370,
+        "duration_minutes": 135,
+        "highlight": "Challenging ascent through varied terrain to peak."
+      },
+      {
+        "name": "Hambubuyog Summit Challenge",
+        "difficulty": "Advanced",
+        "start_lat": 10.4119,
+        "start_lng": 123.9230,
+        "end_lat": 10.4152,
+        "end_lng": 123.9268,
+        "distance_km": 6.2,
+        "elevation_gain_m": 450,
+        "duration_minutes": 175,
+        "highlight": "Extreme summit trail with technical sections and epic views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-lantoy",
+    "routes": [
+      {
+        "name": "Lantoy Base Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3789,
+        "start_lng": 123.8945,
+        "end_lat": 10.3795,
+        "end_lng": 123.8952,
+        "distance_km": 1.3,
+        "elevation_gain_m": 80,
+        "duration_minutes": 45,
+        "highlight": "Gentle trail through bamboo groves and farmland."
+      },
+      {
+        "name": "Farmland Circuit",
+        "difficulty": "Easy",
+        "start_lat": 10.3789,
+        "start_lng": 123.8945,
+        "end_lat": 10.3801,
+        "end_lng": 123.8959,
+        "distance_km": 2.9,
+        "elevation_gain_m": 160,
+        "duration_minutes": 85,
+        "highlight": "Scenic route through terraced farms and rural villages."
+      },
+      {
+        "name": "Midslope Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.3789,
+        "start_lng": 123.8945,
+        "end_lat": 10.3808,
+        "end_lng": 123.8966,
+        "distance_km": 4.0,
+        "elevation_gain_m": 240,
+        "duration_minutes": 100,
+        "highlight": "Moderate climb through mixed forest with city views."
+      },
+      {
+        "name": "Ridge Traverse",
+        "difficulty": "Hard",
+        "start_lat": 10.3787,
+        "start_lng": 123.8943,
+        "end_lat": 10.3815,
+        "end_lng": 123.8973,
+        "distance_km": 5.1,
+        "elevation_gain_m": 350,
+        "duration_minutes": 140,
+        "highlight": "Challenging ridge traverse with exposed sections."
+      },
+      {
+        "name": "Lantoy Summit Trail",
+        "difficulty": "Advanced",
+        "start_lat": 10.3785,
+        "start_lng": 123.8941,
+        "end_lat": 10.3818,
+        "end_lng": 123.8976,
+        "distance_km": 6.0,
+        "elevation_gain_m": 440,
+        "duration_minutes": 170,
+        "highlight": "Technical summit climb with rope sections and panoramic views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-babag",
+    "routes": [
+      {
+        "name": "Babag Mini Loop",
+        "difficulty": "Easy",
+        "start_lat": 10.3628,
+        "start_lng": 123.8897,
+        "end_lat": 10.3632,
+        "end_lng": 123.8905,
+        "distance_km": 1.5,
+        "elevation_gain_m": 50,
+        "duration_minutes": 40,
+        "highlight": "Short beginner-friendly loop through shaded forest."
+      },
+      {
+        "name": "Babag Forest Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3628,
+        "start_lng": 123.8897,
+        "end_lat": 10.3638,
+        "end_lng": 123.8912,
+        "distance_km": 3.5,
+        "elevation_gain_m": 150,
+        "duration_minutes": 90,
+        "highlight": "Shaded forest trail with creek crossings."
+      },
+      {
+        "name": "Babag Ridge Loop",
+        "difficulty": "Moderate",
+        "start_lat": 10.3628,
+        "start_lng": 123.8897,
+        "end_lat": 10.3655,
+        "end_lng": 123.8931,
+        "distance_km": 4.2,
+        "elevation_gain_m": 250,
+        "duration_minutes": 120,
+        "highlight": "Ridge trail with city views."
+      },
+      {
+        "name": "Sunrise Ridge Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.3627,
+        "start_lng": 123.8895,
+        "end_lat": 10.3670,
+        "end_lng": 123.8940,
+        "distance_km": 5.5,
+        "elevation_gain_m": 350,
+        "duration_minutes": 150,
+        "highlight": "Steep ridge trail for experienced hikers."
+      },
+      {
+        "name": "Babag Summit Trail",
+        "difficulty": "Advanced",
+        "start_lat": 10.3625,
+        "start_lng": 123.8889,
+        "end_lat": 10.3672,
+        "end_lng": 123.8945,
+        "distance_km": 6.0,
+        "elevation_gain_m": 450,
+        "duration_minutes": 180,
+        "highlight": "Challenging climb to summit with panoramic views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-kalbasan",
+    "routes": [
+      {
+        "name": "Kalbasan Approach",
+        "difficulty": "Easy",
+        "start_lat": 10.2567,
+        "start_lng": 123.7834,
+        "end_lat": 10.2573,
+        "end_lng": 123.7841,
+        "distance_km": 1.4,
+        "elevation_gain_m": 70,
+        "duration_minutes": 35,
+        "highlight": "Easy approach through coastal vegetation."
+      },
+      {
+        "name": "Coastal View Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.2567,
+        "start_lng": 123.7834,
+        "end_lat": 10.2579,
+        "end_lng": 123.7848,
+        "distance_km": 2.7,
+        "elevation_gain_m": 130,
+        "duration_minutes": 75,
+        "highlight": "Scenic coastal trail with ocean and island views."
+      },
+      {
+        "name": "Midridge Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.2567,
+        "start_lng": 123.7834,
+        "end_lat": 10.2586,
+        "end_lng": 123.7855,
+        "distance_km": 3.8,
+        "elevation_gain_m": 220,
+        "duration_minutes": 95,
+        "highlight": "Ridge trail with spectacular sea and mountain views."
+      },
+      {
+        "name": "Peak Assault Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.2565,
+        "start_lng": 123.7832,
+        "end_lat": 10.2593,
+        "end_lng": 123.7862,
+        "distance_km": 4.9,
+        "elevation_gain_m": 330,
+        "duration_minutes": 130,
+        "highlight": "Steep ascent with technical rock sections."
+      },
+      {
+        "name": "Kalbasan Summit",
+        "difficulty": "Advanced",
+        "start_lat": 10.2563,
+        "start_lng": 123.7830,
+        "end_lat": 10.2596,
+        "end_lng": 123.7865,
+        "distance_km": 5.7,
+        "elevation_gain_m": 420,
+        "duration_minutes": 165,
+        "highlight": "Ultimate summit challenge with 360-degree coastal views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-kan-irag-sirao-peak",
+    "routes": [
+      {
+        "name": "Sirao Flower Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3234,
+        "start_lng": 123.8456,
+        "end_lat": 10.3240,
+        "end_lng": 123.8463,
+        "distance_km": 1.6,
+        "elevation_gain_m": 85,
+        "duration_minutes": 50,
+        "highlight": "Colorful flower gardens and easy mountain access."
+      },
+      {
+        "name": "Temple Grounds Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3234,
+        "start_lng": 123.8456,
+        "end_lat": 10.3246,
+        "end_lng": 123.8470,
+        "distance_km": 3.1,
+        "elevation_gain_m": 170,
+        "duration_minutes": 80,
+        "highlight": "Cultural trail through temple grounds and gardens."
+      },
+      {
+        "name": "Kan-irag Ridge",
+        "difficulty": "Moderate",
+        "start_lat": 10.3234,
+        "start_lng": 123.8456,
+        "end_lat": 10.3253,
+        "end_lng": 123.8477,
+        "distance_km": 4.4,
+        "elevation_gain_m": 290,
+        "duration_minutes": 110,
+        "highlight": "Ridge trail with city lights and mountain panoramas."
+      },
+      {
+        "name": "Peak Connector Trail",
+        "difficulty": "Hard",
+        "start_lat": 10.3232,
+        "start_lng": 123.8454,
+        "end_lat": 10.3260,
+        "end_lng": 123.8484,
+        "distance_km": 5.3,
+        "elevation_gain_m": 380,
+        "duration_minutes": 145,
+        "highlight": "Challenging connector between multiple peaks."
+      },
+      {
+        "name": "Sirao Peak Summit",
+        "difficulty": "Advanced",
+        "start_lat": 10.3230,
+        "start_lng": 123.8452,
+        "end_lat": 10.3263,
+        "end_lng": 123.8487,
+        "distance_km": 6.4,
+        "elevation_gain_m": 460,
+        "duration_minutes": 180,
+        "highlight": "Technical summit route with stunning sunrise views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-kapayas",
+    "routes": [
+      {
+        "name": "Kapayas Base Walk",
+        "difficulty": "Easy",
+        "start_lat": 10.4567,
+        "start_lng": 123.9123,
+        "end_lat": 10.4573,
+        "end_lng": 123.9130,
+        "distance_km": 1.7,
+        "elevation_gain_m": 95,
+        "duration_minutes": 55,
+        "highlight": "Gentle walk through tropical forest and streams."
+      },
+      {
+        "name": "Stream Valley Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.4567,
+        "start_lng": 123.9123,
+        "end_lat": 10.4579,
+        "end_lng": 123.9137,
+        "distance_km": 3.3,
+        "elevation_gain_m": 190,
+        "duration_minutes": 85,
+        "highlight": "Following mountain streams through lush valleys."
+      },
+      {
+        "name": "Forest Canopy Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.4567,
+        "start_lng": 123.9123,
+        "end_lat": 10.4586,
+        "end_lng": 123.9144,
+        "distance_km": 4.6,
+        "elevation_gain_m": 280,
+        "duration_minutes": 115,
+        "highlight": "Elevated trail through dense forest canopy."
+      },
+      {
+        "name": "Ridge Scramble",
+        "difficulty": "Hard",
+        "start_lat": 10.4565,
+        "start_lng": 123.9121,
+        "end_lat": 10.4593,
+        "end_lng": 123.9151,
+        "distance_km": 5.6,
+        "elevation_gain_m": 390,
+        "duration_minutes": 140,
+        "highlight": "Technical scramble along exposed ridgeline."
+      },
+      {
+        "name": "Kapayas Summit Route",
+        "difficulty": "Advanced",
+        "start_lat": 10.4563,
+        "start_lng": 123.9119,
+        "end_lat": 10.4596,
+        "end_lng": 123.9154,
+        "distance_km": 6.7,
+        "elevation_gain_m": 480,
+        "duration_minutes": 185,
+        "highlight": "Extreme summit route with vertical rock sections."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-lanaya",
+    "routes": [
+      {
+        "name": "Lanaya Meadow Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.1234,
+        "start_lng": 123.6789,
+        "end_lat": 10.1240,
+        "end_lng": 123.6796,
+        "distance_km": 1.9,
+        "elevation_gain_m": 60,
+        "duration_minutes": 45,
+        "highlight": "Peaceful meadow walk with wildflower displays."
+      },
+      {
+        "name": "Pine Forest Loop",
+        "difficulty": "Easy",
+        "start_lat": 10.1234,
+        "start_lng": 123.6789,
+        "end_lat": 10.1246,
+        "end_lng": 123.6803,
+        "distance_km": 2.5,
+        "elevation_gain_m": 120,
+        "duration_minutes": 70,
+        "highlight": "Cool pine forest with mountain air and bird songs."
+      },
+      {
+        "name": "Highland Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.1234,
+        "start_lng": 123.6789,
+        "end_lat": 10.1253,
+        "end_lng": 123.6810,
+        "distance_km": 3.7,
+        "elevation_gain_m": 250,
+        "duration_minutes": 100,
+        "highlight": "Highland trail with rolling hills and distant peaks."
+      },
+      {
+        "name": "Summit Approach",
+        "difficulty": "Hard",
+        "start_lat": 10.1232,
+        "start_lng": 123.6787,
+        "end_lat": 10.1260,
+        "end_lng": 123.6817,
+        "distance_km": 4.8,
+        "elevation_gain_m": 360,
+        "duration_minutes": 135,
+        "highlight": "Steep approach through varied terrain to summit."
+      },
+      {
+        "name": "Lanaya Peak Challenge",
+        "difficulty": "Advanced",
+        "start_lat": 10.1230,
+        "start_lng": 123.6785,
+        "end_lat": 10.1263,
+        "end_lng": 123.6820,
+        "distance_km": 5.9,
+        "elevation_gain_m": 470,
+        "duration_minutes": 175,
+        "highlight": "Ultimate peak challenge with technical climbing sections."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-mago",
+    "routes": [
+      {
+        "name": "Mago Nature Walk",
+        "difficulty": "Easy",
+        "start_lat": 10.2890,
+        "start_lng": 123.8123,
+        "end_lat": 10.2896,
+        "end_lng": 123.8130,
+        "distance_km": 1.1,
+        "elevation_gain_m": 55,
+        "duration_minutes": 35,
+        "highlight": "Short nature walk through diverse ecosystems."
+      },
+      {
+        "name": "Wildlife Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.2890,
+        "start_lng": 123.8123,
+        "end_lat": 10.2902,
+        "end_lng": 123.8137,
+        "distance_km": 2.4,
+        "elevation_gain_m": 110,
+        "duration_minutes": 65,
+        "highlight": "Wildlife observation trail with bird watching opportunities."
+      },
+      {
+        "name": "Forest Ridge Trail",
+        "difficulty": "Moderate",
+        "start_lat": 10.2890,
+        "start_lng": 123.8123,
+        "end_lat": 10.2909,
+        "end_lng": 123.8144,
+        "distance_km": 3.9,
+        "elevation_gain_m": 230,
+        "duration_minutes": 105,
+        "highlight": "Ridge trail through old-growth forest with scenic overlooks."
+      },
+      {
+        "name": "Peak Ascent Route",
+        "difficulty": "Hard",
+        "start_lat": 10.2888,
+        "start_lng": 123.8121,
+        "end_lat": 10.2916,
+        "end_lng": 123.8151,
+        "distance_km": 5.0,
+        "elevation_gain_m": 340,
+        "duration_minutes": 130,
+        "highlight": "Challenging ascent with steep sections and rock outcrops."
+      },
+      {
+        "name": "Mago Summit Trail",
+        "difficulty": "Advanced",
+        "start_lat": 10.2886,
+        "start_lng": 123.8119,
+        "end_lat": 10.2919,
+        "end_lng": 123.8154,
+        "distance_km": 6.1,
+        "elevation_gain_m": 440,
+        "duration_minutes": 170,
+        "highlight": "Technical summit trail with rope-assisted sections."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-manunggal",
+    "routes": [
+      {
+        "name": "Memorial Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.4890,
+        "start_lng": 123.9567,
+        "end_lat": 10.4896,
+        "end_lng": 123.9574,
+        "distance_km": 1.8,
+        "elevation_gain_m": 90,
+        "duration_minutes": 50,
+        "highlight": "Historical trail to Magsaysay memorial site."
+      },
+      {
+        "name": "Heritage Loop",
+        "difficulty": "Easy",
+        "start_lat": 10.4890,
+        "start_lng": 123.9567,
+        "end_lat": 10.4902,
+        "end_lng": 123.9581,
+        "distance_km": 3.0,
+        "elevation_gain_m": 150,
+        "duration_minutes": 80,
+        "highlight": "Cultural heritage trail with historical markers."
+      },
+      {
+        "name": "Mountain Circuit",
+        "difficulty": "Moderate",
+        "start_lat": 10.4890,
+        "start_lng": 123.9567,
+        "end_lat": 10.4909,
+        "end_lng": 123.9588,
+        "distance_km": 4.1,
+        "elevation_gain_m": 270,
+        "duration_minutes": 110,
+        "highlight": "Complete mountain circuit with memorial and summit views."
+      },
+      {
+        "name": "Ridge Explorer",
+        "difficulty": "Hard",
+        "start_lat": 10.4888,
+        "start_lng": 123.9565,
+        "end_lat": 10.4916,
+        "end_lng": 123.9595,
+        "distance_km": 5.4,
+        "elevation_gain_m": 370,
+        "duration_minutes": 145,
+        "highlight": "Challenging ridge exploration with historical significance."
+      },
+      {
+        "name": "Manunggal Peak",
+        "difficulty": "Advanced",
+        "start_lat": 10.4886,
+        "start_lng": 123.9563,
+        "end_lat": 10.4919,
+        "end_lng": 123.9598,
+        "distance_km": 6.3,
+        "elevation_gain_m": 450,
+        "duration_minutes": 180,
+        "highlight": "Ultimate peak challenge with historical and natural significance."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-mauyog",
+    "routes": [
+      {
+        "name": "Mauyog Base Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3456,
+        "start_lng": 123.8678,
+        "end_lat": 10.3462,
+        "end_lng": 123.8685,
+        "distance_km": 1.3,
+        "elevation_gain_m": 75,
+        "duration_minutes": 40,
+        "highlight": "Easy base trail through agricultural terraces."
+      },
+      {
+        "name": "Terrace Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.3456,
+        "start_lng": 123.8678,
+        "end_lat": 10.3468,
+        "end_lng": 123.8692,
+        "distance_km": 2.8,
+        "elevation_gain_m": 140,
+        "duration_minutes": 75,
+        "highlight": "Scenic trail through traditional farming terraces."
+      },
+      {
+        "name": "Forest Transition",
+        "difficulty": "Moderate",
+        "start_lat": 10.3456,
+        "start_lng": 123.8678,
+        "end_lat": 10.3475,
+        "end_lng": 123.8699,
+        "distance_km": 4.2,
+        "elevation_gain_m": 260,
+        "duration_minutes": 115,
+        "highlight": "Trail transitioning from farmland to mountain forest."
+      },
+      {
+        "name": "Summit Push",
+        "difficulty": "Hard",
+        "start_lat": 10.3454,
+        "start_lng": 123.8676,
+        "end_lat": 10.3482,
+        "end_lng": 123.8706,
+        "distance_km": 5.1,
+        "elevation_gain_m": 350,
+        "duration_minutes": 140,
+        "highlight": "Steep summit push through dense forest cover."
+      },
+      {
+        "name": "Mauyog Peak Route",
+        "difficulty": "Advanced",
+        "start_lat": 10.3452,
+        "start_lng": 123.8674,
+        "end_lat": 10.3485,
+        "end_lng": 123.8709,
+        "distance_km": 6.0,
+        "elevation_gain_m": 430,
+        "duration_minutes": 165,
+        "highlight": "Technical peak route with challenging terrain and views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "mount-naupa",
+    "routes": [
+      {
+        "name": "Naupa Valley Walk",
+        "difficulty": "Easy",
+        "start_lat": 10.2123,
+        "start_lng": 123.7456,
+        "end_lat": 10.2129,
+        "end_lng": 123.7463,
+        "distance_km": 1.6,
+        "elevation_gain_m": 80,
+        "duration_minutes": 45,
+        "highlight": "Peaceful valley walk with stream crossings."
+      },
+      {
+        "name": "Riverside Trail",
+        "difficulty": "Easy",
+        "start_lat": 10.2123,
+        "start_lng": 123.7456,
+        "end_lat": 10.2135,
+        "end_lng": 123.7470,
+        "distance_km": 3.2,
+        "elevation_gain_m": 160,
+        "duration_minutes": 85,
+        "highlight": "Following mountain rivers through scenic valleys."
+      },
+      {
+        "name": "Highland Approach",
+        "difficulty": "Moderate",
+        "start_lat": 10.2123,
+        "start_lng": 123.7456,
+        "end_lat": 10.2142,
+        "end_lng": 123.7477,
+        "distance_km": 4.5,
+        "elevation_gain_m": 280,
+        "duration_minutes": 120,
+        "highlight": "Gradual highland approach with panoramic views."
+      },
+      {
+        "name": "Peak Challenge",
+        "difficulty": "Hard",
+        "start_lat": 10.2121,
+        "start_lng": 123.7454,
+        "end_lat": 10.2149,
+        "end_lng": 123.7484,
+        "distance_km": 5.7,
+        "elevation_gain_m": 380,
+        "duration_minutes": 150,
+        "highlight": "Challenging peak ascent with technical sections."
+      },
+      {
+        "name": "Naupa Summit",
+        "difficulty": "Advanced",
+        "start_lat": 10.2119,
+        "start_lng": 123.7452,
+        "end_lat": 10.2152,
+        "end_lng": 123.7487,
+        "distance_km": 6.8,
+        "elevation_gain_m": 490,
+        "duration_minutes": 190,
+        "highlight": "Ultimate summit challenge with extreme elevation gain."
+      }
+    ]
+  },
+  {
+    "spot_slug": "osmena-peak",
+    "routes": [
+      {
+        "name": "Osmena Viewpoint",
+        "difficulty": "Easy",
+        "start_lat": 9.9567,
+        "start_lng": 123.3234,
+        "end_lat": 9.9573,
+        "end_lng": 123.3241,
+        "distance_km": 1.0,
+        "elevation_gain_m": 50,
+        "duration_minutes": 30,
+        "highlight": "Short walk to famous Chocolate Hills viewpoint."
+      },
+      {
+        "name": "Hills Circuit",
+        "difficulty": "Easy",
+        "start_lat": 9.9567,
+        "start_lng": 123.3234,
+        "end_lat": 9.9579,
+        "end_lng": 123.3248,
+        "distance_km": 2.6,
+        "elevation_gain_m": 120,
+        "duration_minutes": 70,
+        "highlight": "Circuit trail through the famous hills landscape."
+      },
+      {
+        "name": "Peak Explorer",
+        "difficulty": "Moderate",
+        "start_lat": 9.9567,
+        "start_lng": 123.3234,
+        "end_lat": 9.9586,
+        "end_lng": 123.3255,
+        "distance_km": 3.8,
+        "elevation_gain_m": 240,
+        "duration_minutes": 100,
+        "highlight": "Extended exploration of multiple hill peaks."
+      },
+      {
+        "name": "Ridge Traverse",
+        "difficulty": "Hard",
+        "start_lat": 9.9565,
+        "start_lng": 123.3232,
+        "end_lat": 9.9593,
+        "end_lng": 123.3262,
+        "distance_km": 4.9,
+        "elevation_gain_m": 320,
+        "duration_minutes": 135,
+        "highlight": "Challenging traverse across multiple ridgelines."
+      },
+      {
+        "name": "Osmena Summit Trail",
+        "difficulty": "Advanced",
+        "start_lat": 9.9563,
+        "start_lng": 123.3230,
+        "end_lat": 9.9596,
+        "end_lng": 123.3265,
+        "distance_km": 5.8,
+        "elevation_gain_m": 410,
+        "duration_minutes": 160,
+        "highlight": "Ultimate summit trail with breathtaking 360-degree views."
+      }
+    ]
+  },
+  {
+    "spot_slug": "spartan-trail",
+    "routes": [
+      {
+        "name": "Spartan Warm-up",
+        "difficulty": "Easy",
+        "start_lat": 10.3789,
+        "start_lng": 123.8234,
+        "end_lat": 10.3795,
+        "end_lng": 123.8241,
+        "distance_km": 1.4,
+        "elevation_gain_m": 65,
+        "duration_minutes": 40,
+        "highlight": "Beginner-friendly introduction to Spartan challenges."
+      },
+      {
+        "name": "Obstacle Course",
+        "difficulty": "Easy",
+        "start_lat": 10.3789,
+        "start_lng": 123.8234,
+        "end_lat": 10.3801,
+        "end_lng": 123.8248,
+        "distance_km": 2.9,
+        "elevation_gain_m": 130,
+        "duration_minutes": 80,
+        "highlight": "Fun obstacle course with natural and built challenges."
+      },
+      {
+        "name": "Warrior Path",
+        "difficulty": "Moderate",
+        "start_lat": 10.3789,
+        "start_lng": 123.8234,
+        "end_lat": 10.3808,
+        "end_lng": 123.8255,
+        "distance_km": 4.3,
+        "elevation_gain_m": 270,
+        "duration_minutes": 115,
+        "highlight": "Moderate warrior training with varied obstacles."
+      },
+      {
+        "name": "Elite Challenge",
+        "difficulty": "Hard",
+        "start_lat": 10.3787,
+        "start_lng": 123.8232,
+        "end_lat": 10.3815,
+        "end_lng": 123.8262,
+        "distance_km": 5.5,
+        "elevation_gain_m": 360,
+        "duration_minutes": 145,
+        "highlight": "Elite-level challenges testing strength and endurance."
+      },
+      {
+        "name": "Spartan Beast",
+        "difficulty": "Advanced",
+        "start_lat": 10.3785,
+        "start_lng": 123.8230,
+        "end_lat": 10.3818,
+        "end_lng": 123.8265,
+        "distance_km": 6.6,
+        "elevation_gain_m": 480,
+        "duration_minutes": 185,
+        "highlight": "Ultimate Spartan beast challenge with extreme obstacles."
+      }
+    ]
+  }
+]
