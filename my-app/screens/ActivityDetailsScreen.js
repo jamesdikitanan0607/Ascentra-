@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, SafeAreaView, StatusBar, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, StatusBar, TouchableOpacity, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { getHikeRecords } from '../services/hikeRecordService';
 import { formatDate, formatDistance, formatDuration, formatPace } from '../utils/formatters';
 
@@ -74,22 +75,53 @@ export default function ActivityDetailsScreen({ route, navigation }) {
             
             <View style={styles.mapContainer}>
               {activity.routeCoordinates && activity.routeCoordinates.length > 0 ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
+                <WebView
                   style={styles.map}
-                  initialRegion={{
-                    latitude: activity.routeCoordinates[0].latitude,
-                    longitude: activity.routeCoordinates[0].longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
+                  source={{
+                    html: `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                        <style>
+                          body { margin: 0; padding: 0; }
+                          #map { height: 100vh; width: 100vw; }
+                        </style>
+                      </head>
+                      <body>
+                        <div id="map"></div>
+                        <script>
+                          const routeCoords = ${JSON.stringify(activity.routeCoordinates.map(coord => [coord.latitude, coord.longitude]))};
+                          const map = L.map('map').setView(routeCoords[0], 15);
+                          
+                          // Use terrain tiles for better hiking visualization
+                          L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenTopoMap contributors'
+                          }).addTo(map);
+                          
+                          // Route polyline
+                          L.polyline(routeCoords, {
+                            color: '#FC4C02',
+                            weight: 4,
+                            opacity: 1
+                          }).addTo(map);
+                          
+                          // Fit map to route bounds
+                          const group = new L.featureGroup();
+                          routeCoords.forEach(coord => {
+                            L.marker(coord).addTo(group);
+                          });
+                          map.fitBounds(group.getBounds().pad(0.1));
+                        </script>
+                      </body>
+                      </html>
+                    `
                   }}
-                >
-                  <Polyline
-                    coordinates={activity.routeCoordinates}
-                    strokeWidth={4}
-                    strokeColor="#FC4C02"
-                  />
-                </MapView>
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
               ) : (
                 <View style={styles.noMap}>
                   <Text>No route data available</Text>

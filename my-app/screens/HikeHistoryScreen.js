@@ -5,7 +5,6 @@ import {
   Text, 
   FlatList, 
   TouchableOpacity, 
-  SafeAreaView, 
   StatusBar, 
   Platform, 
   Alert, 
@@ -14,6 +13,7 @@ import {
   Image,
   Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate, formatDistance, formatDuration, formatPace } from '../utils/formatters';
@@ -25,7 +25,7 @@ import {
   syncHikeToSupabase, 
   getCurrentUserId 
 } from '../services/databaseService';
-import MapView, { Polyline, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
 
 const { width } = Dimensions.get('window');
@@ -184,56 +184,99 @@ const HikeHistoryItem = ({ hike, onPress, onMediaPress, onOptionsPress, onSyncPr
       {/* Route Map Preview */}
       {hasRoute && (
         <View style={styles.mapPreviewContainer}>
-          <MapView
+          <WebView
             style={styles.mapPreview}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={getMapRegion()}
-            liteMode={false} // Change to false for more interactive map
-            scrollEnabled={true}
-            zoomEnabled={true}
-            rotateEnabled={false}
-            pitchEnabled={false}
-          >
-            {/* Thicker background trace for glow effect */}
-            <Polyline
-              coordinates={hike.routeCoordinates}
-              strokeWidth={7}
-              strokeColor="rgba(46, 125, 50, 0.3)" // Semi-transparent green
-              lineCap="round"
-              lineJoin="round"
-              zIndex={1}
-            />
-            
-            {/* Main route line */}
-            <Polyline
-              coordinates={hike.routeCoordinates}
-              strokeWidth={4}
-              strokeColor="#2E7D32" // Solid green
-              lineCap="round"
-              lineJoin="round"
-              zIndex={2}
-            />
-            
-            {/* Start marker */}
-            <Marker
-              coordinate={hike.routeCoordinates[0]}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.startMarkerDot}>
-                <View style={styles.startMarkerInner} />
-              </View>
-            </Marker>
-            
-            {/* End marker */}
-            <Marker
-              coordinate={hike.routeCoordinates[hike.routeCoordinates.length - 1]}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.endMarkerDot}>
-                <View style={styles.endMarkerInner} />
-              </View>
-            </Marker>
-          </MapView>
+            javaScriptEnabled={true}
+            scalesPageToFit={false}
+            source={{
+              html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                  <style>
+                    body { margin: 0; padding: 0; }
+                    #map { height: 100vh; width: 100vw; }
+                  </style>
+                </head>
+                <body>
+                  <div id="map"></div>
+                  <script>
+                    const coordinates = ${JSON.stringify(hike.routeCoordinates)};
+                    
+                    if (coordinates && coordinates.length > 0) {
+                      // Calculate bounds
+                      let minLat = coordinates[0].latitude;
+                      let maxLat = coordinates[0].latitude;
+                      let minLng = coordinates[0].longitude;
+                      let maxLng = coordinates[0].longitude;
+                      
+                      coordinates.forEach(coord => {
+                        minLat = Math.min(minLat, coord.latitude);
+                        maxLat = Math.max(maxLat, coord.latitude);
+                        minLng = Math.min(minLng, coord.longitude);
+                        maxLng = Math.max(maxLng, coord.longitude);
+                      });
+                      
+                      const centerLat = (minLat + maxLat) / 2;
+                      const centerLng = (minLng + maxLng) / 2;
+                      
+                      // Initialize map
+                      const map = L.map('map').setView([centerLat, centerLng], 13);
+                      
+                      // Add tile layer
+                      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                      }).addTo(map);
+                      
+                      // Convert coordinates for Leaflet
+                      const leafletCoords = coordinates.map(coord => [coord.latitude, coord.longitude]);
+                      
+                      // Add route polyline with glow effect
+                      L.polyline(leafletCoords, {
+                        color: 'rgba(46, 125, 50, 0.3)',
+                        weight: 7,
+                        opacity: 0.8
+                      }).addTo(map);
+                      
+                      L.polyline(leafletCoords, {
+                        color: '#2E7D32',
+                        weight: 4,
+                        opacity: 1
+                      }).addTo(map);
+                      
+                      // Add start marker
+                      const startIcon = L.divIcon({
+                        html: '<div style="width: 18px; height: 18px; border-radius: 9px; background-color: rgba(46, 125, 50, 0.4); display: flex; justify-content: center; align-items: center;"><div style="width: 8px; height: 8px; border-radius: 4px; background-color: #2E7D32;"></div></div>',
+                        className: 'custom-div-icon',
+                        iconSize: [18, 18],
+                        iconAnchor: [9, 9]
+                      });
+                      
+                      L.marker([coordinates[0].latitude, coordinates[0].longitude], {icon: startIcon}).addTo(map);
+                      
+                      // Add end marker
+                      const endIcon = L.divIcon({
+                        html: '<div style="width: 18px; height: 18px; border-radius: 9px; background-color: rgba(211, 47, 47, 0.4); display: flex; justify-content: center; align-items: center;"><div style="width: 8px; height: 8px; border-radius: 4px; background-color: #D32F2F;"></div></div>',
+                        className: 'custom-div-icon',
+                        iconSize: [18, 18],
+                        iconAnchor: [9, 9]
+                      });
+                      
+                      L.marker([coordinates[coordinates.length - 1].latitude, coordinates[coordinates.length - 1].longitude], {icon: endIcon}).addTo(map);
+                      
+                      // Fit map to route bounds
+                      const bounds = L.latLngBounds(leafletCoords);
+                      map.fitBounds(bounds, {padding: [10, 10]});
+                    }
+                  </script>
+                </body>
+                </html>
+              `
+            }}
+          />
           
           <View style={styles.mapOverlay}>
             <Ionicons name="map" size={16} color="white" />

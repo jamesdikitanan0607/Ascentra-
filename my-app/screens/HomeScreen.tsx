@@ -7,19 +7,20 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  SafeAreaView,
   RefreshControl,
   StatusBar,
   Dimensions,
   FlatList,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabaseClient';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { useProfile } from '../contexts/ProfileContext';
 import { User } from '@supabase/supabase-js';
+import { hikingSpots, getAllHikingSpots, getTopRatedHikingSpots } from '../data/hikingSpots';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,7 +30,7 @@ interface HikingSpot {
   slug: string;
   latitude: number;
   longitude: number;
-  image_url?: string;
+  thumbnail?: any;
   average_rating?: number;
   rating_count?: number;
   difficulty?: string;
@@ -55,7 +56,7 @@ const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
     '5': 'MountMago',
     '6': 'MountKapayas',
     '7': 'MountLantoy',
-    '8': 'MountKalbasaan',
+    // '8': 'MountKalbasaan', // Removed - Mount Kalbasaan
     '9': 'MountMauyog',
     '10': 'MountLanaya',
     '11': 'MountHambubuyog',
@@ -67,56 +68,27 @@ const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
   return screenMap[spotId] || 'HikingSpotDetails';
 };
 
-// Get image source for hiking spots
-const getHikingSpotImageSource = (spot: HikingSpot) => {
-  const imageMap: { [key: string]: any } = {
-    '1': require('../assets/images/mount-babag/thumbnail.webp'), // Mount Babag - using actual mount-babag folder
-    '2': require('../assets/images/mt kan-irag/thumbnail.jpg'), // Mount Kan-irag
-    '3': require('../assets/images/mt naupa/thumbnail.jpg'), // Mount Naupa
-    '4': require('../assets/images/mt manunggal/thumbnail.jpg'), // Mount Manunggal
-    '5': require('../assets/images/mt mago/thumbnail.jpg'), // Mount Mago
-    '6': require('../assets/images/mt kapayas/thumbnail.webp'), // Mount Kapayas - updated to webp format
-    '7': require('../assets/images/mount latoy/thumbnail.webp'), // Mount Lantoy - corrected folder name and format
-    '8': require('../assets/images/mt kalbasan/thumbnail.jpg'), // Mount Kalbasaan - corrected folder name
-    '9': require('../assets/images/mt mauyog/thumbnail.jpg'), // Mount Mauyog
-    '10': require('../assets/images/mt lanaya/thumbnail.jpg'), // Mount Lanaya
-    '11': require('../assets/images/mount hambubuyog/thumbnail.jpg'), // Mount Hambubuyog
-    '12': require('../assets/images/osmena peak/thumbnail.jpg'), // Osmeña Peak
-    '13': require('../assets/images/casino peak/thumbnail.jpg'), // Casino Peak
-    '14': require('../assets/images/budlaanfalls/thumbnail.jpg'), // Budlaan Falls
-    '15': require('../assets/images/spartantrail/thumbnail.jpg') // Spartan Trail - updated to HEIC format
-  };
-  
-  return imageMap[spot.id] || require('../assets/images/mt manunggal/thumbnail.jpg');
-};
-
 // Top Rated Card Component
 const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
     const screenName = getSpotScreenName(spot.id);
-    navigation.navigate(screenName);
+    navigation.navigate(screenName as any);
   }, [navigation, spot.id]);
 
   return (
-    <TouchableOpacity style={styles.topRatedCard} onPress={handlePress} activeOpacity={0.8}>
-      <Image
-        source={getHikingSpotImageSource(spot)}
-        style={styles.topRatedImage}
-        resizeMode="cover"
-      />
+    <TouchableOpacity style={styles.topRatedCard} onPress={handlePress}>
+      <Image source={spot.thumbnail} style={styles.topRatedImage} resizeMode="cover" />
       <View style={styles.topRatedOverlay}>
         <View style={styles.topRatedBadge}>
-          <FontAwesome name="star" size={12} color="#FFD700" />
+          <MaterialIcons name="star" size={14} color="#FFD700" />
           <Text style={styles.topRatedBadgeText}>Top Rated</Text>
         </View>
         <View style={styles.topRatedInfo}>
-          <Text style={styles.topRatedTitle} numberOfLines={1}>{spot.name}</Text>
+          <Text style={styles.topRatedTitle}>{spot.name}</Text>
           <View style={styles.topRatedRating}>
-            <FontAwesome name="star" size={14} color="#FFD700" />
-            <Text style={styles.topRatedRatingText}>
-              {spot.average_rating ? spot.average_rating.toFixed(1) : '0.0'}
-            </Text>
-            <Text style={styles.topRatedReviews}>({spot.rating_count || 0})</Text>
+            <MaterialIcons name="star" size={16} color="#FFD700" />
+            <Text style={styles.topRatedRatingText}>{spot.average_rating}</Text>
+            <Text style={styles.topRatedReviews}>({spot.rating_count} reviews)</Text>
           </View>
         </View>
       </View>
@@ -128,31 +100,27 @@ const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navig
 const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
     const screenName = getSpotScreenName(spot.id);
-    navigation.navigate(screenName);
+    navigation.navigate(screenName as any);
   }, [navigation, spot.id]);
 
-  const getDifficultyColor = (difficulty?: string) => {
+  const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
       case 'easy': return '#4CAF50';
       case 'moderate': return '#FF9800';
-      case 'advanced': return '#F44336';
+      case 'hard': return '#F44336';
       default: return '#9E9E9E';
     }
   };
 
   return (
-    <TouchableOpacity style={styles.gridCard} onPress={handlePress} activeOpacity={0.8}>
-      <Image
-        source={getHikingSpotImageSource(spot)}
-        style={styles.gridCardImage}
-        resizeMode="cover"
-      />
+    <TouchableOpacity style={styles.gridCard} onPress={handlePress}>
+      <Image source={spot.thumbnail} style={styles.gridCardImage} resizeMode="cover" />
       <View style={styles.gridCardContent}>
         <Text style={styles.gridCardTitle} numberOfLines={2}>{spot.name}</Text>
         
         {spot.difficulty && (
           <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(spot.difficulty) }]}>
-            <Text style={styles.difficultyText}>{spot.difficulty}</Text>
+            <Text style={styles.difficultyText}>{spot.difficulty.toUpperCase()}</Text>
           </View>
         )}
         
@@ -165,114 +133,99 @@ const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot;
           )}
           {spot.elevation_gain_m && (
             <View style={styles.statItem}>
-              <MaterialIcons name="trending-up" size={12} color="#666" />
+              <MaterialIcons name="terrain" size={12} color="#666" />
               <Text style={styles.statText}>{spot.elevation_gain_m}m</Text>
             </View>
           )}
         </View>
         
         <View style={styles.gridCardRating}>
-          <FontAwesome name="star" size={12} color="#FFD700" />
-          <Text style={styles.gridCardRatingText}>
-            {spot.average_rating ? spot.average_rating.toFixed(1) : '0.0'}
-          </Text>
+          <MaterialIcons name="star" size={14} color="#FFD700" />
+          <Text style={styles.gridCardRatingText}>{spot.average_rating}</Text>
+          <Text style={styles.statText}>({spot.rating_count})</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 });
 
-// Main HomeScreen Component
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   const [hikingSpots, setHikingSpots] = useState<HikingSpot[]>([]);
+  const [filteredSpots, setFilteredSpots] = useState<HikingSpot[]>([]);
   const [topRatedSpots, setTopRatedSpots] = useState<HikingSpot[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { profile } = useProfile();
 
-  // Load hiking spots data
+  // Load hiking spots from centralized data
   const loadHikingSpots = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch all spots from Supabase
-      const { data: spots, error } = await supabase
-        .from('hiking_spots')
-        .select(`
-          hiking_spot_id,
-          name,
-          latitude,
-          longitude
-        `);
-
-      if (error) {
-        // Error loading spots
-        // Fallback to mock data if Supabase fails
-        setHikingSpots(getMockHikingSpots());
-        setTopRatedSpots(getMockHikingSpots().slice(0, 3));
-        return;
-      }
-
-      // Process spots with ratings
-      const processedSpots = spots?.map(spot => {
-        // Generate random ratings for now since reviews table is empty
-        const averageRating = Math.round((Math.random() * 2 + 3) * 10) / 10; // 3.0 - 5.0
-        const ratingCount = Math.floor(Math.random() * 200 + 50); // 50 - 250
-        
-        // Convert database ID (31-45) back to app ID (1-15) for internal use
-        const appId = spot.hiking_spot_id ? (spot.hiking_spot_id - 30).toString() : spot.id?.toString();
-        
-        return {
-          ...spot,
-          id: appId,
-          slug: spot.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || '',
-          average_rating: averageRating,
-          rating_count: ratingCount,
-          difficulty: getRandomDifficulty(),
-          distance_km: Math.round((Math.random() * 10 + 2) * 10) / 10,
-          elevation_gain_m: Math.round(Math.random() * 800 + 200)
-        };
-      }) || [];
-
-      setHikingSpots(processedSpots);
+      // Get all hiking spots from centralized data
+      const allSpots = getAllHikingSpots();
+      const topRated = getTopRatedHikingSpots(5);
       
-      // Get top rated spots (sorted by rating)
-      const topRated = processedSpots
-        .sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0))
-        .slice(0, 3);
+      setHikingSpots(allSpots);
+      setFilteredSpots(allSpots);
       setTopRatedSpots(topRated);
-      
     } catch (error) {
-      // Error loading hiking spots
-      // Fallback to mock data
-      setHikingSpots(getMockHikingSpots());
-      setTopRatedSpots(getMockHikingSpots().slice(0, 3));
+      console.error('Error loading hiking spots:', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Refresh handler
+  useEffect(() => {
+    loadHikingSpots();
+  }, [loadHikingSpots]);
+
+  // Filter spots based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredSpots(hikingSpots);
+    } else {
+      const filtered = hikingSpots.filter(spot =>
+        spot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        spot.difficulty?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredSpots(filtered);
+    }
+  }, [searchQuery, hikingSpots]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadHikingSpots();
     setRefreshing(false);
   }, [loadHikingSpots]);
 
-  useEffect(() => {
-    loadHikingSpots();
-  }, [loadHikingSpots]);
+  const renderTopRatedSpots = useCallback(() => (
+    <FlatList
+      data={topRatedSpots}
+      renderItem={({ item }) => <TopRatedCard spot={item} navigation={navigation} />}
+      keyExtractor={(item) => item.id}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.topRatedContainer}
+    />
+  ), [topRatedSpots, navigation]);
 
-  // Filter hiking spots based on search query
-  const filteredHikingSpots = hikingSpots.filter(spot =>
-    spot.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Render grid item
-  const renderGridItem = useCallback(({ item }: { item: HikingSpot }) => (
-    <HikingSpotGridCard spot={item} navigation={navigation} />
-  ), [navigation]);
+  const renderGridSpots = useCallback(() => {
+    const rows = [];
+    for (let i = 0; i < filteredSpots.length; i += 2) {
+      const rowSpots = filteredSpots.slice(i, i + 2);
+      rows.push(
+        <View key={i} style={[styles.gridRow, { flexDirection: 'row' }]}>
+          {rowSpots.map((spot) => (
+            <HikingSpotGridCard key={spot.id} spot={spot} navigation={navigation} />
+          ))}
+          {rowSpots.length === 1 && <View style={{ width: CARD_WIDTH }} />}
+        </View>
+      );
+    }
+    return rows;
+  }, [filteredSpots, navigation]);
 
   if (loading) {
     return (
@@ -289,25 +242,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      <ScrollView
+      <ScrollView 
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2E7D32']} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-             <Image 
-               source={require('../assets/images/ascentra.png')}
-               style={styles.logo}
-               resizeMode="contain"
-             />
-           </View>
-          
+            <Image 
+              source={require('../assets/images/ascentra.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search hiking spots..."
@@ -318,54 +271,37 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
           </View>
         </View>
 
-        {/* Top Rated Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Rated</Text>
-            <TouchableOpacity onPress={() => {/* Navigate to full top rated list */}}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+        {/* No Results */}
+        {searchQuery && filteredSpots.length === 0 && (
+          <View style={styles.noResultsContainer}>
+            <MaterialIcons name="search-off" size={48} color="#ccc" />
+            <Text style={styles.noResultsText}>No spots found</Text>
+            <Text style={styles.noResultsSubtext}>Try searching with different keywords</Text>
           </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.topRatedContainer}
-          >
-            {topRatedSpots.map((spot) => (
-              <TopRatedCard key={spot.id} spot={spot} navigation={navigation} />
-            ))}
-          </ScrollView>
-        </View>
+        )}
 
-        {/* 15 Hiking Spots Grid */}
+        {/* Top Rated Section */}
+        {!searchQuery && topRatedSpots.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Top Rated</Text>
+              <Text style={styles.countText}>{topRatedSpots.length} spots</Text>
+            </View>
+            {renderTopRatedSpots()}
+          </View>
+        )}
+
+        {/* All Hiking Spots Grid */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
               {searchQuery ? 'Search Results' : 'All Hiking Spots'}
             </Text>
-            <Text style={styles.countText}>
-              {filteredHikingSpots.length} {filteredHikingSpots.length === 1 ? 'spot' : 'spots'}
-            </Text>
+            <Text style={styles.countText}>{filteredSpots.length} spots</Text>
           </View>
-          
-          {filteredHikingSpots.length > 0 ? (
-            <FlatList
-              data={filteredHikingSpots}
-              renderItem={renderGridItem}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              scrollEnabled={false}
-              contentContainerStyle={styles.gridContainer}
-              columnWrapperStyle={styles.gridRow}
-            />
-          ) : searchQuery ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons name="search" size={48} color="#ccc" />
-              <Text style={styles.noResultsText}>No hiking spots found</Text>
-              <Text style={styles.noResultsSubtext}>Try searching with different keywords</Text>
-            </View>
-          ) : null}
+          <View style={styles.gridContainer}>
+            {renderGridSpots()}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

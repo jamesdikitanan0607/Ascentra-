@@ -104,7 +104,7 @@ export default function MapLegend({
               <View
                 style={[
                   styles.colorIndicator,
-                  { backgroundColor: DIFFICULTY_COLORS[difficulty] },
+                  { backgroundColor: DIFFICULTY_COLORS[difficulty as keyof typeof DIFFICULTY_COLORS] },
                 ]}
               />
               <Text style={styles.legendText}>{difficulty}</Text>

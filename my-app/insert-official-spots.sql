@@ -48,7 +48,7 @@ INSERT INTO hiking_spots (
   NOW()
 ),
 (
-  'Mount Kan-irag / Sirao Peak',
+  'Mount Kan-irag',
   'Famous for its flower gardens and cool climate. The peak offers stunning views and is known for its colorful celosia flowers.',
   'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
   'Easy',

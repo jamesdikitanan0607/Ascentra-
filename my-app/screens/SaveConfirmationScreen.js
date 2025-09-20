@@ -11,7 +11,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Polyline, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { getHikeById } from '../services/databaseService';
 import { formatDistance, formatDuration } from '../utils/formatters';
 
@@ -21,7 +21,6 @@ export default function SaveConfirmationScreen({ navigation, route }) {
   const { hikeId } = route.params;
   const [loading, setLoading] = useState(true);
   const [hike, setHike] = useState(null);
-  const [mapRegion, setMapRegion] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -37,11 +36,6 @@ export default function SaveConfirmationScreen({ navigation, route }) {
         }
         
         setHike(hikeData);
-        
-        // Calculate map region if coordinates exist
-        if (hikeData.routeCoordinates && hikeData.routeCoordinates.length > 0) {
-          calculateMapRegion(hikeData.routeCoordinates);
-        }
       } catch (err) {
         console.error('Error loading activity details:', err);
         setError('Failed to load activity details');
@@ -53,33 +47,7 @@ export default function SaveConfirmationScreen({ navigation, route }) {
     fetchHikeDetails();
   }, [hikeId]);
 
-  // Calculate the map region to show the entire route
-  const calculateMapRegion = (coordinates) => {
-    if (!coordinates || coordinates.length === 0) return;
-    
-    let minLat = coordinates[0].latitude;
-    let maxLat = coordinates[0].latitude;
-    let minLng = coordinates[0].longitude;
-    let maxLng = coordinates[0].longitude;
-    
-    coordinates.forEach(coord => {
-      minLat = Math.min(minLat, coord.latitude);
-      maxLat = Math.max(maxLat, coord.latitude);
-      minLng = Math.min(minLng, coord.longitude);
-      maxLng = Math.max(maxLng, coord.longitude);
-    });
-    
-    // Add padding
-    const latPadding = (maxLat - minLat) * 0.2;
-    const lngPadding = (maxLng - minLng) * 0.2;
-    
-    setMapRegion({
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.01),
-      longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.01)
-    });
-  };
+
 
   const handleViewDetails = () => {
     navigation.replace('HikeDetail', { hikeId });
@@ -166,52 +134,84 @@ export default function SaveConfirmationScreen({ navigation, route }) {
         </View>
         
         {/* Map preview */}
-        {hike?.routeCoordinates && hike.routeCoordinates.length > 0 && mapRegion && (
+        {hike?.routeCoordinates && hike.routeCoordinates.length > 0 && (
           <View style={styles.mapContainer}>
-            <MapView
+            <WebView
               style={styles.map}
-              provider={PROVIDER_GOOGLE}
-              initialRegion={mapRegion}
-              showsUserLocation={false}
-              showsMyLocationButton={false}
-              showsCompass={false}
-              zoomEnabled={true}
-              rotateEnabled={false}
-              scrollEnabled={true}
-            >
-              {/* Route polyline */}
-              <Polyline
-                coordinates={hike.routeCoordinates}
-                strokeWidth={4}
-                strokeColor="#2E7D32" 
-                lineCap="round"
-                lineJoin="round"
-              />
-              
-              {/* Start marker */}
-              {hike.routeCoordinates.length > 0 && (
-                <Marker
-                  coordinate={hike.routeCoordinates[0]}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                >
-                  <View style={styles.startMarker}>
-                    <View style={styles.startMarkerInner} />
-                  </View>
-                </Marker>
-              )}
-              
-              {/* End marker */}
-              {hike.routeCoordinates.length > 0 && (
-                <Marker
-                  coordinate={hike.routeCoordinates[hike.routeCoordinates.length - 1]}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                >
-                  <View style={styles.endMarker}>
-                    <View style={styles.endMarkerInner} />
-                  </View>
-                </Marker>
-              )}
-            </MapView>
+              source={{
+                html: `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <style>
+                      body { margin: 0; padding: 0; }
+                      #map { height: 100vh; width: 100vw; }
+                    </style>
+                  </head>
+                  <body>
+                    <div id="map"></div>
+                    <script>
+                      const coordinates = ${JSON.stringify(hike.routeCoordinates || [])};
+                      
+                      if (coordinates.length > 0) {
+                        const map = L.map('map', {
+                          zoomControl: false,
+                          scrollWheelZoom: false,
+                          doubleClickZoom: false,
+                          boxZoom: false,
+                          keyboard: false,
+                          dragging: false,
+                          touchZoom: false
+                        });
+                        
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                          attribution: '© OpenStreetMap contributors'
+                        }).addTo(map);
+                        
+                        // Convert coordinates to Leaflet format
+                        const leafletCoords = coordinates.map(coord => [coord.latitude, coord.longitude]);
+                        
+                        // Add polyline
+                        L.polyline(leafletCoords, {
+                          color: '#2E7D32',
+                          weight: 4,
+                          opacity: 1
+                        }).addTo(map);
+                        
+                        // Add start marker
+                        const startIcon = L.divIcon({
+                          html: '<div style="width: 16px; height: 16px; border-radius: 8px; background-color: rgba(46, 125, 50, 0.3); display: flex; justify-content: center; align-items: center;"><div style="width: 8px; height: 8px; border-radius: 4px; background-color: #2E7D32;"></div></div>',
+                          className: 'custom-marker',
+                          iconSize: [16, 16],
+                          iconAnchor: [8, 8]
+                        });
+                        L.marker([coordinates[0].latitude, coordinates[0].longitude], { icon: startIcon }).addTo(map);
+                        
+                        // Add end marker
+                        const endIcon = L.divIcon({
+                          html: '<div style="width: 16px; height: 16px; border-radius: 8px; background-color: rgba(211, 47, 47, 0.3); display: flex; justify-content: center; align-items: center;"><div style="width: 8px; height: 8px; border-radius: 4px; background-color: #D32F2F;"></div></div>',
+                          className: 'custom-marker',
+                          iconSize: [16, 16],
+                          iconAnchor: [8, 8]
+                        });
+                        L.marker([coordinates[coordinates.length - 1].latitude, coordinates[coordinates.length - 1].longitude], { icon: endIcon }).addTo(map);
+                        
+                        // Fit bounds to show entire route
+                        const bounds = L.latLngBounds(leafletCoords);
+                        map.fitBounds(bounds, { padding: [20, 20] });
+                      }
+                    </script>
+                  </body>
+                  </html>
+                `
+              }}
+              scrollEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         )}
         

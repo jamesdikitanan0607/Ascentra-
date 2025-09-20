@@ -272,38 +272,77 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     try {
       setFavoritesLoading(true);
       
-      const { data, error } = await supabase
+      // First get the favorites
+      const { data: favoritesData, error: favoritesError } = await supabase
         .from('favorites')
-        .select(`
-          *,
-          hiking_spots (
-            id,
-            name,
-            description,
-            difficulty,
-            image_url,
-            latitude,
-            longitude,
-            rating,
-            review_count
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching favorites:', error);
+      if (favoritesError) {
+        console.error('Error fetching favorites:', favoritesError);
         return;
       }
 
-      const favoritesData: FavoriteSpot[] = (data || []).map((fav: any) => ({
-        ...fav.hiking_spots,
-        favorited_at: fav.created_at,
-        is_favorited: true,
-      }));
+      if (!favoritesData || favoritesData.length === 0) {
+        setFavorites([]);
+        await saveFavoritesToCache([]);
+        return;
+      }
 
-      setFavorites(favoritesData);
-      await saveFavoritesToCache(favoritesData);
+      // Get the spot IDs from favorites
+      const spotIds = favoritesData.map(fav => fav.spot_id);
+
+      // Then get the hiking spots data
+      const { data: spotsData, error: spotsError } = await supabase
+        .from('hiking_spots')
+        .select(`
+          id,
+          name,
+          description,
+          difficulty,
+          image_url,
+          latitude,
+          longitude,
+          rating,
+          review_count
+        `)
+        .in('id', spotIds);
+
+      const error = spotsError;
+
+      if (error) {
+        console.error('Error fetching hiking spots:', error);
+        return;
+      }
+
+      // Combine favorites with hiking spots data
+      const combinedData: FavoriteSpot[] = favoritesData.map((fav: any) => {
+        const spot = spotsData?.find((spot: any) => spot.id === fav.spot_id);
+        if (!spot) return null;
+        
+        const spotData = spot as any;
+        return {
+          id: spotData.id || fav.spot_id,
+          name: spotData.name || '',
+          description: spotData.description || '',
+          difficulty_level: (spotData.difficulty_level || spotData.difficulty) as 'easy' | 'moderate' | 'hard' | 'expert',
+          distance: spotData.distance || 0,
+          elevation_gain: spotData.elevation_gain || 0,
+          location_name: spotData.location_name || '',
+          latitude: spotData.latitude || 0,
+          longitude: spotData.longitude || 0,
+          photos: spotData.photos || [],
+          created_by: spotData.created_by || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          favorited_at: fav.created_at,
+          is_favorited: true,
+        } as FavoriteSpot;
+      }).filter(Boolean) as FavoriteSpot[]; // Remove any undefined entries
+
+      setFavorites(combinedData);
+      await saveFavoritesToCache(combinedData);
     } catch (error) {
       console.error('Error in fetchFavorites:', error);
     } finally {

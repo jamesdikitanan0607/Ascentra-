@@ -1,0 +1,117 @@
+{
+  "trailRoutes": [
+    {
+      "id": "babag-eco-trail",
+      "hiking_spot_id": "1",
+      "route_name": "Babag Eco Trail",
+      "difficulty": "Easy",
+      "start_coordinates": { "latitude": 10.3600, "longitude": 123.8830 },
+      "end_coordinates": { "latitude": 10.3613, "longitude": 123.8860 },
+      "distance_km": 2.5,
+      "elevation_gain_m": 150,
+      "estimated_duration_hr": 1.5,
+      "highlights": "Forest path, shaded",
+      "route_color": "#4CAF50",
+      "geojson_path": {
+        "type": "LineString",
+        "coordinates": [
+          [123.8830, 10.3600],
+          [123.8840, 10.3605],
+          [123.8850, 10.3610],
+          [123.8860, 10.3613]
+        ]
+      }
+    },
+    {
+      "id": "babag-ridge-walk",
+      "hiking_spot_id": "1",
+      "route_name": "Babag Ridge Walk",
+      "difficulty": "Easy-Moderate",
+      "start_coordinates": { "latitude": 10.3582, "longitude": 123.8805 },
+      "end_coordinates": { "latitude": 10.3613, "longitude": 123.8860 },
+      "distance_km": 3.2,
+      "elevation_gain_m": 210,
+      "estimated_duration_hr": 2.0,
+      "highlights": "Scenic ridge",
+      "route_color": "#81C784",
+      "geojson_path": {
+        "type": "LineString",
+        "coordinates": [
+          [123.8805, 10.3582],
+          [123.8820, 10.3590],
+          [123.8840, 10.3600],
+          [123.8860, 10.3613]
+        ]
+      }
+    },
+    {
+      "id": "babag-spur-loop",
+      "hiking_spot_id": "1",
+      "route_name": "Babag Spur Loop",
+      "difficulty": "Moderate",
+      "start_coordinates": { "latitude": 10.3628, "longitude": 123.8842 },
+      "end_coordinates": { "latitude": 10.3665, "longitude": 123.8887 },
+      "distance_km": 4.5,
+      "elevation_gain_m": 350,
+      "estimated_duration_hr": 2.5,
+      "highlights": "Mixed terrain",
+      "route_color": "#FF9800",
+      "geojson_path": {
+        "type": "LineString",
+        "coordinates": [
+          [123.8842, 10.3628],
+          [123.8855, 10.3640],
+          [123.8870, 10.3655],
+          [123.8887, 10.3665]
+        ]
+      }
+    },
+    {
+      "id": "babag-peak-traverse",
+      "hiking_spot_id": "1",
+      "route_name": "Babag Peak Traverse",
+      "difficulty": "Hard",
+      "start_coordinates": { "latitude": 10.3559, "longitude": 123.8790 },
+      "end_coordinates": { "latitude": 10.3689, "longitude": 123.8890 },
+      "distance_km": 6.0,
+      "elevation_gain_m": 520,
+      "estimated_duration_hr": 3.5,
+      "highlights": "Steep sections",
+      "route_color": "#F44336",
+      "geojson_path": {
+        "type": "LineString",
+        "coordinates": [
+          [123.8790, 10.3559],
+          [123.8820, 10.3580],
+          [123.8850, 10.3620],
+          [123.8880, 10.3660],
+          [123.8890, 10.3689]
+        ]
+      }
+    },
+    {
+      "id": "babag-extreme-ridge",
+      "hiking_spot_id": "1",
+      "route_name": "Babag Extreme Ridge",
+      "difficulty": "Very Hard",
+      "start_coordinates": { "latitude": 10.3530, "longitude": 123.8782 },
+      "end_coordinates": { "latitude": 10.3721, "longitude": 123.8910 },
+      "distance_km": 7.8,
+      "elevation_gain_m": 670,
+      "estimated_duration_hr": 4.5,
+      "highlights": "Knife-edge ridge",
+      "route_color": "#9C27B0",
+      "geojson_path": {
+        "type": "LineString",
+        "coordinates": [
+          [123.8782, 10.3530],
+          [123.8810, 10.3560],
+          [123.8840, 10.3600],
+          [123.8870, 10.3650],
+          [123.8900, 10.3700],
+          [123.8910, 10.3721]
+        ]
+      }
+    }
+  ]
+}

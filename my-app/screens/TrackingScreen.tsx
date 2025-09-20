@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert, Modal } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Platform, Alert, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import MapView, { Polyline, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
+import MapView from 'react-native-maps';
 import * as Location from 'expo-location';
 import { formatDuration, formatPace, formatDistance } from '../utils/formatters';
 import NetInfo from '@react-native-community/netinfo';
@@ -54,7 +56,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
   
   const mapRef = useRef<MapView>(null);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number>(0);  // For tracking total paused time
   const pauseStartTimeRef = useRef<number | null>(null); // When pause started
@@ -567,96 +569,122 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
       
       <View style={styles.mapContainer}>
         {currentLocation ? (
-          <MapView
-            ref={mapRef}
+          <WebView
             style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
+            source={{
+              html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                  <style>
+                    body { margin: 0; padding: 0; }
+                    #map { height: 100vh; width: 100vw; }
+                  </style>
+                </head>
+                <body>
+                  <div id="map"></div>
+                  <script>
+                    const map = L.map('map').setView([${currentLocation.latitude}, ${currentLocation.longitude}], 16);
+                    
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                      attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    
+                    // Route polyline with glow effect
+                    ${routeCoordinates.length > 0 ? `
+                      const routeCoords = ${JSON.stringify(routeCoordinates.map(coord => [coord.latitude, coord.longitude]))};
+                      
+                      // Background glow effect
+                      L.polyline(routeCoords, {
+                        color: 'rgba(46, 125, 50, 0.3)',
+                        weight: 8,
+                        opacity: 1
+                      }).addTo(map);
+                      
+                      // Main route line
+                      L.polyline(routeCoords, {
+                        color: '#2E7D32',
+                        weight: 5,
+                        opacity: 1
+                      }).addTo(map);
+                    ` : ''}
+                    
+                    // Start marker
+                    ${tracking && routeCoordinates.length > 0 ? `
+                      const startIcon = L.divIcon({
+                        html: '<div style="background-color: #4CAF50; border-radius: 10px; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white; font-size: 10px; font-weight: bold;">S</div>',
+                        className: 'custom-div-icon',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                      });
+                      L.marker([${routeCoordinates[0].latitude}, ${routeCoordinates[0].longitude}], {icon: startIcon})
+                        .bindPopup('Start - Your journey began here')
+                        .addTo(map);
+                    ` : ''}
+                    
+                    // Kilometer markers
+                    ${routeCoordinates.length > 0 && stats.distance >= 1000 ? 
+                      Array.from({length: Math.floor(stats.distance / 1000)}).map((_, i) => {
+                        // Find the coordinate closest to this kilometer mark
+                        const targetDistance = (i + 1) * 1000;
+                        let distanceSoFar = 0;
+                        let markerCoord = routeCoordinates[0];
+                        
+                        for (let j = 1; j < routeCoordinates.length; j++) {
+                          const segmentDistance = calculateDistance(
+                            routeCoordinates[j-1].latitude,
+                            routeCoordinates[j-1].longitude,
+                            routeCoordinates[j].latitude,
+                            routeCoordinates[j].longitude
+                          );
+                          
+                          distanceSoFar += segmentDistance;
+                          
+                          if (distanceSoFar >= targetDistance) {
+                            markerCoord = routeCoordinates[j];
+                            break;
+                          }
+                        }
+                        
+                        return `
+                          const kmIcon${i} = L.divIcon({
+                            html: '<div style="background-color: white; border: 2px solid #2E7D32; border-radius: 12px; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); color: #2E7D32; font-size: 10px; font-weight: bold;">${i+1}</div>',
+                            className: 'custom-div-icon',
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                          });
+                          L.marker([${markerCoord.latitude}, ${markerCoord.longitude}], {icon: kmIcon${i}}).addTo(map);
+                        `;
+                      }).join('') : ''}
+                    
+                    // Current location marker
+                    const currentLocationIcon = L.divIcon({
+                      html: '<div style="background-color: #2196F3; border-radius: 50%; width: 16px; height: 16px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                      className: 'custom-div-icon',
+                      iconSize: [16, 16],
+                      iconAnchor: [8, 8]
+                    });
+                    L.marker([${currentLocation.latitude}, ${currentLocation.longitude}], {icon: currentLocationIcon}).addTo(map);
+                    
+                    // Auto-fit bounds if there's a route
+                    ${routeCoordinates.length > 1 ? `
+                      const group = new L.featureGroup();
+                      routeCoords.forEach(coord => {
+                        L.marker(coord).addTo(group);
+                      });
+                      map.fitBounds(group.getBounds().pad(0.1));
+                    ` : ''}
+                  </script>
+                </body>
+                </html>
+              `
             }}
-            showsUserLocation={true}
-            followsUserLocation={tracking && !paused}
-            scrollEnabled={true}
-            zoomEnabled={true}
-            showsCompass={true}
-            showsScale={true}
-            mapType="standard"
-          >
-            {routeCoordinates.length > 0 && (
-              <>
-                {/* Background glow effect */}
-                <Polyline
-                  coordinates={routeCoordinates}
-                  strokeWidth={8}
-                  strokeColor="rgba(46, 125, 50, 0.3)"  // Semi-transparent forest green
-                  lineCap="round"
-                  lineJoin="round"
-                  zIndex={1}
-                />
-                
-                {/* Main route line */}
-                <Polyline
-                  coordinates={routeCoordinates}
-                  strokeWidth={5}
-                  strokeColor="#2E7D32"  // Forest green (changed from #FC4C02 orange)
-                  lineCap="round"
-                  lineJoin="round"
-                  zIndex={2}
-                />
-              </>
-            )}
-            
-            {/* Start marker with custom callout */}
-            {tracking && routeCoordinates.length > 0 && (
-              <Marker
-                coordinate={routeCoordinates[0]}
-                title="Start"
-                description="Your journey began here"
-                pinColor="green"
-              />
-            )}
-            
-            {/* Distance markers every kilometer */}
-            {routeCoordinates.length > 0 && stats.distance >= 1000 && 
-              Array.from({length: Math.floor(stats.distance / 1000)}).map((_, i) => {
-                // Find the coordinate closest to this kilometer mark
-                const targetDistance = (i + 1) * 1000; // 1km, 2km, etc.
-                let distanceSoFar = 0;
-                let markerCoord = routeCoordinates[0];
-                
-                for (let j = 1; j < routeCoordinates.length; j++) {
-                  const segmentDistance = calculateDistance(
-                    routeCoordinates[j-1].latitude,
-                    routeCoordinates[j-1].longitude,
-                    routeCoordinates[j].latitude,
-                    routeCoordinates[j].longitude
-                  );
-                  
-                  distanceSoFar += segmentDistance;
-                  
-                  if (distanceSoFar >= targetDistance) {
-                    markerCoord = routeCoordinates[j];
-                    break;
-                  }
-                }
-                
-                return (
-                  <Marker
-                    key={`km-${i+1}`}
-                    coordinate={markerCoord}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                  >
-                    <View style={styles.kmMarker}>
-                      <Text style={styles.kmMarkerText}>{i+1}</Text>
-                    </View>
-                  </Marker>
-                );
-              })
-            }
-          </MapView>
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+          />
         ) : (
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Getting your location...</Text>

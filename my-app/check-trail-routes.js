@@ -1,87 +1,44 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Missing Supabase environment variables');
-  console.log('Please check your .env file for:');
-  console.log('- EXPO_PUBLIC_SUPABASE_URL');
-  console.log('- EXPO_PUBLIC_SUPABASE_ANON_KEY');
-  process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient('https://tppimfexrhptzdxlxcbj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwcGltZmV4cmhwdHpkeGx4Y2JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODA5MzczMywiZXhwIjoyMDczNjY5NzMzfQ.SYCLq43OaWJv-M6JH6eZonwNgApI6wJlr_pr7ROAGzM');
 
 async function checkTrailRoutes() {
-  try {
-    console.log('🔍 Checking current trail routes in database...');
-    
-    // Check hiking spots
-    const { data: spots, error: spotsError } = await supabase
-      .from('hiking_spots')
-      .select('id, name')
-      .order('name');
-    
-    if (spotsError) {
-      console.error('❌ Error fetching hiking spots:', spotsError);
-      return;
+  console.log('=== TRAIL ROUTES ANALYSIS ===');
+  
+  const { data: routes, error } = await supabase
+    .from('trail_routes')
+    .select('hiking_spot_id, name, difficulty, length, estimated_time');
+  
+  if (error) {
+    console.log('Error:', error.message);
+    return;
+  }
+  
+  console.log(`Total routes: ${routes.length}`);
+  
+  // Group by hiking spot
+  const grouped = {};
+  routes.forEach(route => {
+    if (grouped[route.hiking_spot_id] === undefined) {
+      grouped[route.hiking_spot_id] = [];
     }
-    
-    console.log(`📍 Found ${spots?.length || 0} hiking spots`);
-    
-    // Check trail routes
-    const { data: routes, error: routesError } = await supabase
-      .from('trail_routes')
-      .select('route_id, hiking_spot_id, route_name, difficulty')
-      .order('hiking_spot_id');
-    
-    if (routesError) {
-      console.error('❌ Error fetching trail routes:', routesError);
-      return;
-    }
-    
-    console.log(`🛤️  Found ${routes?.length || 0} trail routes`);
-    
-    // Group routes by hiking spot
-    const routesBySpot = {};
-    routes?.forEach(route => {
-      if (!routesBySpot[route.hiking_spot_id]) {
-        routesBySpot[route.hiking_spot_id] = [];
-      }
-      routesBySpot[route.hiking_spot_id].push(route);
+    grouped[route.hiking_spot_id].push(route);
+  });
+  
+  console.log('\nRoutes by hiking spot:');
+  Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b)).forEach(spotId => {
+    console.log(`\nHiking Spot ${spotId}: ${grouped[spotId].length} routes`);
+    grouped[spotId].forEach(route => {
+      console.log(`  - ${route.name} (${route.difficulty}, ${route.length}, ${route.estimated_time})`);
     });
-    
-    console.log('\n📊 Trail Routes Summary:');
-    spots?.forEach(spot => {
-      const spotRoutes = routesBySpot[spot.id] || [];
-      console.log(`  ${spot.name}: ${spotRoutes.length} routes`);
-      if (spotRoutes.length > 0) {
-        spotRoutes.forEach(route => {
-          console.log(`    - ${route.route_name} (${route.difficulty})`);
-        });
-      }
-    });
-    
-    // Calculate missing routes
-    const totalExpected = (spots?.length || 0) * 5;
-    const totalActual = routes?.length || 0;
-    const missing = totalExpected - totalActual;
-    
-    console.log(`\n📈 Statistics:`);
-    console.log(`  Expected: ${totalExpected} routes (5 per spot)`);
-    console.log(`  Actual: ${totalActual} routes`);
-    console.log(`  Missing: ${missing} routes`);
-    
-    if (missing > 0) {
-      console.log('\n⚠️  Need to create missing trail routes!');
-    } else {
-      console.log('\n✅ All trail routes are present!');
+  });
+  
+  // Check which hiking spots (71-85) are missing routes
+  console.log('\nMissing routes for hiking spots:');
+  for (let i = 71; i <= 85; i++) {
+    if (grouped[i] === undefined) {
+      console.log(`  - Hiking Spot ${i}: No routes`);
     }
-    
-  } catch (error) {
-    console.error('❌ Error checking trail routes:', error);
   }
 }
 

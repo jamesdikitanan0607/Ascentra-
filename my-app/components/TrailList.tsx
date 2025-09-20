@@ -52,7 +52,7 @@ export default function TrailList({
       filteredTrails = filteredTrails.filter(
         trail =>
           trail.name.toLowerCase().includes(query) ||
-          trail.hiking_spot_name.toLowerCase().includes(query) ||
+          trail.hiking_spot.name.toLowerCase().includes(query) ||
           trail.highlights.toLowerCase().includes(query)
       );
     }
@@ -66,7 +66,7 @@ export default function TrailList({
 
     // Group by mountain
     const grouped = filteredTrails.reduce((acc, trail) => {
-      const mountain = trail.hiking_spot_name;
+      const mountain = trail.hiking_spot.name;
       if (!acc[mountain]) {
         acc[mountain] = [];
       }
@@ -119,7 +119,7 @@ export default function TrailList({
     <View style={styles.difficultyFilters}>
       {DIFFICULTIES.map(difficulty => {
         const isSelected = selectedDifficulties.includes(difficulty);
-        const color = DIFFICULTY_COLORS[difficulty];
+        const color = DIFFICULTY_COLORS[difficulty as keyof typeof DIFFICULTY_COLORS];
 
         return (
           <TouchableOpacity

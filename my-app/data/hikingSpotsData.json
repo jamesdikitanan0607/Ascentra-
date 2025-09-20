@@ -1,0 +1,124 @@
+{
+  "hikingSpots": [
+    {
+      "id": "1",
+      "name": "Mount Babag",
+      "location": "Cebu City",
+      "coordinates": { "latitude": 10.3613, "longitude": 123.8860 },
+      "elevation_m": 800,
+      "description": "A popular hiking destination in Cebu City known for its eco-trails and scenic views.",
+      "difficulty_range": "Easy to Very Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/babag.jpg",
+      "features": ["Forest trails", "Ridge walks", "Scenic viewpoints"]
+    },
+    {
+      "id": "2",
+      "name": "Mount Kan-irag / Sirao Peak",
+      "location": "Cebu City",
+      "coordinates": { "latitude": 10.3333, "longitude": 123.8667 },
+      "elevation_m": 900,
+      "description": "Famous for its flower gardens and cool climate, offering beautiful mountain views.",
+      "difficulty_range": "Easy to Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/kanirag.jpg",
+      "features": ["Flower gardens", "Cool climate", "Mountain views"]
+    },
+    {
+      "id": "3",
+      "name": "Mount Naupa",
+      "location": "Naga",
+      "coordinates": { "latitude": 10.2083, "longitude": 123.6167 },
+      "elevation_m": 1100,
+      "description": "A challenging mountain in Naga with diverse terrain and stunning panoramic views.",
+      "difficulty_range": "Moderate to Very Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/naupa.jpg",
+      "features": ["Diverse terrain", "Panoramic views", "Challenging trails"]
+    },
+    {
+      "id": "4",
+      "name": "Mount Manunggal",
+      "location": "Balamban",
+      "coordinates": { "latitude": 10.4833, "longitude": 123.7167 },
+      "elevation_m": 1003,
+      "description": "Historical mountain known for the crash site of President Ramon Magsaysay's plane.",
+      "difficulty_range": "Easy to Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/manunggal.jpg",
+      "features": ["Historical significance", "Memorial site", "Forest trails"]
+    },
+    {
+      "id": "5",
+      "name": "Mount Mago",
+      "location": "Carmen",
+      "coordinates": { "latitude": 10.5833, "longitude": 124.0167 },
+      "elevation_m": 1200,
+      "description": "One of the highest peaks in Cebu, offering challenging trails and breathtaking views.",
+      "difficulty_range": "Moderate to Very Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/mago.jpg",
+      "features": ["High elevation", "Challenging terrain", "Breathtaking views"]
+    },
+    {
+      "id": "6",
+      "name": "Mount Lanaya",
+      "location": "Alegria",
+      "coordinates": { "latitude": 9.7667, "longitude": 123.4167 },
+      "elevation_m": 1100,
+      "description": "A beautiful mountain in Alegria known for its lush forests and scenic trails.",
+      "difficulty_range": "Easy to Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/lanaya.jpg",
+      "features": ["Lush forests", "Scenic trails", "Wildlife viewing"]
+    },
+    {
+      "id": "7",
+      "name": "Mount Lantoy",
+      "location": "Argao",
+      "coordinates": { "latitude": 9.8833, "longitude": 123.6167 },
+      "elevation_m": 950,
+      "description": "A moderate hiking destination in Argao with beautiful forest paths and viewpoints.",
+      "difficulty_range": "Easy to Moderate",
+      "trail_count": 5,
+      "image_url": "https://example.com/lantoy.jpg",
+      "features": ["Forest paths", "Moderate difficulty", "Great viewpoints"]
+    },
+    {
+      "id": "8",
+      "name": "Mount Kapayas",
+      "location": "Catmon",
+      "coordinates": { "latitude": 10.6500, "longitude": 124.0167 },
+      "elevation_m": 850,
+      "description": "A scenic mountain in Catmon offering diverse trails and beautiful landscapes.",
+      "difficulty_range": "Easy to Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/kapayas.jpg",
+      "features": ["Diverse trails", "Beautiful landscapes", "Accessible location"]
+    },
+    {
+      "id": "9",
+      "name": "Mount Hambubuyog",
+      "location": "Ginatilan",
+      "coordinates": { "latitude": 9.6000, "longitude": 123.3333 },
+      "elevation_m": 1000,
+      "description": "A challenging mountain in Ginatilan with steep trails and rewarding summit views.",
+      "difficulty_range": "Moderate to Very Hard",
+      "trail_count": 5,
+      "image_url": "https://example.com/hambubuyog.jpg",
+      "features": ["Steep trails", "Summit views", "Challenging terrain"]
+    },
+    {
+      "id": "10",
+      "name": "Mount Mauyog",
+      "location": "Balamban",
+      "coordinates": { "latitude": 10.5000, "longitude": 123.7500 },
+      "elevation_m": 900,
+      "description": "A beautiful mountain in Balamban with well-maintained trails and scenic beauty.",
+      "difficulty_range": "Easy to Moderate",
+      "trail_count": 5,
+      "image_url": "https://example.com/mauyog.jpg",
+      "features": ["Well-maintained trails", "Scenic beauty", "Family-friendly options"]
+    }
+  ]
+}

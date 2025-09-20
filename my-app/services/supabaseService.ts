@@ -26,6 +26,7 @@ export interface TrailRouteDetails {
   start_coordinates: any;
   end_coordinates?: any;
   route_coordinates?: any[];
+  waypoints?: string; // JSON string containing waypoint coordinates
   distance_km: number;
   elevation_gain_m: number;
   estimated_duration_hr: number;
@@ -288,13 +289,32 @@ export async function updateHikingSpotRating(hikingSpotId: number, newRating: nu
 }
 
 /**
- * Map app IDs (1-15) to database IDs (31-45)
- * This is needed because the app uses sequential IDs but the database has different IDs
+ * Map app IDs to database IDs based on current database state
+ * All 15 hiking spots are now in the database with IDs 71-85
  */
 function mapAppIdToDbId(appId: string | number): number {
   const id = typeof appId === 'string' ? parseInt(appId) : appId;
-  // Map app IDs 1-15 to database IDs 31-45
-  return id + 30;
+  
+  // Complete mapping for all spots in database
+  const idMapping: { [key: number]: number } = {
+    1: 71,   // Mount Babag
+    2: 75,   // Mount Kan-irag / Sirao Peak
+    3: 76,   // Mount Naupa
+    4: 77,   // Mount Manunggal
+    5: 78,   // Mount Mago
+    6: 79,   // Mount Kapayas
+    7: 80,   // Mount Lantoy
+    8: 81,   // Mount Kalbasaan
+    9: 82,   // Mount Mauyog
+    10: 83,  // Mount Lanaya
+    11: 84,  // Mount Hambubuyog
+    12: 72,  // Osmeña Peak  
+    13: 73,  // Casino Peak
+    14: 85,  // Budlaan Falls
+    15: 74,  // Spartan Trail
+  };
+  
+  return idMapping[id] || (id + 70); // Fallback for unmapped IDs
 }
 
 /**

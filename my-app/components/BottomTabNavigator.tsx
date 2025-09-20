@@ -71,7 +71,6 @@ export default function BottomTabNavigator() {
           tabBarLabel: 'Tracker',
         }}
       />
-      {/* Removed Trails tab */}
       <Tab.Screen 
         name="Forum" 
         component={PostsScreen}

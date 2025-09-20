@@ -1,5 +1,6 @@
-import React from 'react'
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar, Platform } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { createStackNavigator, StackNavigationProp } from '@react-navigation/stack'
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'
 import TrackingScreen from './TrackingScreen'

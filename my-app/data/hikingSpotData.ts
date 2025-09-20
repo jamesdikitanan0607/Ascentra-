@@ -236,37 +236,37 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     ],
     imageSource: require('../assets/images/mount latoy/thumbnail.webp')
   },
-  {
-    id: '8',
-    name: 'Mount Kalbasaan',
-    description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
-    difficulty: 'Moderate',
-    elevation: 640,
-    trail_length: 5.0,
-    estimated_duration: '2-3 hours',
-    latitude: 10.2789,
-    longitude: 123.8456,
-    rating: 4.0,
-    review_count: 43,
-    image_url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&h=600&fit=crop',
-    amenities: ['Quiet trails', 'Natural viewpoints', 'Pristine environment'],
-    best_season: ['Dry season', 'November to May'],
-    highlights: [
-      'Peaceful and quiet environment',
-      'Pristine natural beauty',
-      'Less crowded trails',
-      'Authentic hiking experience',
-      'Perfect for meditation'
-    ],
-    tips: [
-      'Ideal for solitude seekers',
-      'Inform others of your plans',
-      'Bring all necessary supplies',
-      'Respect the pristine environment',
-      'Leave no trace behind'
-    ],
-    imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
-  },
+  // {
+  //   id: '8',
+  //   name: 'Mount Kalbasaan',
+  //   description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
+  //   difficulty: 'Moderate',
+  //   elevation: 640,
+  //   trail_length: 5.0,
+  //   estimated_duration: '2-3 hours',
+  //   latitude: 10.2789,
+  //   longitude: 123.8456,
+  //   rating: 4.0,
+  //   review_count: 43,
+  //   image_url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&h=600&fit=crop',
+  //   amenities: ['Quiet trails', 'Natural viewpoints', 'Pristine environment'],
+  //   best_season: ['Dry season', 'November to May'],
+  //   highlights: [
+  //     'Peaceful and quiet environment',
+  //     'Pristine natural beauty',
+  //     'Less crowded trails',
+  //     'Authentic hiking experience',
+  //     'Perfect for meditation'
+  //   ],
+  //   tips: [
+  //     'Ideal for solitude seekers',
+  //     'Inform others of your plans',
+  //     'Bring all necessary supplies',
+  //     'Respect the pristine environment',
+  //     'Leave no trace behind'
+  //   ],
+  //   imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
+  // }, // Removed - Mount Kalbasaan
   {
     id: '9',
     name: 'Mount Mauyog',
@@ -483,6 +483,37 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Combine with city exploration'
     ],
     imageSource: require('../assets/images/spartantrail/thumbnail.jpg')
+  },
+  {
+    id: '16',
+    name: 'Mount Hambubuyog',
+    description: 'A challenging mountain in Ginatilan offering spectacular views and diverse terrain. Known for its pine trees and scenic ridges, this peak provides an excellent hiking experience for adventurous hikers.',
+    difficulty: 'Moderate',
+    elevation: 1000,
+    trail_length: 4.2,
+    estimated_duration: '2.5 hours',
+    latitude: 9.6072,
+    longitude: 123.3312,
+    rating: 4.3,
+    review_count: 45,
+    image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
+    amenities: ['Trail markers', 'Scenic viewpoints', 'Pine forest', 'Rest areas'],
+    best_season: ['Dry season', 'November to April'],
+    highlights: [
+      'Pine tree forest trails',
+      'Scenic mountain ridges',
+      'Panoramic summit views',
+      'Diverse flora and fauna',
+      'Cool mountain climate'
+    ],
+    tips: [
+      'Start early for the best views',
+      'Bring warm clothing for cool weather',
+      'Wear proper hiking boots for rocky terrain',
+      'Bring plenty of water and snacks',
+      'Check weather conditions before hiking'
+    ],
+    imageSource: require('../assets/images/mount hambubuyog/thumbnail.jpg')
   }
 
 ];

@@ -72,10 +72,10 @@ export const optimizeImageUri = (uri: string, width: number, height: number) => 
 
 // Memory cleanup utility
 export class MemoryManager {
-  private static timers: Set<number> = new Set();
-  private static intervals: Set<number> = new Set();
+  private static timers: Set<NodeJS.Timeout> = new Set();
+  private static intervals: Set<NodeJS.Timeout> = new Set();
   
-  static setTimeout(callback: () => void, delay: number): number {
+  static setTimeout(callback: () => void, delay: number): NodeJS.Timeout {
     const timer = setTimeout(() => {
       callback();
       this.timers.delete(timer);
@@ -85,18 +85,18 @@ export class MemoryManager {
     return timer;
   }
   
-  static setInterval(callback: () => void, delay: number): number {
+  static setInterval(callback: () => void, delay: number): NodeJS.Timeout {
     const interval = setInterval(callback, delay);
     this.intervals.add(interval);
     return interval;
   }
   
-  static clearTimeout(timer: number): void {
+  static clearTimeout(timer: NodeJS.Timeout): void {
     clearTimeout(timer);
     this.timers.delete(timer);
   }
   
-  static clearInterval(interval: number): void {
+  static clearInterval(interval: NodeJS.Timeout): void {
     clearInterval(interval);
     this.intervals.delete(interval);
   }

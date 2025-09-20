@@ -9,6 +9,7 @@ import { linking } from './utils/linking';
 import { Session } from '@supabase/supabase-js';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
+import { TrailProvider } from './contexts/TrailContext';
 
 // Navigation types
 export type RootStackParamList = {
@@ -41,7 +42,7 @@ export type RootStackParamList = {
   MountMago: undefined;
   MountKapayas: undefined;
   MountLantoy: undefined;
-  MountKalbasaan: undefined;
+  // MountKalbasaan: undefined; // Removed - Mount Kalbasaan
   MountMauyog: undefined;
   MountLanaya: undefined;
   MountHambubuyog: undefined;
@@ -86,7 +87,7 @@ const MountManunggalScreen = createLazyComponent(() => import('./screens/spots/M
 const MountMagoScreen = createLazyComponent(() => import('./screens/spots/MountMagoScreen'));
 const MountKapayasScreen = createLazyComponent(() => import('./screens/spots/MountKapayasScreen'));
 const MountLantoyScreen = createLazyComponent(() => import('./screens/spots/MountLantoyScreen'));
-const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen'));
+// const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen')); // Removed - Mount Kalbasaan
 const MountMauyogScreen = createLazyComponent(() => import('./screens/spots/MountMauyogScreen'));
 const MountLanayaScreen = createLazyComponent(() => import('./screens/spots/MountLanayaScreen'));
 const MountHambubuyogScreen = createLazyComponent(() => import('./screens/spots/MountHambubuyogScreen'));
@@ -237,7 +238,6 @@ function AppContent(): JSX.Element {
             <Stack.Screen name="MountMago" component={MountMagoScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountKapayas" component={MountKapayasScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountKalbasaan" component={MountKalbasaanScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountHambubuyog" component={MountHambubuyogScreen} options={{ headerShown: false }} />
@@ -245,7 +245,6 @@ function AppContent(): JSX.Element {
             <Stack.Screen name="CasinoPeak" component={CasinoPeakScreen} options={{ headerShown: false }} />
             <Stack.Screen name="BudlaanFalls" component={BudlaanFallsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SpartanTrail" component={SpartanTrailScreen} options={{ headerShown: false }} />
-
           </>
         ) : (
           <>
@@ -267,7 +266,9 @@ export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <ProfileProvider>
-        <AppContent />
+        <TrailProvider>
+          <AppContent />
+        </TrailProvider>
       </ProfileProvider>
     </AuthProvider>
   );

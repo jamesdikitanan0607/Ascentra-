@@ -4,7 +4,7 @@ import { WebView } from 'react-native-webview';
 import { HIKING_SPOTS_DATA } from '../data/hikingSpotData';
 import { NEW_TRAIL_ROUTES } from '../data/trailRoutesData';
 
-interface GoogleMapsTrailMapProps {
+interface LeafletTrailMapProps {
   selectedHikingSpotId?: string;
   selectedTrailId?: string;
   onTrailSelect?: (trailId: string) => void;
@@ -29,7 +29,7 @@ interface TrailRoute {
   };
 }
 
-const GoogleMapsTrailMap: React.FC<GoogleMapsTrailMapProps> = ({
+const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   selectedHikingSpotId,
   selectedTrailId,
   onTrailSelect,
@@ -413,4 +413,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GoogleMapsTrailMap;
+export default LeafletTrailMap;
