@@ -11,12 +11,11 @@ import {
   Alert,
   Linking,
   Platform,
-  StatusBar,
-  SafeAreaView
+  StatusBar
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../services/supabaseClient'
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
-import MapView, { Marker } from 'react-native-maps'
 import { useProfile } from '../contexts/ProfileContext'
 import TrailMapComponent from '../components/TrailMapComponent'
 import WeatherWidget from '../components/WeatherWidget'

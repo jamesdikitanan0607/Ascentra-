@@ -8,12 +8,35 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Platform,
+  Linking,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import ImageCarousel from '../../components/ImageCarousel';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ImageCarousel } from '../../my-app/components/ImageCarousel';
+import { useTrail, normalizeTrailRoute } from '../../my-app/contexts/TrailContext';
 import { supabaseService } from '../../services/supabaseService';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Helper function for difficulty colors
+const getDifficultyColor = (difficulty: string): string => {
+  switch (difficulty?.toLowerCase()) {
+    case 'easy':
+      return '#4CAF50';
+    case 'moderate':
+      return '#FF9800';
+    case 'hard':
+      return '#F44336';
+    case 'very hard':
+      return '#9C27B0';
+    case 'expert':
+      return '#212121';
+    default:
+      return '#FF9800';
+  }
+};
 
 interface HikingSpotTemplateProps {
   navigation: any;
@@ -75,9 +98,11 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<TrailRoute | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  
+  // Trail context for shared trail selection
+  const { selectedTrail, setSelectedTrail } = useTrail();
 
   useEffect(() => {
     if (spotData) {
@@ -99,7 +124,8 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
     
     // Set first route as default selected
     if (spotData?.trail_routes && spotData.trail_routes.length > 0) {
-      setSelectedRoute(spotData.trail_routes[0]);
+      const normalizedTrail = normalizeTrailRoute(spotData.trail_routes[0]);
+      setSelectedTrail(normalizedTrail);
     }
     setLoading(false);
   };
@@ -157,21 +183,6 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
       );
     }
     return stars;
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case 'easy':
-        return '#4CAF50';
-      case 'moderate':
-        return '#FF9800';
-      case 'hard':
-        return '#F44336';
-      case 'expert':
-        return '#9C27B0';
-      default:
-        return '#757575';
-    }
   };
 
   if (loading) {
@@ -270,9 +281,12 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
                 key={route.id}
                 style={[
                   styles.routeButton,
-                  selectedRoute?.id === route.id && styles.selectedRouteButton
+                  selectedTrail?.id === route.id && styles.selectedRouteButton
                 ]}
-                onPress={() => setSelectedRoute(route)}
+                onPress={() => {
+                  const normalizedTrail = normalizeTrailRoute(route);
+                  setSelectedTrail(normalizedTrail);
+                }}
               >
                 <Text style={styles.routeButtonText}>{route.name}</Text>
                 <Text style={[styles.routeDifficultyText, { color: getDifficultyColor(route.difficulty) }]}>
@@ -285,20 +299,65 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
       )}
 
       {/* Trail Information Section */}
-      {selectedRoute && (
+      {selectedTrail && (
         <View style={styles.trailInfoContainer}>
-          <Text style={styles.trailInfoTitle}>{selectedRoute.name} Details</Text>
-          
-          <View style={styles.trailHighlights}>
-            <Text style={styles.trailHighlightsTitle}>Highlights:</Text>
-            {selectedRoute.highlights.map((highlight, index) => (
-              <Text key={index} style={styles.trailHighlightsText}>• {highlight}</Text>
-            ))}
+          <View style={styles.trailInfoHeader}>
+            <Text style={styles.trailInfoTitle}>{selectedTrail.name} Details</Text>
+            <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(selectedTrail.difficulty) }]}>
+              <Text style={styles.difficultyBadgeText}>{selectedTrail.difficulty}</Text>
+            </View>
           </View>
           
-          <View style={styles.trailDescription}>
-            <Text style={styles.trailDescriptionTitle}>Route Description:</Text>
-            <Text style={styles.trailDescriptionText}>{selectedRoute.description}</Text>
+          {/* Enhanced Trail Statistics */}
+          <View style={styles.trailStatsGrid}>
+            <View style={styles.trailStatCard}>
+              <Ionicons name="trail-sign" size={24} color="#2E7D32" />
+              <Text style={styles.trailStatValue}>{selectedTrail.distance}km</Text>
+              <Text style={styles.trailStatLabel}>Distance</Text>
+            </View>
+            <View style={styles.trailStatCard}>
+              <Ionicons name="time" size={24} color="#2E7D32" />
+              <Text style={styles.trailStatValue}>{Math.round(selectedTrail.estimatedTime / 60)}h</Text>
+              <Text style={styles.trailStatLabel}>Duration</Text>
+            </View>
+            <View style={styles.trailStatCard}>
+              <Ionicons name="trending-up" size={24} color="#2E7D32" />
+              <Text style={styles.trailStatValue}>{selectedTrail.elevationGain}m</Text>
+              <Text style={styles.trailStatLabel}>Elevation</Text>
+            </View>
+          </View>
+          
+          {/* Trail Highlights */}
+          {selectedTrail.description && (
+            <View style={styles.trailHighlights}>
+              <Text style={styles.trailHighlightsTitle}>Trail Highlights</Text>
+              <View style={styles.highlightsList}>
+                <View style={styles.highlightItem}>
+                  <Ionicons name="checkmark-circle" size={16} color="#2E7D32" />
+                  <Text style={styles.trailHighlightsText}>{selectedTrail.description}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+          
+          {/* Route Description */}
+          {selectedTrail.description && (
+            <View style={styles.trailDescription}>
+              <Text style={styles.trailDescriptionTitle}>Route Description</Text>
+              <Text style={styles.trailDescriptionText}>{selectedTrail.description}</Text>
+            </View>
+          )}
+          
+          {/* Trail Actions */}
+          <View style={styles.trailActions}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => openDirections()}>
+              <Ionicons name="navigate" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Get Directions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.secondaryActionButton]}>
+              <Ionicons name="bookmark-outline" size={20} color="#2E7D32" />
+              <Text style={[styles.actionButtonText, styles.secondaryActionButtonText]}>Save Route</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -522,28 +581,84 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 12,
   },
+  trailInfoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   trailInfoTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333333',
-    marginBottom: 12,
+    flex: 1,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  difficultyBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  trailStatsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 12,
+  },
+  trailStatCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  trailStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  trailStatLabel: {
+    fontSize: 12,
+    color: '#757575',
+    textAlign: 'center',
   },
   trailHighlights: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   trailHighlightsTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333333',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  highlightsList: {
+    gap: 8,
+  },
+  highlightItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   trailHighlightsText: {
     fontSize: 14,
     color: '#666666',
-    marginBottom: 4,
+    flex: 1,
   },
   trailDescription: {
-    marginBottom: 8,
+    marginBottom: 20,
   },
   trailDescriptionTitle: {
     fontSize: 16,
@@ -555,6 +670,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: '#666666',
+  },
+  trailActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#2E7D32',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  secondaryActionButton: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#2E7D32',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  secondaryActionButtonText: {
+    color: '#2E7D32',
   },
   weatherSection: {
     padding: 16,

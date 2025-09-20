@@ -8,24 +8,27 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
+import { useTrail, normalizeTrailRoute, getTrailCoordinates, TrailRoute } from '../contexts/TrailContext';
 
 interface Route {
   id: string;
-  route_name: string;
-  route_description: string;
+  route_id: string;
+  hiking_spot_id: string;
+  name: string;
+  description: string;
   difficulty: string;
-  distance: number;
-  estimated_duration: number;
+  length: number;
   elevation_gain: number;
-  route_type: string;
-  trail_conditions: string;
-  safety_notes: string;
-  best_time_to_hike: string[];
-  route_features: string[];
-  is_main_route: boolean;
+  estimated_time: number;
+  trail_type: string;
+  waypoints: string;
+  gpx_data: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
   route_coordinates?: { latitude: number; longitude: number }[];
 }
 
@@ -56,10 +59,18 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
   latitude,
   longitude,
 }) => {
+  const { 
+    selectedTrail, 
+    setSelectedTrail, 
+    trails, 
+    setTrails, 
+    isLoading, 
+    setIsLoading, 
+    error, 
+    setError 
+  } = useTrail();
+  
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
 
   useEffect(() => {
     fetchRoutes();
@@ -67,59 +78,77 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
 
   const fetchRoutes = async () => {
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      setIsLoading(true);
+      setError(null);
+      
+      const { data, error: fetchError } = await supabase
         .from('trail_routes')
         .select('*')
         .eq('hiking_spot_id', hikingSpotId)
-        .order('difficulty');
+        .eq('is_active', true);
 
-      if (error) {
-        console.error('Error fetching routes:', error);
+      if (fetchError) {
+        console.error('Error fetching routes:', fetchError);
+        setError('Failed to load trail routes');
         Alert.alert('Error', 'Failed to load trail routes');
         return;
       }
 
-      if (data && data.length > 0) {
-        const routesWithCoords = data.map(route => ({
-          ...route,
-          route_coordinates: generateRouteCoordinates(route, latitude, longitude)
-        }));
-        setRoutes(routesWithCoords);
-        // Auto-select main route
-        const mainRoute = routesWithCoords.find(r => r.is_main_route);
-        setSelectedRoute(mainRoute || routesWithCoords[0]);
+      const routesWithCoordinates = data?.map((route) => ({
+        ...route,
+        route_coordinates: generateRouteCoordinates(route),
+      })) || [];
+
+      // Convert to TrailRoute format and update context
+      const normalizedTrails = routesWithCoordinates.map(route => normalizeTrailRoute(route));
+      setTrails(normalizedTrails);
+      setRoutes(routesWithCoordinates);
+      
+      // Set first route as selected if none is selected
+      if (normalizedTrails.length > 0 && !selectedTrail) {
+        setSelectedTrail(normalizedTrails[0]);
       }
     } catch (error) {
       console.error('Error fetching routes:', error);
+      setError('Failed to load trail routes');
       Alert.alert('Error', 'Failed to load trail routes');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Generate sample route coordinates based on route data
-  const generateRouteCoordinates = (route: Route, baseLat: number, baseLng: number) => {
-    const coords = [];
-    const distance = route.distance || 5;
-    const points = Math.max(10, Math.floor(distance * 2)); // More points for longer routes
+  const generateRouteCoordinates = (route: Route) => {
+    if (route.waypoints) {
+      try {
+        const waypoints = JSON.parse(route.waypoints);
+        if (Array.isArray(waypoints) && waypoints.length > 0) {
+          return waypoints.map((wp: any) => ({
+            latitude: parseFloat(wp.latitude || wp.lat || '0'),
+            longitude: parseFloat(wp.longitude || wp.lng || '0'),
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing waypoints:', error);
+      }
+    }
+
+    // Fallback: generate simple route coordinates
+    const distance = route.length || 1;
+    const points = Math.max(3, Math.min(10, Math.floor(distance * 2)));
+    const coordinates = [];
     
-    // Create a realistic trail path
-    for (let i = 0; i <= points; i++) {
-      const progress = i / points;
-      const angle = progress * Math.PI * 2 * (route.route_type === 'loop' ? 1 : 0.5);
+    for (let i = 0; i < points; i++) {
+      const factor = i / (points - 1);
+      const latOffset = (Math.random() - 0.5) * 0.01 * distance;
+      const lngOffset = (Math.random() - 0.5) * 0.01 * distance;
       
-      // Add some randomness for realistic trail curves
-      const randomOffset = (Math.random() - 0.5) * 0.002;
-      const elevationFactor = route.elevation_gain ? route.elevation_gain / 1000 : 0.5;
-      
-      const lat = baseLat + Math.cos(angle) * 0.01 * elevationFactor + randomOffset;
-      const lng = baseLng + Math.sin(angle) * 0.01 * elevationFactor + randomOffset;
-      
-      coords.push({ latitude: lat, longitude: lng });
+      coordinates.push({
+        latitude: latitude + latOffset + (factor * 0.005),
+        longitude: longitude + lngOffset + (factor * 0.005),
+      });
     }
     
-    return coords;
+    return coordinates;
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -127,12 +156,12 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
       case 'easy': return COLORS.easy;
       case 'moderate': return COLORS.moderate;
       case 'hard': return COLORS.hard;
-      case 'expert': return COLORS.hard;
       default: return COLORS.moderate;
     }
   };
 
   const formatDuration = (minutes: number) => {
+    if (!minutes) return '0m';
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours > 0) {
@@ -142,15 +171,145 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
   };
 
   const getRouteTypeIcon = (type: string) => {
-    switch (type) {
+    switch (type?.toLowerCase()) {
       case 'loop': return 'loop';
-      case 'out_and_back': return 'compare-arrows';
-      case 'point_to_point': return 'trending-up';
+      case 'out_and_back': 
+      case 'out and back': return 'compare-arrows';
+      case 'point_to_point': 
+      case 'point to point': return 'trending-up';
       default: return 'route';
     }
   };
 
-  if (loading) {
+  const normalizeCoordinates = (coords: { latitude: number; longitude: number }[]) => {
+    return coords.map(coord => [coord.latitude, coord.longitude]);
+  };
+
+  const prepareMapData = () => {
+    const mapData = {
+      center: [latitude, longitude],
+      zoom: 13,
+      hikingSpot: {
+        name: spotName,
+        coordinates: [latitude, longitude]
+      },
+      selectedRoute: selectedTrail ? {
+        id: selectedTrail.id,
+        name: selectedTrail.name,
+        coordinates: getTrailCoordinates(selectedTrail),
+        color: COLORS.primary
+      } : null
+    };
+    return JSON.stringify(mapData);
+  };
+
+  const generateMapHTML = () => {
+    const mapDataJson = prepareMapData();
+    
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Trail Map</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <style>
+            body { margin: 0; padding: 0; }
+            #map { height: 100vh; width: 100%; }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            const mapData = ${mapDataJson};
+            
+            // Initialize map
+            const map = L.map('map').setView(mapData.center, mapData.zoom);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add hiking spot marker
+            const hikingSpotIcon = L.divIcon({
+                html: '<div style="background-color: ${COLORS.accent}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+                className: 'custom-div-icon'
+            });
+            
+            L.marker(mapData.hikingSpot.coordinates, { icon: hikingSpotIcon })
+                .addTo(map)
+                .bindPopup('<b>' + mapData.hikingSpot.name + '</b><br>Hiking Spot');
+            
+            // Add selected route if available
+            if (mapData.selectedRoute && mapData.selectedRoute.coordinates.length > 0) {
+                // Add route polyline
+                const polyline = L.polyline(mapData.selectedRoute.coordinates, {
+                    color: mapData.selectedRoute.color,
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+                
+                // Add start marker
+                const startIcon = L.divIcon({
+                    html: '<div style="background-color: #4CAF50; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8],
+                    className: 'custom-div-icon'
+                });
+                
+                L.marker(mapData.selectedRoute.coordinates[0], { icon: startIcon })
+                    .addTo(map)
+                    .bindPopup('<b>Start Point</b><br>' + mapData.selectedRoute.name);
+                
+                // Add end marker
+                const endIcon = L.divIcon({
+                    html: '<div style="background-color: #F44336; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8],
+                    className: 'custom-div-icon'
+                });
+                
+                const endCoords = mapData.selectedRoute.coordinates[mapData.selectedRoute.coordinates.length - 1];
+                L.marker(endCoords, { icon: endIcon })
+                    .addTo(map)
+                    .bindPopup('<b>End Point</b><br>' + mapData.selectedRoute.name);
+                
+                // Fit map to show the route
+                if (mapData.selectedRoute.coordinates.length > 1) {
+                    map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
+                }
+            }
+            
+            // Handle map interactions
+            map.on('click', function(e) {
+                window.ReactNativeWebView?.postMessage(JSON.stringify({
+                    type: 'mapClick',
+                    coordinates: [e.latlng.lat, e.latlng.lng]
+                }));
+            });
+        </script>
+    </body>
+    </html>
+    `;
+  };
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'mapClick') {
+        console.log('Map clicked at:', data.coordinates);
+      }
+    } catch (error) {
+      console.error('Error parsing WebView message:', error);
+    }
+  };
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -173,35 +332,18 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
     <View style={styles.container}>
       {/* Map Section */}
       <View style={styles.mapContainer}>
-        <MapView
+        <WebView
           style={styles.map}
-          initialRegion={{
-            latitude: latitude,
-            longitude: longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          {/* Hiking Spot Marker */}
-          <Marker
-            coordinate={{
-              latitude: latitude,
-              longitude: longitude,
-            }}
-            title={spotName}
-            description="Hiking Spot"
-          />
-          
-          {/* Selected Route Polyline */}
-          {selectedRoute && selectedRoute.route_coordinates && (
-            <Polyline
-              coordinates={selectedRoute.route_coordinates}
-              strokeColor={COLORS.primary}
-              strokeWidth={3}
-              lineDashPattern={[5, 5]}
-            />
-          )}
-        </MapView>
+          source={{ html: generateMapHTML() }}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          scalesPageToFit={true}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
 
       {/* Route Selection */}
@@ -213,24 +355,27 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
               key={route.id}
               style={[
                 styles.routeCard,
-                selectedRoute?.id === route.id && styles.selectedRouteCard,
+                selectedTrail?.id === route.id && styles.selectedRouteCard,
               ]}
-              onPress={() => setSelectedRoute(route)}
+              onPress={() => {
+                const normalizedRoute = normalizeTrailRoute(route);
+                setSelectedTrail(normalizedRoute);
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.routeHeader}>
                 <MaterialIcons
-                  name={getRouteTypeIcon(route.route_type)}
+                  name={getRouteTypeIcon(route.trail_type)}
                   size={20}
-                  color={selectedRoute?.id === route.id ? COLORS.white : COLORS.primary}
+                  color={selectedTrail?.id === route.id ? COLORS.white : COLORS.primary}
                 />
                 <Text
                   style={[
                     styles.routeName,
-                    selectedRoute?.id === route.id && styles.selectedRouteName,
+                    selectedTrail?.id === route.id && styles.selectedRouteName,
                   ]}
                 >
-                  {route.route_name}
+                  {route.name}
                 </Text>
               </View>
               
@@ -238,18 +383,18 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
                 <Text
                   style={[
                     styles.routeDistance,
-                    selectedRoute?.id === route.id && styles.selectedRouteText,
+                    selectedTrail?.id === route.id && styles.selectedRouteText,
                   ]}
                 >
-                  {route.distance} km
+                  {route.length} km • {route.elevation_gain}m ↗
                 </Text>
                 <Text
                   style={[
                     styles.routeDuration,
-                    selectedRoute?.id === route.id && styles.selectedRouteText,
+                    selectedTrail?.id === route.id && styles.selectedRouteText,
                   ]}
                 >
-                  {formatDuration(route.estimated_duration)}
+                  {formatDuration(route.estimated_time)}
                 </Text>
               </View>
               
@@ -267,19 +412,66 @@ const TrailMapComponent: React.FC<TrailMapComponentProps> = ({
       </View>
 
       {/* Selected Route Details */}
-      {selectedRoute && (
+      {selectedTrail && (
         <View style={styles.routeDetails}>
           <Text style={styles.detailsTitle}>Route Details</Text>
-          <Text style={styles.routeDescription}>{selectedRoute.route_description}</Text>
+          <Text style={styles.routeDescription}>{selectedTrail.description}</Text>
           
-          {selectedRoute.route_features && selectedRoute.route_features.length > 0 && (
-            <View style={styles.waypointsSection}>
-              <Text style={styles.waypointsTitle}>Route Features</Text>
-              {selectedRoute.route_features.slice(0, 3).map((feature, index) => (
-                <Text key={index} style={styles.waypointItem}>
-                  • {feature}
+          {/* Route Statistics */}
+          <View style={styles.routeStats}>
+            <View style={styles.statRow}>
+              <View style={styles.statItem}>
+                <MaterialIcons name="straighten" size={16} color={COLORS.primary} />
+                <Text style={styles.statLabel}>Distance</Text>
+                <Text style={styles.statValue}>{selectedTrail.distance} km</Text>
+              </View>
+              <View style={styles.statItem}>
+                <MaterialIcons name="schedule" size={16} color={COLORS.primary} />
+                <Text style={styles.statLabel}>Duration</Text>
+                <Text style={styles.statValue}>{formatDuration(selectedTrail.estimatedTime || 0)}</Text>
+              </View>
+            </View>
+            <View style={styles.statRow}>
+              <View style={styles.statItem}>
+                <MaterialIcons name="trending-up" size={16} color={COLORS.primary} />
+                <Text style={styles.statLabel}>Elevation</Text>
+                <Text style={styles.statValue}>{selectedTrail.elevationGain}m</Text>
+              </View>
+              <View style={styles.statItem}>
+                <MaterialIcons name="fitness-center" size={16} color={COLORS.primary} />
+                <Text style={styles.statLabel}>Difficulty</Text>
+                <Text style={styles.statValue}>{selectedTrail.difficulty}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Start/End Coordinates */}
+          {selectedTrail.coordinates && selectedTrail.coordinates.length > 0 && (
+            <View style={styles.coordinatesSection}>
+              <Text style={styles.coordinatesTitle}>Route Coordinates</Text>
+              <View style={styles.coordinateRow}>
+                <MaterialIcons name="play-arrow" size={16} color="green" />
+                <Text style={styles.coordinateLabel}>Start:</Text>
+                <Text style={styles.coordinateValue}>
+                  {selectedTrail.coordinates[0][0].toFixed(4)}, {selectedTrail.coordinates[0][1].toFixed(4)}
                 </Text>
-              ))}
+              </View>
+              <View style={styles.coordinateRow}>
+                <MaterialIcons name="stop" size={16} color="red" />
+                <Text style={styles.coordinateLabel}>End:</Text>
+                <Text style={styles.coordinateValue}>
+                  {selectedTrail.coordinates[selectedTrail.coordinates.length - 1][0].toFixed(4)}, {selectedTrail.coordinates[selectedTrail.coordinates.length - 1][1].toFixed(4)}
+                </Text>
+              </View>
+            </View>
+          )}
+          
+          {selectedTrail.trailType && (
+            <View style={styles.waypointsSection}>
+              <Text style={styles.waypointsTitle}>Route Highlights</Text>
+              <Text style={styles.waypointItem}>
+                • Trail type: {selectedTrail.trailType}
+              </Text>
             </View>
           )}
         </View>
@@ -438,6 +630,70 @@ const styles = StyleSheet.create({
     color: COLORS.lightText,
     marginBottom: 3,
     lineHeight: 18,
+  },
+  routeStats: {
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.lightText,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  statValue: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  coordinatesSection: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  coordinatesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  coordinateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  coordinateLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.text,
+    marginLeft: 6,
+    marginRight: 8,
+    minWidth: 40,
+  },
+  coordinateValue: {
+    fontSize: 12,
+    color: COLORS.lightText,
+    fontFamily: 'monospace',
   },
 });
 

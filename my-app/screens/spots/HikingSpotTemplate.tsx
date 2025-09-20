@@ -16,27 +16,31 @@ import {
 } from 'react-native';
 import { supabase } from '../../services/supabaseClient';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { useProfile } from '../../contexts/ProfileContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ImageCarousel } from '../../components/ImageCarousel';
 import TrailMap from '../../components/TrailMap';
 import ReviewSystem from '../../components/ReviewSystem';
+import TrailRoutesSlider from '../../components/TrailRoutesSlider';
 import { getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
 
 const { width, height } = Dimensions.get('window');
 
+// Hero section height - responsive to screen size
+const HERO_HEIGHT = Math.min(height * 0.45, 400); // 45% of screen height, max 400px
+
 // Define a consistent color palette
 const COLORS = {
-  primary: '#388E3C',
-  secondary: '#388E3C',
-  text: '#212121',
-  textLight: '#616161',
-  textMuted: '#9E9E9E',
-  background: '#FFFFFF',
-  card: '#F9F9F9',
-  separator: '#EEEEEE',
-  star: '#388E3C',
+  primary: '#2E7D32',
+  secondary: '#2E7D32',
+  text: '#1F2933',
+  textLight: '#546E7A',
+  textMuted: '#9BA4AF',
+  background: '#FAFAF7',
+  card: '#FFFFFF',
+  separator: '#E6E8EB',
+  star: '#2E7D32',
   error: '#F44336',
   success: '#4CAF50',
   mapPlaceholder: '#F5F5F5'
@@ -45,7 +49,7 @@ const COLORS = {
 interface HikingSpotData {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   difficulty: string;
   elevation: number;
   trail_length: number;
@@ -54,12 +58,21 @@ interface HikingSpotData {
   longitude: number;
   rating: number;
   review_count: number;
-  image_url: string;
+  image_url?: string;
   amenities: string[];
   best_season: string[];
   highlights: string[];
   tips: string[];
-  imageSource: any;
+  imageSource?: any;
+  location?: string; // Added: human-readable place name for pinned location
+}
+
+interface WeatherData {
+  temperature: number;
+  condition: string;
+  humidity: number;
+  windSpeed: number;
+  icon: string;
 }
 
 interface HikingSpotTemplateProps {
@@ -68,25 +81,25 @@ interface HikingSpotTemplateProps {
 }
 
 export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotTemplateProps) {
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
   const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
   const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
-  const [weatherData, setWeatherData] = useState(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
 
   const getImageSource = () => {
-    return spotData.imageSource;
+    return spotData.imageSource || null;
   };
 
   useEffect(() => {
     fetchTrailRoutes();
     fetchWeatherData();
-    setLoading(false);
+    setIsLoading(false);
   }, []);
 
   async function fetchTrailRoutes() {
@@ -134,10 +147,12 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
       android: `geo:0,0?q=${spotData.latitude},${spotData.longitude}`
     });
     
-    Linking.openURL(url);
+    if (url) {
+      Linking.openURL(url);
+    }
   };
 
-  const renderStars = (rating) => {
+  const renderStars = (rating: number) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -246,7 +261,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -265,10 +280,12 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
         <View style={styles.imageContainer}>
           <ImageCarousel
             spotName={spotData.name}
-            customImages={null} // Let it use all 5 images from imageHelpers
+            customImages={undefined}
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            colors={["rgba(0,0,0,0.3)", "transparent"]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
             style={styles.imageOverlay}
           />
           <TouchableOpacity
@@ -277,21 +294,21 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           >
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          
-          <View style={styles.heroContent}>
+          {/* Removed favorite icon per spec */}
+
+          {/* Overlay trail name, rating, location */}
+          <View style={styles.heroContent} pointerEvents="none">
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>{spotData.name}</Text>
               <View style={styles.heroRating}>
                 {renderStars(Math.floor(spotData.rating))}
                 <Text style={styles.heroRatingText}>
-                  {spotData.rating} ({spotData.review_count} reviews)
+                  {spotData.rating} <Text style={{opacity: 0.85}}>({spotData.review_count} reviews)</Text>
                 </Text>
               </View>
               <View style={styles.heroLocation}>
-                <MaterialIcons name="location-on" size={16} color="white" />
-                <Text style={styles.heroLocationText}>
-                  {spotData.latitude.toFixed(4)}, {spotData.longitude.toFixed(4)}
-                </Text>
+                <MaterialIcons name="location-on" size={16} color="#fff" />
+                <Text style={styles.heroLocationText}>{spotData.location || 'Cebu, Philippines'}</Text>
               </View>
             </View>
           </View>
@@ -299,28 +316,8 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
 
         {/* Content Container */}
         <View style={styles.contentContainer}>
-          {/* Basic Trail Info Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Trail Information</Text>
-            <View style={styles.trailInfoGrid}>
-              <View style={styles.trailInfoCard}>
-                <MaterialIcons name="straighten" size={24} color={COLORS.primary} />
-                <Text style={styles.trailInfoValue}>{spotData.trail_length}km</Text>
-                <Text style={styles.trailInfoLabel}>Distance</Text>
-              </View>
-              <View style={styles.trailInfoCard}>
-                <MaterialIcons name="terrain" size={24} color={COLORS.primary} />
-                <Text style={styles.trailInfoValue}>{spotData.elevation}m</Text>
-                <Text style={styles.trailInfoLabel}>Elevation</Text>
-              </View>
-              <View style={styles.trailInfoCard}>
-                <MaterialIcons name="fitness-center" size={24} color={COLORS.primary} />
-                <Text style={styles.trailInfoValue}>{spotData.difficulty}</Text>
-                <Text style={styles.trailInfoLabel}>Difficulty</Text>
-              </View>
-            </View>
-          </View>
-
+          {/* Removed first 'Trail Information' header and stats row for a cleaner layout */}
+          
           {/* Add to Favorites Section */}
           <View style={styles.section}>
             <TouchableOpacity 
@@ -333,8 +330,8 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
             >
               <Ionicons 
                 name={isSpotFavorited(spotData.id) ? 'heart' : 'heart-outline'} 
-                size={24} 
-                color={isSpotFavorited(spotData.id) ? '#FF6B6B' : COLORS.primary} 
+                size={20} 
+                color="#FFFFFF" 
               />
               <Text style={[
                 styles.favoriteButtonText,
@@ -348,7 +345,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           {/* Description Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{spotData.description}</Text>
+            <Text style={styles.description}>{spotData.description || 'No description available'}</Text>
           </View>
 
           {/* Trail Map Section */}
@@ -384,24 +381,50 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                 />
               ) : (
                 <View style={styles.noRouteMapContainer}>
-                  <MapView
+                  <WebView
                     style={styles.map}
-                    initialRegion={{
-                      latitude: spotData.latitude,
-                      longitude: spotData.longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
+                    source={{
+                      html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="utf-8" />
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>Hiking Spot Map</title>
+                            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                            <style>
+                                body { margin: 0; padding: 0; }
+                                #map { height: 100vh; width: 100%; }
+                            </style>
+                        </head>
+                        <body>
+                            <div id="map"></div>
+                            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                            <script>
+                                const map = L.map('map').setView([${spotData.latitude}, ${spotData.longitude}], 15);
+                                
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '© OpenStreetMap contributors'
+                                }).addTo(map);
+                                
+                                const marker = L.marker([${spotData.latitude}, ${spotData.longitude}])
+                                    .addTo(map)
+                                    .bindPopup('<b>${spotData.name}</b><br>${spotData.description || ''}');
+                                
+                                marker.openPopup();
+                            </script>
+                        </body>
+                        </html>
+                      `
                     }}
-                  >
-                    <Marker
-                      coordinate={{
-                        latitude: spotData.latitude,
-                        longitude: spotData.longitude,
-                      }}
-                      title={spotData.name}
-                      description={spotData.description}
-                    />
-                  </MapView>
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    scalesPageToFit={true}
+                    scrollEnabled={false}
+                    showsHorizontalScrollIndicator={false}
+                    showsVerticalScrollIndicator={false}
+                  />
                   <View style={styles.noRouteOverlay}>
                     <Text style={styles.noRouteText}>No trail routes available yet</Text>
                     <Text style={styles.noRouteSubtext}>Check back later for detailed trail maps</Text>
@@ -414,61 +437,14 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           {/* Trail Routes Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trail Routes</Text>
-            {trailRoutesLoading ? (
-              <View style={styles.trailRoutesLoadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.trailRoutesLoadingText}>Loading trail routes...</Text>
-              </View>
-            ) : trailRoutesError ? (
-              <View style={styles.trailRoutesErrorContainer}>
-                <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
-                <Text style={styles.trailRoutesErrorText}>{trailRoutesError}</Text>
-                <TouchableOpacity 
-                  style={styles.retryButton} 
-                  onPress={fetchTrailRoutes}
-                >
-                  <MaterialIcons name="refresh" size={20} color="white" />
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.routesContainer}>
-                {trailRoutes.length > 0 ? (
-                  trailRoutes.map((route, index) => (
-                  <TouchableOpacity
-                    key={route.id || index}
-                    style={[
-                      styles.routeButton,
-                      { backgroundColor: getDifficultyColor(route.difficulty || 'moderate') },
-                      selectedRoute?.id === route.id && styles.selectedRouteButton
-                    ]}
-                    onPress={() => setSelectedRoute(route)}
-                  >
-                    <Text style={styles.routeButtonText}>{route.name || `Route ${index + 1}`}</Text>
-                    <Text style={styles.routeDifficultyText}>{route.difficulty || 'Moderate'}</Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                // Default routes if none exist
-                ['Main Trail', 'Summit Route', 'Scenic Path', 'Advanced Trail', 'Expert Route'].map((routeName, index) => {
-                  const difficulties = ['Easy', 'Moderate', 'Hard', 'Very Hard', 'Expert'];
-                  const difficulty = difficulties[index];
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.routeButton,
-                        { backgroundColor: getDifficultyColor(difficulty) }
-                      ]}
-                      onPress={() => {}}
-                    >
-                      <Text style={styles.routeButtonText}>{routeName}</Text>
-                      <Text style={styles.routeDifficultyText}>{difficulty}</Text>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
+            <TrailRoutesSlider
+              routes={trailRoutes}
+              selectedRoute={selectedRoute}
+              onRouteSelect={setSelectedRoute}
+              loading={trailRoutesLoading}
+              error={trailRoutesError || undefined}
+              onRetry={fetchTrailRoutes}
+            />
           </View>
 
           {/* Trail Information Section */}
@@ -476,17 +452,11 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Trail Information</Text>
               <View style={styles.trailInfoContainer}>
-                <Text style={styles.trailInfoTitle}>{selectedRoute.name || 'Selected Route'}</Text>
+                <Text style={styles.trailInfoTitle}>{selectedRoute.route_name || 'Selected Route'}</Text>
                 {selectedRoute.highlights && (
                   <View style={styles.trailHighlights}>
                     <Text style={styles.trailHighlightsTitle}>Highlights:</Text>
                     <Text style={styles.trailHighlightsText}>{selectedRoute.highlights}</Text>
-                  </View>
-                )}
-                {selectedRoute.description && (
-                  <View style={styles.trailDescription}>
-                    <Text style={styles.trailDescriptionTitle}>Description:</Text>
-                    <Text style={styles.trailDescriptionText}>{selectedRoute.description}</Text>
                   </View>
                 )}
               </View>
@@ -562,21 +532,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
             </View>
           </View>
 
-          {/* Trail Map Section */}
-          {trailRoutes.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Trail Map</Text>
-              <TrailMap
-                routes={trailRoutes}
-                selectedRoute={selectedRoute}
-                onRouteSelect={setSelectedRoute}
-                centerCoordinates={{
-                  latitude: spotData.latitude,
-                  longitude: spotData.longitude
-                }}
-              />
-            </View>
-          )}
+
 
 
 
@@ -619,8 +575,11 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 300,
+    height: HERO_HEIGHT,
     width: '100%',
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    overflow: 'hidden',
   },
   heroImage: {
     height: '100%',
@@ -631,49 +590,58 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 150,
+    height: 160,
   },
   backButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 40 : 35,
-    left: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    top: Platform.OS === 'ios' ? 44 : 20,
+    left: 16,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 20,
+    padding: 8,
+    zIndex: 10,
+  },
+  favoriteIconButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 20,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     borderRadius: 20,
     padding: 8,
     zIndex: 10,
   },
   heroContent: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: 16,
+    left: 16,
+    right: 16,
   },
   heroTextContainer: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
   },
   heroTitle: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: '800',
     color: 'white',
-    marginBottom: 8,
+    marginBottom: 6,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   heroRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   heroRatingText: {
-    color: 'white',
+    color: 'rgba(255,255,255,0.95)',
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: '500',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -682,11 +650,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroLocationText: {
-    color: 'white',
-    marginLeft: 4,
+    color: 'rgba(255,255,255,0.9)',
+    marginLeft: 6,
     fontSize: 14,
-    fontWeight: '400',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -695,84 +663,47 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    marginTop: -24,
+    marginTop: -12,
   },
-  trailInfoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  trailInfoCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    borderWidth: 1,
-    borderColor: COLORS.separator,
-  },
-  trailInfoValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: 8,
-    marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  },
-  trailInfoLabel: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+  // Removed stats cards from initial section
   favoriteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    elevation: 0,
   },
   favoriteButtonActive: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderColor: '#FF6B6B',
+    backgroundColor: COLORS.primary,
   },
   favoriteButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginLeft: 8,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 10,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   favoriteButtonTextActive: {
-    color: '#FF6B6B',
+    color: '#FFFFFF',
   },
   section: {
     marginBottom: 28,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 16,
+    marginBottom: 12,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   description: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 26,
     color: COLORS.text,
+    opacity: 0.95,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
   },
   listItem: {
@@ -839,40 +770,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
 
-  routesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  routeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginBottom: 8,
-    minWidth: 120,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  selectedRouteButton: {
-    borderWidth: 2,
-    borderColor: COLORS.text,
-  },
-  routeButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  },
-  routeDifficultyText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 2,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+
   trailInfoContainer: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
@@ -1023,48 +921,43 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   trailRoutesLoadingContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.separator,
+    justifyContent: 'center',
   },
   trailRoutesLoadingText: {
+    marginTop: 12,
+    fontSize: 16,
     color: COLORS.textMuted,
-    fontSize: 14,
-    marginTop: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   trailRoutesErrorContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.separator,
+    justifyContent: 'center',
   },
   trailRoutesErrorText: {
-    color: COLORS.error,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 16,
+    fontSize: 16,
+    color: COLORS.error,
+    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 20,
   },
   retryButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
     color: 'white',
-    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 4,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
+
 });

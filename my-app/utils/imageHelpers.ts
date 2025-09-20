@@ -70,7 +70,7 @@ const HIKING_SPOT_IMAGES = {
       require('../assets/images/mt kapayas/5.jpg'),
     ]
   },
-  'mount lantoy': {
+  'mount latoy': {
     thumbnail: require('../assets/images/mount latoy/thumbnail.webp'),
     images: [
       require('../assets/images/mount latoy/thumbnail.webp'),
@@ -183,8 +183,7 @@ const SPOT_NAME_TO_FOLDER: { [key: string]: string } = {
   'Kandungaw Peak': 'mount babag', // Fallback to mount babag images
   'Mantalongon Peak': 'mt mago', // Fallback to mt mago images
   'Sirao Flower Garden': 'mt kan-irag', // Fallback to mt kan-irag images
-  'Temple of Leah': 'mount babag', // Fallback to mount babag images
-  'Tumalog Falls': 'budlaanfalls', // Fallback to budlaanfalls images
+
 
 };
 
@@ -350,6 +349,7 @@ export function getPlaceholderImage(spotType?: string): any {
 // Get all images for a hiking spot (thumbnail first, max 5 images)
 export function getHikingSpotImages(spotName: string): any[] {
   const folderKey = SPOT_NAME_TO_FOLDER[spotName];
+  
   if (!folderKey || !HIKING_SPOT_IMAGES[folderKey as keyof typeof HIKING_SPOT_IMAGES]) {
     return [];
   }
@@ -361,7 +361,9 @@ export function getHikingSpotImages(spotName: string): any[] {
   const ordered = [spotImages.thumbnail, ...imagesWithoutThumb];
 
   // Enforce max 5 images in strict order [thumbnail, image2, image3, image4, image5]
-  return ordered.slice(0, 5);
+  const result = ordered.slice(0, 5);
+  
+  return result;
 }
 
 // Get thumbnail image for a hiking spot

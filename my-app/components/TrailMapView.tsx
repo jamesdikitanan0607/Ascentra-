@@ -1,35 +1,31 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Dimensions,
-  Alert,
   Platform,
 } from 'react-native';
-import MapView, { 
-  Marker, 
-  Polyline, 
-  Region, 
-  PROVIDER_GOOGLE,
-  Callout,
-  CalloutSubview 
-} from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { TrailWithSpot, DIFFICULTY_COLORS } from '../services/trailService';
-import { Ionicons } from '@expo/vector-icons';
 
 interface TrailMapViewProps {
   trails: TrailWithSpot[];
   selectedTrail?: TrailWithSpot | null;
   onTrailSelect?: (trail: TrailWithSpot) => void;
   showAllTrails?: boolean;
-  initialRegion?: Region;
+  initialRegion?: {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  };
+  style?: any;
 }
 
 const { width, height } = Dimensions.get('window');
 
 // Default region centered on Cebu, Philippines
-const DEFAULT_REGION: Region = {
+const DEFAULT_REGION = {
   latitude: 10.3157,
   longitude: 123.8854,
   latitudeDelta: 0.5,
@@ -42,178 +38,305 @@ export default function TrailMapView({
   onTrailSelect,
   showAllTrails = true,
   initialRegion = DEFAULT_REGION,
+  style,
 }: TrailMapViewProps) {
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  // Normalize coordinates to ensure they're in [lat, lng] format
+  const normalizeCoordinates = (coords: [number, number] | undefined): [number, number] | null => {
+    if (!coords || coords.length < 2) return null;
+    return [coords[0], coords[1]];
+  };
+
+  // Prepare trail data for the map
+  const prepareTrailsData = () => {
+    const trailsToShow = showAllTrails ? trails : (selectedTrail ? [selectedTrail] : []);
+    
+    return trailsToShow.map(trail => {
+      const startCoords = normalizeCoordinates(trail.start_coordinates);
+      const endCoords = normalizeCoordinates(trail.end_coordinates);
+      
+      if (!startCoords || !endCoords) return null;
+      
+      return {
+        id: trail.id,
+        name: trail.name,
+        difficulty: trail.difficulty,
+        distance_km: trail.distance_km,
+        duration_hr: trail.duration_hr,
+        highlights: trail.highlights,
+        startCoords,
+        endCoords,
+        color: DIFFICULTY_COLORS[trail.difficulty] || '#007AFF',
+        isSelected: selectedTrail?.id === trail.id,
+      };
+    }).filter(Boolean);
+  };
 
   // Focus on selected trail
   useEffect(() => {
-    if (selectedTrail && mapReady && mapRef.current) {
-      focusOnTrail(selectedTrail);
+    if (selectedTrail && mapReady && webViewRef.current) {
+      const startCoords = normalizeCoordinates(selectedTrail.start_coordinates);
+      const endCoords = normalizeCoordinates(selectedTrail.end_coordinates);
+      
+      if (startCoords && endCoords) {
+        const bounds = [startCoords, endCoords];
+        webViewRef.current.postMessage(JSON.stringify({
+          type: 'fitBounds',
+          bounds: bounds,
+        }));
+      }
     }
   }, [selectedTrail, mapReady]);
 
-  const focusOnTrail = (trail: TrailWithSpot) => {
-    if (!mapRef.current || !trail.start_coordinates || !trail.end_coordinates) return;
-
-    const coordinates = [
-      {
-        latitude: trail.start_coordinates[0],
-        longitude: trail.start_coordinates[1],
-      },
-      {
-        latitude: trail.end_coordinates[0],
-        longitude: trail.end_coordinates[1],
-      },
-    ];
-
-    // Add some padding around the trail
-    const padding = {
-      top: 100,
-      right: 50,
-      bottom: 100,
-      left: 50,
-    };
-
-    mapRef.current.fitToCoordinates(coordinates, {
-      edgePadding: padding,
-      animated: true,
-    });
+  // Handle messages from WebView
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      
+      if (data.type === 'mapReady') {
+        setMapReady(true);
+      } else if (data.type === 'trailSelected' && onTrailSelect) {
+        const trail = trails.find(t => t.id === data.trailId);
+        if (trail) {
+          onTrailSelect(trail);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing WebView message:', error);
+    }
   };
 
-  const getPolylineCoordinates = (trail: TrailWithSpot) => {
-    if (!trail.start_coordinates || !trail.end_coordinates) return [];
+  const trailsData = prepareTrailsData();
 
-    // For now, create a simple line from start to end
-    // In a real app, you'd use the actual trail path from GPX data
-    return [
-      {
-        latitude: trail.start_coordinates[0],
-        longitude: trail.start_coordinates[1],
-      },
-      {
-        latitude: trail.end_coordinates[0],
-        longitude: trail.end_coordinates[1],
-      },
-    ];
-  };
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Trail Map</title>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+        .custom-marker {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: 3px solid white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          color: white;
+          font-weight: bold;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          cursor: pointer;
+        }
+        .custom-marker.selected {
+          width: 48px;
+          height: 48px;
+          font-size: 24px;
+        }
+        .leaflet-popup-content-wrapper {
+          border-radius: 8px;
+        }
+        .popup-content {
+          padding: 8px;
+          min-width: 200px;
+        }
+        .popup-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 4px;
+        }
+        .popup-subtitle {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 4px;
+        }
+        .popup-details {
+          font-size: 12px;
+          color: #888;
+          line-height: 16px;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script>
+        // Initialize map
+        const map = L.map('map', {
+          center: [${initialRegion.latitude}, ${initialRegion.longitude}],
+          zoom: 10,
+          zoomControl: true,
+          attributionControl: true,
+        });
 
-  const getMarkerIcon = (isStart: boolean) => {
-    return isStart ? 'play-circle' : 'flag';
-  };
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 18,
+        }).addTo(map);
 
-  const renderTrailMarkers = (trail: TrailWithSpot) => {
-    if (!trail.start_coordinates || !trail.end_coordinates) return null;
+        // Store trail data
+        const trailsData = ${JSON.stringify(trailsData)};
+        const markers = [];
+        const polylines = [];
 
-    const isSelected = selectedTrail?.id === trail.id;
-    const difficultyColor = DIFFICULTY_COLORS[trail.difficulty];
+        // Function to create custom marker icon
+        function createMarkerIcon(color, icon, isSelected = false) {
+          const size = isSelected ? 48 : 40;
+          const fontSize = isSelected ? 24 : 20;
+          
+          return L.divIcon({
+            className: 'custom-div-icon',
+            html: \`<div class="custom-marker \${isSelected ? 'selected' : ''}" style="background-color: \${color}; width: \${size}px; height: \${size}px; font-size: \${fontSize}px;">\${icon}</div>\`,
+            iconSize: [size, size],
+            iconAnchor: [size/2, size/2],
+          });
+        }
 
-    return (
-      <React.Fragment key={`trail-${trail.id}`}>
-        {/* Start Marker */}
-        <Marker
-          coordinate={{
-            latitude: trail.start_coordinates[0],
-            longitude: trail.start_coordinates[1],
-          }}
-          title={`${trail.name} - Start`}
-          description={`${trail.difficulty} • ${trail.distance_km}km`}
-          pinColor={difficultyColor}
-          onPress={() => onTrailSelect?.(trail)}
-        >
-          <View style={[styles.markerContainer, { backgroundColor: difficultyColor }]}>
-            <Ionicons 
-              name="play-circle" 
-              size={isSelected ? 28 : 24} 
-              color="#fff" 
-            />
-          </View>
-          <Callout tooltip>
-            <View style={styles.calloutContainer}>
-              <Text style={styles.calloutTitle}>{trail.name}</Text>
-              <Text style={styles.calloutSubtitle}>Start Point</Text>
-              <Text style={styles.calloutDetails}>
-                {trail.difficulty} • {trail.distance_km}km • {Math.round(trail.duration_hr * 60)}min
-              </Text>
-            </View>
-          </Callout>
-        </Marker>
+        // Function to add trail to map
+        function addTrail(trail) {
+          if (!trail || !trail.startCoords || !trail.endCoords) return;
 
-        {/* End Marker */}
-        <Marker
-          coordinate={{
-            latitude: trail.end_coordinates[0],
-            longitude: trail.end_coordinates[1],
-          }}
-          title={`${trail.name} - End`}
-          description={trail.highlights}
-          pinColor={difficultyColor}
-          onPress={() => onTrailSelect?.(trail)}
-        >
-          <View style={[styles.markerContainer, { backgroundColor: difficultyColor }]}>
-            <Ionicons 
-              name="flag" 
-              size={isSelected ? 28 : 24} 
-              color="#fff" 
-            />
-          </View>
-          <Callout tooltip>
-            <View style={styles.calloutContainer}>
-              <Text style={styles.calloutTitle}>{trail.name}</Text>
-              <Text style={styles.calloutSubtitle}>End Point</Text>
-              <Text style={styles.calloutDetails}>{trail.highlights}</Text>
-            </View>
-          </Callout>
-        </Marker>
-      </React.Fragment>
-    );
-  };
+          const { id, name, difficulty, distance_km, duration_hr, highlights, startCoords, endCoords, color, isSelected } = trail;
 
-  const renderTrailPolyline = (trail: TrailWithSpot) => {
-    const coordinates = getPolylineCoordinates(trail);
-    if (coordinates.length === 0) return null;
+          // Create polyline
+          const polyline = L.polyline([startCoords, endCoords], {
+            color: color,
+            weight: isSelected ? 6 : 4,
+            opacity: 0.8,
+          }).addTo(map);
 
-    const isSelected = selectedTrail?.id === trail.id;
-    const difficultyColor = DIFFICULTY_COLORS[trail.difficulty];
+          polyline.on('click', () => {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'trailSelected',
+              trailId: id,
+            }));
+          });
 
-    return (
-      <Polyline
-        key={`polyline-${trail.id}`}
-        coordinates={coordinates}
-        strokeColor={difficultyColor}
-        strokeWidth={isSelected ? 6 : 4}
-        strokePattern={isSelected ? undefined : [10, 5]}
-        onPress={() => onTrailSelect?.(trail)}
-      />
-    );
-  };
+          polylines.push(polyline);
 
-  const trailsToShow = showAllTrails ? trails : (selectedTrail ? [selectedTrail] : []);
+          // Start marker
+          const startMarker = L.marker(startCoords, {
+            icon: createMarkerIcon(color, '▶', isSelected)
+          }).addTo(map);
+
+          startMarker.bindPopup(\`
+            <div class="popup-content">
+              <div class="popup-title">\${name}</div>
+              <div class="popup-subtitle">Start Point</div>
+              <div class="popup-details">\${difficulty} • \${distance_km}km • \${Math.round(duration_hr * 60)}min</div>
+            </div>
+          \`);
+
+          startMarker.on('click', () => {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'trailSelected',
+              trailId: id,
+            }));
+          });
+
+          markers.push(startMarker);
+
+          // End marker
+          const endMarker = L.marker(endCoords, {
+            icon: createMarkerIcon(color, '🏁', isSelected)
+          }).addTo(map);
+
+          endMarker.bindPopup(\`
+            <div class="popup-content">
+              <div class="popup-title">\${name}</div>
+              <div class="popup-subtitle">End Point</div>
+              <div class="popup-details">\${highlights || 'Trail endpoint'}</div>
+            </div>
+          \`);
+
+          endMarker.on('click', () => {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'trailSelected',
+              trailId: id,
+            }));
+          });
+
+          markers.push(endMarker);
+        }
+
+        // Function to clear all trails
+        function clearTrails() {
+          markers.forEach(marker => map.removeLayer(marker));
+          polylines.forEach(polyline => map.removeLayer(polyline));
+          markers.length = 0;
+          polylines.length = 0;
+        }
+
+        // Function to update trails
+        function updateTrails(newTrailsData) {
+          clearTrails();
+          newTrailsData.forEach(addTrail);
+        }
+
+        // Add initial trails
+        updateTrails(trailsData);
+
+        // Handle messages from React Native
+        window.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'updateTrails') {
+              updateTrails(data.trails);
+            } else if (data.type === 'fitBounds' && data.bounds) {
+              const bounds = L.latLngBounds(data.bounds);
+              map.fitBounds(bounds, { padding: [20, 20] });
+            }
+          } catch (error) {
+            console.error('Error handling message:', error);
+          }
+        });
+
+        // Notify React Native that map is ready
+        map.whenReady(() => {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'mapReady'
+          }));
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  // Update trails when data changes
+  useEffect(() => {
+    if (mapReady && webViewRef.current) {
+      const updatedTrailsData = prepareTrailsData();
+      webViewRef.current.postMessage(JSON.stringify({
+        type: 'updateTrails',
+        trails: updatedTrailsData,
+      }));
+    }
+  }, [trails, selectedTrail, showAllTrails, mapReady]);
 
   return (
-    <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={initialRegion}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-        showsCompass={true}
-        showsScale={true}
-        onMapReady={() => setMapReady(true)}
-        mapType="terrain"
-        pitchEnabled={true}
-        rotateEnabled={true}
-        scrollEnabled={true}
-        zoomEnabled={true}
-      >
-        {/* Render polylines first (so they appear under markers) */}
-        {trailsToShow.map(trail => renderTrailPolyline(trail))}
-        
-        {/* Render markers */}
-        {trailsToShow.map(trail => renderTrailMarkers(trail))}
-      </MapView>
+    <View style={[styles.container, style]}>
+      <WebView
+        ref={webViewRef}
+        source={{ html: htmlContent }}
+        style={styles.webview}
+        onMessage={handleMessage}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        scalesPageToFit={Platform.OS === 'android'}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
@@ -222,56 +345,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  markerContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  calloutContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    minWidth: 200,
-    maxWidth: 250,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  calloutSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  calloutDetails: {
-    fontSize: 12,
-    color: '#888',
-    lineHeight: 16,
+  webview: {
+    flex: 1,
   },
 });

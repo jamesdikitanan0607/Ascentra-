@@ -87,7 +87,7 @@ export default function TrailCard({ trail, onPress, isSelected = false }: TrailC
 
       {/* Mountain name */}
       <View style={styles.mountainContainer}>
-        <Ionicons name="mountain-outline" size={14} color="#888" />
+        <Ionicons name="location-outline" size={14} color="#888" />
         <Text style={styles.mountainText}>{trail.hiking_spot.name}</Text>
       </View>
 

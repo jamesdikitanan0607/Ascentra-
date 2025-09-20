@@ -29,14 +29,14 @@ export const linking: LinkingOptions<any> = {
       FavoritesScreen: 'favorites',
       // Hiking spot screens
       MountBabag: 'spots/mount-babag',
-      MountKanirag: 'spots/mount-kanirag',
+      MountKanirag: 'spots/mt kan-irag',
       MountNaupa: 'spots/mount-naupa',
       MountManunggal: 'spots/mount-manunggal',
       MountMago: 'spots/mount-mago',
       MountKapayas: 'spots/mount-kapayas',
-      MountLantoy: 'spots/mount-lantoy',
-      MountKalbasaan: 'spots/mount-kalbasaan',
-      MountMauyog: 'spots/mount-mauyog',
+  MountLantoy: 'spots/mount-lantoy',
+  // MountKalbasaan: 'spots/mount-kalbasaan', // Removed - Mount Kalbasaan
+  MountMauyog: 'spots/mount-mauyog',
       MountLanaya: 'spots/mount-lanaya',
       MountHambubuyog: 'spots/mount-hambubuyog',
       OsmenaPeak: 'spots/osmena-peak',

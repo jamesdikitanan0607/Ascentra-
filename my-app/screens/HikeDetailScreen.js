@@ -13,7 +13,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { formatDate, formatDistance, formatDuration, formatPace } from '../utils/formatters';
 import { getHikeById } from '../services/databaseService';
 
@@ -167,72 +167,104 @@ export default function HikeDetailScreen({ route, navigation }) {
         
         {/* Map with route */}
         <View style={styles.mapContainer}>
-          <MapView
+          <WebView
             style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={getMapRegion()}
-            mapType={mapType}
-            showsUserLocation={false}
-            minZoomLevel={10} // Force a reasonable zoom level
-            onMapReady={() => {
-              // Map is ready
+            source={{
+              html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                  <style>
+                    body { margin: 0; padding: 0; }
+                    #map { height: 100vh; width: 100vw; }
+                  </style>
+                </head>
+                <body>
+                  <div id="map"></div>
+                  <script>
+                    const mapRegion = ${JSON.stringify(getMapRegion())};
+                    const map = L.map('map').setView([mapRegion.latitude, mapRegion.longitude], 13);
+                    
+                    // Use terrain tiles for better hiking visualization
+                    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                      attribution: '© OpenTopoMap contributors'
+                    }).addTo(map);
+                    
+                    // Route polyline with enhanced visibility
+                    ${hike.routeCoordinates?.length > 1 ? `
+                      const routeCoords = ${JSON.stringify(hike.routeCoordinates.map(coord => [coord.latitude, coord.longitude]))};
+                      
+                      // Background glow effect
+                      L.polyline(routeCoords, {
+                        color: 'rgba(0, 0, 0, 0.5)',
+                        weight: 12,
+                        opacity: 1
+                      }).addTo(map);
+                      
+                      // Main route line
+                      L.polyline(routeCoords, {
+                        color: '#4CAF50',
+                        weight: 8,
+                        opacity: 1
+                      }).addTo(map);
+                      
+                      // Fit map to route bounds
+                      const group = new L.featureGroup();
+                      routeCoords.forEach(coord => {
+                        L.marker(coord).addTo(group);
+                      });
+                      map.fitBounds(group.getBounds().pad(0.1));
+                    ` : ''}
+                    
+                    // Start marker
+                    ${hike.routeCoordinates?.length > 0 ? `
+                      const startIcon = L.divIcon({
+                        html: '<div style="background-color: #2E7D32; border-radius: 16px; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white; font-size: 16px;">🚩</div>',
+                        className: 'custom-div-icon',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                      });
+                      L.marker([${hike.routeCoordinates[0].latitude}, ${hike.routeCoordinates[0].longitude}], {icon: startIcon})
+                        .bindPopup('Start')
+                        .addTo(map);
+                    ` : ''}
+                    
+                    // End marker
+                    ${hike.routeCoordinates?.length > 1 ? `
+                      const endIcon = L.divIcon({
+                        html: '<div style="background-color: #D32F2F; border-radius: 16px; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white; font-size: 16px;">🏁</div>',
+                        className: 'custom-div-icon',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                      });
+                      L.marker([${hike.routeCoordinates[hike.routeCoordinates.length - 1].latitude}, ${hike.routeCoordinates[hike.routeCoordinates.length - 1].longitude}], {icon: endIcon})
+                        .bindPopup('End')
+                        .addTo(map);
+                    ` : ''}
+                    
+                    // Map center marker (if no route)
+                    ${!hike.routeCoordinates?.length ? `
+                      const centerIcon = L.divIcon({
+                        html: '<div style="background-color: #2196F3; border-radius: 50%; width: 16px; height: 16px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                        className: 'custom-div-icon',
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                      });
+                      L.marker([mapRegion.latitude, mapRegion.longitude], {icon: centerIcon})
+                        .bindPopup('Map Center')
+                        .addTo(map);
+                    ` : ''}
+                  </script>
+                </body>
+                </html>
+              `
             }}
-          >
-            {/* Add a simple marker at the map center for reference */}
-            <Marker
-              coordinate={getMapRegion()}
-              pinColor="blue"
-              title="Map Center"
-            />
-            
-            {/* Add more visible route lines with higher contrast colors */}
-            {hike.routeCoordinates?.length > 1 && (
-              <>
-                {/* Background track */}
-                <Polyline
-                  coordinates={hike.routeCoordinates}
-                  strokeWidth={12}  // Very thick
-                  strokeColor="rgba(0, 0, 0, 0.5)"  // Black background for contrast
-                  lineCap="round"
-                  lineJoin="round"
-                  zIndex={1}
-                />
-                
-                {/* Main visible track */}
-                <Polyline
-                  coordinates={hike.routeCoordinates}
-                  strokeWidth={8}  // Thicker
-                  strokeColor="#4CAF50"  // Brighter green for visibility
-                  lineCap="round"
-                  lineJoin="round"
-                  zIndex={2}
-                />
-              </>
-            )}
-            
-            {/* Add more visible markers for start/end */}
-            {hike.routeCoordinates?.length > 0 && (
-              <Marker
-                coordinate={hike.routeCoordinates[0]}
-                title="Start"
-              >
-                <View style={[styles.startMarker, {backgroundColor: 'green'}]}>
-                  <Ionicons name="flag" size={16} color="white" />
-                </View>
-              </Marker>
-            )}
-            
-            {hike.routeCoordinates?.length > 1 && (
-              <Marker
-                coordinate={hike.routeCoordinates[hike.routeCoordinates.length - 1]}
-                title="End"
-              >
-                <View style={[styles.endMarker, {backgroundColor: 'red'}]}>
-                  <Ionicons name="flag-checkered" size={16} color="white" />
-                </View>
-              </Marker>
-            )}
-          </MapView>
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+          />
           
           {/* Map type toggle button */}
           <TouchableOpacity 

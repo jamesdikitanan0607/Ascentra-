@@ -38,25 +38,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
   
-  // Redirect react-native-maps to our web component on web platform
-  if (platform === 'web' && moduleName === 'react-native-maps') {
-    return {
-      type: 'sourceFile',
-      filePath: path.resolve(__dirname, 'components/MapView.web.js'),
-    };
-  }
-  
-  // Block react-native-maps native modules on web
-  if (platform === 'web' && (
-    moduleName.includes('react-native/Libraries/Utilities/codegenNativeCommands') ||
-    moduleName.includes('react-native/Libraries/Utilities/codegenNativeComponent') ||
-    moduleName.includes('react-native-maps/lib/MapMarkerNativeComponent')
-  )) {
-    return {
-      type: 'empty',
-    };
-  }
-  
   // Use default resolver for other modules
   return context.resolveRequest(context, moduleName, platform);
 };

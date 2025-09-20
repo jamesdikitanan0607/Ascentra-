@@ -4,6 +4,8 @@ import { getHikingSpotById, getTrailRoutesBySpotId, TrailRouteDetails } from '..
 import { HikingSpot } from '../../types/database';
 import { getSpotById } from '../../data/hikingSpotData';
 import HikingSpotTemplate from './HikingSpotTemplate';
+// Add: import mock spots to pull human-readable location
+import MOCK_HIKING_SPOTS from '../../data/mockHikingSpots';
 
 interface HikingSpotWrapperProps {
   navigation: any;
@@ -46,7 +48,7 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
         if (localSpotData) {
           // Convert local data to HikingSpot format
           const convertedSpot: HikingSpot = {
-            hiking_spot_id: parseInt(spotId),
+            id: parseInt(spotId),
             name: localSpotData.name,
             description: localSpotData.description,
             coordinates: {
@@ -54,7 +56,8 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
             },
             average_rating: localSpotData.rating,
             number_of_reviews: localSpotData.review_count,
-            cover_image_url: localSpotData.image_url
+            cover_image_url: localSpotData.image_url,
+            is_verified: false
           };
           setHikingSpot(convertedSpot);
           setTrailRoutes([]); // No trail routes in local data
@@ -66,7 +69,7 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
       const localSpotData = getSpotById(spotId);
       if (localSpotData) {
         const convertedSpot: HikingSpot = {
-          hiking_spot_id: parseInt(spotId),
+          id: parseInt(spotId),
           name: localSpotData.name,
           description: localSpotData.description,
           coordinates: {
@@ -74,7 +77,8 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
           },
           average_rating: localSpotData.rating,
           number_of_reviews: localSpotData.review_count,
-          cover_image_url: localSpotData.image_url
+          cover_image_url: localSpotData.image_url,
+          is_verified: false
         };
         setHikingSpot(convertedSpot);
         setTrailRoutes([]);
@@ -103,8 +107,11 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
   const localSpotData = getSpotById(spotId);
   const primaryRoute = trailRoutes.length > 0 ? trailRoutes[0] : null;
   
+  // Add: find mock spot to obtain location string
+  const mockSpot = MOCK_HIKING_SPOTS.find(s => s.id === spotId);
+  
   const spotData = {
-    id: hikingSpot.hiking_spot_id?.toString() || spotId,
+    id: hikingSpot.id?.toString() || spotId,
     name: hikingSpot.name,
     description: hikingSpot.description,
     difficulty: primaryRoute?.difficulty || localSpotData?.difficulty || 'Moderate',
@@ -121,6 +128,8 @@ export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapp
     highlights: primaryRoute?.highlights ? [primaryRoute.highlights] : localSpotData?.highlights || [],
     tips: localSpotData?.tips || ['Bring plenty of water', 'Wear proper hiking shoes', 'Start early to avoid heat'],
     imageSource: localSpotData?.imageSource || (hikingSpot.cover_image_url ? { uri: hikingSpot.cover_image_url } : null),
+    // Added: human-readable location for pinned location display
+    location: mockSpot?.location,
    };
 
   return (

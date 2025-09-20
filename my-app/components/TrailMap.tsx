@@ -7,7 +7,7 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import MapView, { Polyline, Marker, UrlTile } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { TrailRouteDetails } from '../services/supabaseService';
 
@@ -45,23 +45,39 @@ export default function TrailMap({
   onRouteSelect,
   centerCoordinates,
 }: TrailMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
-  // Center map on selected route
+  // Update map when selected route changes
   useEffect(() => {
-    if (selectedRoute && mapRef.current) {
+    if (selectedRoute && webViewRef.current) {
       const routeCoords = getRouteCoordinates(selectedRoute);
       if (routeCoords.length > 0) {
-        mapRef.current.fitToCoordinates(routeCoords, {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-          animated: true,
+        const message = JSON.stringify({
+          type: 'focusOnRoute',
+          coordinates: routeCoords.map((coord: { latitude: number; longitude: number }) => [coord.latitude, coord.longitude])
         });
+        webViewRef.current.postMessage(message);
       }
     }
   }, [selectedRoute]);
 
   const getRouteCoordinates = (route: TrailRouteDetails) => {
+    // First, try to parse waypoints field (primary source from database)
+    if (route.waypoints) {
+      try {
+        const waypoints = JSON.parse(route.waypoints);
+        if (Array.isArray(waypoints) && waypoints.length > 0) {
+          return waypoints.map((wp: any) => ({
+            latitude: wp.latitude || wp.lat || 0,
+            longitude: wp.longitude || wp.lng || 0,
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing waypoints:', error);
+      }
+    }
+
     if (route.geojson_path?.coordinates) {
       // Handle GeoJSON LineString coordinates
       return route.geojson_path.coordinates.map((coord: [number, number]) => ({
@@ -111,124 +127,285 @@ export default function TrailMap({
   };
 
   const centerMapOnRoute = () => {
-    if (selectedRoute && mapRef.current) {
+    if (selectedRoute && webViewRef.current) {
       const routeCoords = getRouteCoordinates(selectedRoute);
       if (routeCoords.length > 0) {
-        mapRef.current.fitToCoordinates(routeCoords, {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-          animated: true,
+        const message = JSON.stringify({
+          type: 'focusOnRoute',
+          coordinates: routeCoords.map((coord: { latitude: number; longitude: number }) => [coord.latitude, coord.longitude])
         });
+        webViewRef.current.postMessage(message);
       }
     }
   };
+
+  const toggleMapType = () => {
+    const newMapType = mapType === 'standard' ? 'satellite' : 'standard';
+    setMapType(newMapType);
+    
+    if (webViewRef.current) {
+      const message = JSON.stringify({
+        type: 'changeMapType',
+        mapType: newMapType
+      });
+      webViewRef.current.postMessage(message);
+    }
+  };
+
+  const normalizeCoordinates = (coords: { latitude: number; longitude: number }[]) => {
+    return coords.map(coord => [coord.latitude, coord.longitude]);
+  };
+
+  const prepareMapData = () => {
+    const mapData = {
+      center: [centerCoordinates.latitude, centerCoordinates.longitude],
+      zoom: 13,
+      mapType: mapType,
+      routes: routes.map((route, index) => ({
+        id: route.route_id,
+        name: route.route_name,
+        coordinates: normalizeCoordinates(getRouteCoordinates(route)),
+        color: getRouteColor(route, index),
+        difficulty: route.difficulty,
+        distance: route.distance_km,
+        elevation: route.elevation_gain_m,
+        isSelected: selectedRoute?.route_id === route.route_id
+      })),
+      selectedRoute: selectedRoute ? {
+        id: selectedRoute.route_id,
+        name: selectedRoute.route_name,
+        coordinates: normalizeCoordinates(getRouteCoordinates(selectedRoute)),
+        color: getRouteColor(selectedRoute, 0)
+      } : null
+    };
+    return JSON.stringify(mapData);
+  };
+
+  const generateMapHTML = () => {
+    const mapDataJson = prepareMapData();
+    
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Trail Map</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <style>
+            body { margin: 0; padding: 0; }
+            #map { height: 100vh; width: 100%; }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            let mapData = ${mapDataJson};
+            let map;
+            let currentTileLayer;
+            let routeLayers = [];
+            
+            // Initialize map
+            function initMap() {
+                map = L.map('map').setView(mapData.center, mapData.zoom);
+                
+                // Add initial tile layer
+                updateTileLayer();
+                
+                // Add routes
+                updateRoutes();
+            }
+            
+            function updateTileLayer() {
+                if (currentTileLayer) {
+                    map.removeLayer(currentTileLayer);
+                }
+                
+                if (mapData.mapType === 'satellite') {
+                    currentTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                        attribution: '© Esri'
+                    });
+                } else {
+                    currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    });
+                }
+                
+                currentTileLayer.addTo(map);
+            }
+            
+            function updateRoutes() {
+                // Clear existing route layers
+                routeLayers.forEach(layer => map.removeLayer(layer));
+                routeLayers = [];
+                
+                if (mapData.selectedRoute && mapData.selectedRoute.coordinates.length > 0) {
+                    // Show only selected route
+                    addRoute(mapData.selectedRoute, true);
+                } else {
+                    // Show all routes
+                    mapData.routes.forEach(route => {
+                        if (route.coordinates.length > 0) {
+                            addRoute(route, false);
+                        }
+                    });
+                }
+            }
+            
+            function addRoute(route, isSelected) {
+                if (route.coordinates.length === 0) return;
+                
+                const strokeWidth = isSelected ? 6 : 3;
+                const opacity = isSelected ? 0.8 : 0.6;
+                
+                // Add route polyline
+                if (route.coordinates.length > 1) {
+                    const polyline = L.polyline(route.coordinates, {
+                        color: route.color,
+                        weight: strokeWidth,
+                        opacity: opacity
+                    }).addTo(map);
+                    
+                    polyline.on('click', function() {
+                        window.ReactNativeWebView?.postMessage(JSON.stringify({
+                            type: 'routePress',
+                            routeId: route.id
+                        }));
+                    });
+                    
+                    routeLayers.push(polyline);
+                }
+                
+                // Add start marker
+                const startIcon = L.divIcon({
+                    html: '<div style="background-color: #4CAF50; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8],
+                    className: 'custom-div-icon'
+                });
+                
+                const startMarker = L.marker(route.coordinates[0], { icon: startIcon })
+                    .addTo(map)
+                    .bindPopup('<b>' + route.name + ' - Start</b><br>' + route.difficulty + ' • ' + route.distance + 'km');
+                
+                startMarker.on('click', function() {
+                    window.ReactNativeWebView?.postMessage(JSON.stringify({
+                        type: 'routePress',
+                        routeId: route.id
+                    }));
+                });
+                
+                routeLayers.push(startMarker);
+                
+                // Add end marker for routes with multiple points
+                if (route.coordinates.length > 1) {
+                    const endIcon = L.divIcon({
+                        html: '<div style="background-color: #F44336; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8],
+                        className: 'custom-div-icon'
+                    });
+                    
+                    const endCoords = route.coordinates[route.coordinates.length - 1];
+                    const endMarker = L.marker(endCoords, { icon: endIcon })
+                        .addTo(map)
+                        .bindPopup('<b>' + route.name + ' - End</b><br>Elevation: ' + route.elevation + 'm');
+                    
+                    endMarker.on('click', function() {
+                        window.ReactNativeWebView?.postMessage(JSON.stringify({
+                            type: 'routePress',
+                            routeId: route.id
+                        }));
+                    });
+                    
+                    routeLayers.push(endMarker);
+                }
+            }
+            
+            // Handle messages from React Native
+            window.addEventListener('message', function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'focusOnRoute' && data.coordinates.length > 0) {
+                    const bounds = L.latLngBounds(data.coordinates);
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                } else if (data.type === 'changeMapType') {
+                    mapData.mapType = data.mapType;
+                    updateTileLayer();
+                } else if (data.type === 'updateData') {
+                    mapData = data.mapData;
+                    updateRoutes();
+                }
+            });
+            
+            // Handle map interactions
+            map.on('click', function(e) {
+                window.ReactNativeWebView?.postMessage(JSON.stringify({
+                    type: 'mapClick',
+                    coordinates: [e.latlng.lat, e.latlng.lng]
+                }));
+            });
+            
+            // Initialize map when page loads
+            initMap();
+        </script>
+    </body>
+    </html>
+    `;
+  };
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      
+      if (data.type === 'routePress') {
+        const route = routes.find(r => r.route_id === data.routeId);
+        if (route) {
+          handleRoutePress(route);
+        }
+      } else if (data.type === 'mapClick') {
+        console.log('Map clicked at:', data.coordinates);
+      }
+    } catch (error) {
+      console.error('Error parsing WebView message:', error);
+    }
+  };
+
+  // Update WebView when routes or selected route changes
+  useEffect(() => {
+    if (webViewRef.current) {
+      const message = JSON.stringify({
+        type: 'updateData',
+        mapData: JSON.parse(prepareMapData())
+      });
+      webViewRef.current.postMessage(message);
+    }
+  }, [routes, selectedRoute]);
 
   return (
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
+        <WebView
+          ref={webViewRef}
           style={styles.map}
-          mapType={mapType}
-          initialRegion={{
-            latitude: centerCoordinates.latitude,
-            longitude: centerCoordinates.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }}
-        >
-          {/* OpenStreetMap Tiles */}
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-          />
-
-          {/* Render selected route or all routes */}
-          {selectedRoute ? (
-            // Show only the selected route
-            (() => {
-              const routeCoords = getRouteCoordinates(selectedRoute);
-              const routeColor = getRouteColor(selectedRoute, 0);
-
-              return (
-                <React.Fragment key={selectedRoute.route_id}>
-                  {/* Route Polyline */}
-                  {routeCoords.length > 1 && (
-                    <Polyline
-                      coordinates={routeCoords}
-                      strokeColor={routeColor}
-                      strokeWidth={6}
-                      onPress={() => handleRoutePress(selectedRoute)}
-                      tappable
-                    />
-                  )}
-
-                  {/* Start Marker */}
-                  {routeCoords.length > 0 && (
-                    <Marker
-                      coordinate={routeCoords[0]}
-                      title={`${selectedRoute.route_name} - Start`}
-                      description={`${selectedRoute.difficulty} • ${selectedRoute.distance_km}km`}
-                      pinColor="#4CAF50"
-                      onPress={() => handleRoutePress(selectedRoute)}
-                    />
-                  )}
-
-                  {/* End Marker */}
-                  {routeCoords.length > 1 && (
-                    <Marker
-                      coordinate={routeCoords[routeCoords.length - 1]}
-                      title={`${selectedRoute.route_name} - End`}
-                      description={`Elevation: ${selectedRoute.elevation_gain_m}m`}
-                      pinColor="#F44336"
-                      onPress={() => handleRoutePress(selectedRoute)}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })()
-          ) : (
-            // Show all routes with reduced opacity
-            routes.map((route, index) => {
-              const routeCoords = getRouteCoordinates(route);
-              const routeColor = getRouteColor(route, index);
-
-              return (
-                <React.Fragment key={route.route_id}>
-                  {/* Route Polyline */}
-                  {routeCoords.length > 1 && (
-                    <Polyline
-                      coordinates={routeCoords}
-                      strokeColor={routeColor}
-                      strokeWidth={3}
-                      strokePattern={[5, 5]}
-                      onPress={() => handleRoutePress(route)}
-                      tappable
-                    />
-                  )}
-
-                  {/* Start Marker */}
-                  {routeCoords.length > 0 && (
-                    <Marker
-                      coordinate={routeCoords[0]}
-                      title={`${route.route_name} - Start`}
-                      description={`${route.difficulty} • ${route.distance_km}km`}
-                      pinColor={routeColor}
-                      onPress={() => handleRoutePress(route)}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
-        </MapView>
+          source={{ html: generateMapHTML() }}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+          scalesPageToFit={true}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        />
 
         {/* Map Controls */}
         <View style={styles.mapControls}>
           <TouchableOpacity
             style={styles.mapControlButton}
-            onPress={() => setMapType(mapType === 'standard' ? 'satellite' : 'standard')}
+            onPress={toggleMapType}
           >
             <MaterialIcons
               name={mapType === 'standard' ? 'satellite' : 'map'}
@@ -244,58 +421,6 @@ export default function TrailMap({
             <MaterialIcons name="my-location" size={20} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Route Legend */}
-      <View style={styles.legendContainer}>
-        <Text style={styles.legendTitle}>Trail Routes ({routes.length})</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {routes.map((route, index) => {
-            const routeColor = getRouteColor(route, index);
-            const isSelected = selectedRoute?.route_id === route.route_id;
-
-            return (
-              <TouchableOpacity
-                key={route.route_id}
-                style={[
-                  styles.legendItem,
-                  isSelected && styles.legendItemSelected,
-                ]}
-                onPress={() => handleRoutePress(route)}
-              >
-                <View style={styles.legendItemHeader}>
-                  <View
-                    style={[
-                      styles.colorIndicator,
-                      { backgroundColor: routeColor },
-                    ]}
-                  />
-                  <Text style={[
-                    styles.legendItemName,
-                    isSelected && styles.legendItemNameSelected,
-                  ]}>
-                    {route.route_name}
-                  </Text>
-                </View>
-                
-                <View style={[
-                  styles.difficultyBadge,
-                  { backgroundColor: getDifficultyColor(route.difficulty) },
-                ]}>
-                  <Text style={styles.difficultyText}>{route.difficulty}</Text>
-                </View>
-                
-                <View style={styles.routeStats}>
-                  <Text style={styles.routeStatText}>{route.distance_km}km</Text>
-                  <Text style={styles.routeStatText}>•</Text>
-                  <Text style={styles.routeStatText}>{route.elevation_gain_m}m</Text>
-                  <Text style={styles.routeStatText}>•</Text>
-                  <Text style={styles.routeStatText}>{route.estimated_duration_hr}h</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
       </View>
     </View>
   );
@@ -337,68 +462,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
-  },
-  legendContainer: {
-    marginTop: 16,
-  },
-  legendTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  legendItem: {
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
-    padding: 12,
-    marginRight: 12,
-    minWidth: 160,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  legendItemSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E8F5E8',
-  },
-  legendItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  legendItemName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    flex: 1,
-  },
-  legendItemNameSelected: {
-    color: COLORS.primary,
-  },
-  difficultyBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  difficultyText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  routeStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  routeStatText: {
-    fontSize: 12,
-    color: COLORS.textLight,
   },
 });

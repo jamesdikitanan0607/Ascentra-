@@ -39,7 +39,7 @@ const officialHikingSpots = [
     longitude: 123.9621
   },
   {
-    name: 'Mount Kan-irag / Sirao Peak',
+    name: 'Mount Kan-irag',
     description: 'Famous for its flower gardens and cool climate. The peak offers stunning views and is known for its colorful celosia flowers.',
     difficulty: 'Easy',
     elevation: 1200,

@@ -17,8 +17,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useProfile } from '../../contexts/ProfileContext';
+import { useTrail, normalizeTrailRoute } from '../../contexts/TrailContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getHikingSpotById, getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
 import { HikingSpot } from '../../types/database';
@@ -28,6 +28,10 @@ import { ImageCarousel } from '../../components/ImageCarousel';
 import ReviewSystem from '../../components/ReviewSystem';
 
 const { width, height } = Dimensions.get('window');
+
+// Constants for route card layout
+const CARD_GAP = 12;
+const cardWidth = (width - 40 - CARD_GAP) / 2; // 40 for padding, divided by 2 for 2 columns
 
 // Define a consistent color palette
 const COLORS = {
@@ -58,12 +62,14 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   const { spotId } = route.params;
   const [hikingSpot, setHikingSpot] = useState<HikingSpot | null>(null);
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
+  
+  // Trail context for shared trail selection
+  const { selectedTrail, setSelectedTrail, setTrails } = useTrail();
 
   useEffect(() => {
     fetchHikingSpotData();
@@ -88,9 +94,30 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         const routes = await getTrailRoutesBySpotId(spotId);
         setTrailRoutes(routes);
         
-        // Set the first route as selected by default
-        if (routes.length > 0) {
-          setSelectedRoute(routes[0]);
+        // Convert to TrailRoute format and update context
+        const normalizedTrails = routes.map(route => normalizeTrailRoute({
+          id: route.route_id,
+          name: route.route_name,
+          description: route.highlights || '',
+          difficulty: route.difficulty,
+          length: route.distance_km,
+          elevation_gain: route.elevation_gain_m,
+          estimated_time: route.estimated_duration_hr * 60, // Convert hours to minutes
+          trail_type: 'trail',
+          waypoints: '',
+          gpx_data: null,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          hiking_spot_id: spotId,
+          route_id: route.route_id
+        }));
+        
+        setTrails(normalizedTrails);
+        
+        // Set the first route as selected by default if none is selected
+        if (normalizedTrails.length > 0 && !selectedTrail) {
+          setSelectedTrail(normalizedTrails[0]);
         }
       } else {
         Alert.alert('Error', 'Hiking spot not found');
@@ -125,12 +152,12 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     if (favoritesLoading || !hikingSpot) return;
     
     try {
-      const isCurrentlyFavorited = isSpotFavorited(hikingSpot.hiking_spot_id.toString());
+      const isCurrentlyFavorited = isSpotFavorited(hikingSpot.id.toString());
       if (isCurrentlyFavorited) {
-        await removeFromFavorites(hikingSpot.hiking_spot_id.toString());
+        await removeFromFavorites(hikingSpot.id.toString());
       } else {
         await addToFavorites({
-          id: hikingSpot.hiking_spot_id.toString(),
+          id: hikingSpot.id.toString(),
           name: hikingSpot.name,
           description: hikingSpot.description,
           created_at: new Date().toISOString(),
@@ -144,12 +171,12 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   };
 
   const openDirections = () => {
-    if (!selectedRoute) return;
+    if (!selectedTrail || !selectedTrail.coordinates || selectedTrail.coordinates.length === 0) return;
     
-    const coords = selectedRoute.start_coordinates as { latitude: number; longitude: number };
+    const coords = selectedTrail.coordinates[0];
     const url = Platform.select({
-      ios: `maps:0,0?q=${coords.latitude},${coords.longitude}`,
-      android: `geo:0,0?q=${coords.latitude},${coords.longitude}`
+      ios: `maps:0,0?q=${coords[1]},${coords[0]}`,
+      android: `geo:0,0?q=${coords[1]},${coords[0]}`
     });
     
     if (url) {
@@ -254,10 +281,32 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Trail Map</Text>
               <GoogleMapsTrailMap
-                routes={trailRoutes}
-                selectedRoute={selectedRoute}
-                onRouteSelect={setSelectedRoute}
-                centerCoordinates={coordinates}
+                selectedHikingSpotId={spotId}
+                selectedTrailId={selectedTrail?.id}
+                onTrailSelect={(trailId) => {
+                  const route = trailRoutes.find(r => r.route_id === Number(trailId));
+                  if (route) {
+                    const normalizedTrail = normalizeTrailRoute({
+                      id: route.route_id,
+                      name: route.route_name,
+                      description: route.highlights || '',
+                      difficulty: route.difficulty,
+                      length: route.distance_km,
+                      elevation_gain: route.elevation_gain_m,
+                      estimated_time: route.estimated_duration_hr * 60,
+                      trail_type: 'trail',
+                      waypoints: '',
+                      gpx_data: null,
+                      is_active: true,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      hiking_spot_id: spotId,
+                      route_id: route.route_id
+                    });
+                    setSelectedTrail(normalizedTrail);
+                  }
+                }}
+                style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
               />
             </View>
           )}
@@ -280,14 +329,33 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
             <View style={styles.routesGrid}>
               {trailRoutes.map((route) => (
                 <TouchableOpacity
-                  key={route.id}
+                  key={route.route_id}
                   style={[
                     styles.routeCard,
                     styles.routeCardCompact,
-                    selectedRoute?.id === route.id && styles.routeCardSelected,
+                    selectedTrail?.id === String(route.route_id) && styles.routeCardSelected,
                     { width: cardWidth, marginRight: CARD_GAP, marginBottom: CARD_GAP },
                   ]}
-                  onPress={() => setSelectedRoute(route)}
+                  onPress={() => {
+                    const normalizedTrail = normalizeTrailRoute({
+                      id: route.route_id,
+                      name: route.route_name,
+                      description: route.highlights || '',
+                      difficulty: route.difficulty,
+                      length: route.distance_km,
+                      elevation_gain: route.elevation_gain_m,
+                      estimated_time: route.estimated_duration_hr * 60,
+                      trail_type: 'trail',
+                      waypoints: '',
+                      gpx_data: null,
+                      is_active: true,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      hiking_spot_id: spotId,
+                      route_id: route.route_id
+                    });
+                    setSelectedTrail(normalizedTrail);
+                  }}
                 >
                   <View style={styles.routeHeader}>
                     <Text style={styles.routeName}>{route.route_name}</Text>
@@ -320,40 +388,40 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           </View>
 
           {/* Trail Information Panel */}
-          {selectedRoute && (
+          {selectedTrail && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Trail Information</Text>
               <View style={styles.trailInfoCard}>
                 <View style={styles.trailInfoHeader}>
-                  <Text style={styles.trailInfoTitle}>{selectedRoute.route_name}</Text>
+                  <Text style={styles.trailInfoTitle}>{selectedTrail.name}</Text>
                   <View style={[
                     styles.difficultyBadge,
-                    { backgroundColor: getDifficultyColor(selectedRoute.difficulty) }
+                    { backgroundColor: getDifficultyColor(selectedTrail.difficulty) }
                   ]}>
-                    <Text style={styles.difficultyText}>{selectedRoute.difficulty}</Text>
+                    <Text style={styles.difficultyText}>{selectedTrail.difficulty}</Text>
                   </View>
                 </View>
                 
                 <View style={styles.trailInfoStats}>
                   <View style={styles.trailInfoStat}>
                     <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{selectedRoute.distance_km}km</Text>
+                    <Text style={styles.trailInfoStatValue}>{selectedTrail.distance}km</Text>
                     <Text style={styles.trailInfoStatLabel}>Distance</Text>
                   </View>
                   <View style={styles.trailInfoStat}>
                     <MaterialIcons name="terrain" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{selectedRoute.elevation_gain_m}m</Text>
+                    <Text style={styles.trailInfoStatValue}>{selectedTrail.elevationGain}m</Text>
                     <Text style={styles.trailInfoStatLabel}>Elevation Gain</Text>
                   </View>
                   <View style={styles.trailInfoStat}>
                     <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{selectedRoute.estimated_duration_hr}h</Text>
+                    <Text style={styles.trailInfoStatValue}>{Math.round((selectedTrail.estimatedTime || 0) / 60)}h</Text>
                     <Text style={styles.trailInfoStatLabel}>Duration</Text>
                   </View>
                 </View>
                 
                 <Text style={styles.highlightsTitle}>Trail Highlights</Text>
-                <Text style={styles.highlightsText}>{selectedRoute.highlights}</Text>
+                <Text style={styles.highlightsText}>{selectedTrail.description}</Text>
               </View>
             </View>
           )}
@@ -362,21 +430,21 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           <TouchableOpacity 
             style={[
               styles.favoriteButton,
-              isSpotFavorited(hikingSpot.hiking_spot_id.toString()) && styles.favoriteButtonActive
+              isSpotFavorited(hikingSpot.id.toString()) && styles.favoriteButtonActive
             ]}
             onPress={handleFavoriteToggle}
             disabled={favoritesLoading}
           >
             <Ionicons 
-              name={isSpotFavorited(hikingSpot.hiking_spot_id.toString()) ? 'heart' : 'heart-outline'} 
+              name={isSpotFavorited(hikingSpot.id.toString()) ? 'heart' : 'heart-outline'} 
               size={20} 
-              color={isSpotFavorited(hikingSpot.hiking_spot_id.toString()) ? '#FF6B6B' : COLORS.primary} 
+              color={isSpotFavorited(hikingSpot.id.toString()) ? '#FF6B6B' : COLORS.primary} 
             />
             <Text style={[
               styles.favoriteButtonText,
-              isSpotFavorited(hikingSpot.hiking_spot_id.toString()) && styles.favoriteButtonTextActive
+              isSpotFavorited(hikingSpot.id.toString()) && styles.favoriteButtonTextActive
             ]}>
-              {isSpotFavorited(hikingSpot.hiking_spot_id.toString()) ? 'Remove from Favorites' : 'Add to Favorites'}
+              {isSpotFavorited(hikingSpot.id.toString()) ? 'Remove from Favorites' : 'Add to Favorites'}
             </Text>
           </TouchableOpacity>
 
@@ -389,7 +457,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           {/* Reviews Section */}
           <View style={styles.section}>
             <ReviewSystem 
-              hikingSpotId={hikingSpot.hiking_spot_id.toString()} 
+              hikingSpotId={hikingSpot.id.toString()} 
               onReviewAdded={() => {
                 // Optionally refresh hiking spot data to update average rating
                 // Review added successfully

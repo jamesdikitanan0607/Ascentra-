@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, Image, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, ScrollView, Image, Dimensions, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getHikingSpotImages } from '../utils/imageHelpers';
 
@@ -17,22 +17,12 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({ spotName, customIm
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    // Use custom images if provided, otherwise get from hiking spot images
-    const baseImages = customImages && customImages.length > 0 ? customImages : getHikingSpotImages(spotName);
-
-    if (!baseImages || baseImages.length === 0) {
-      setImages([]);
-      setCurrentIndex(0);
-      return;
+    if (customImages && customImages.length > 0) {
+      setImages(customImages);
+    } else {
+      const spotImages = getHikingSpotImages(spotName);
+      setImages(spotImages);
     }
-
-    // Ensure single thumbnail first and remove duplicate of the first item in the rest
-    const [first, ...rest] = baseImages;
-    const dedupedRest = rest.filter(img => img !== first);
-    const ordered = [first, ...dedupedRest].slice(0, 5);
-
-    setImages(ordered);
-    setCurrentIndex(0);
   }, [spotName, customImages]);
 
   const handleScroll = (event: any) => {
