@@ -27,7 +27,7 @@ export const ALLOWED_HIKING_SPOTS = [
 // Mock hiking spots data
 const MOCK_HIKING_SPOTS: HikingSpot[] = [
   {
-    id: '1',
+    id: '71',
     name: 'Mount Babag',
     description: 'A popular hiking destination in Cebu City offering stunning panoramic views and diverse trail options ranging from easy forest walks to challenging ridge traverses.',
     difficulty: 'Easy-Hard',
@@ -45,7 +45,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '2',
+    id: '72',
     name: 'Mount Kan-irag / Sirao Peak',
     description: 'A scenic mountain peak in Cebu City famous for its flower gardens, rolling grasslands, and breathtaking summit views. Features trails from easy garden walks to extreme ridge exposures.',
     difficulty: 'Easy-Very Hard',
@@ -63,7 +63,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '3',
+    id: '73',
     name: 'Mount Naupa',
     description: 'A beautiful grassland mountain in Naga, Cebu offering rolling hills, eco trails, and spectacular ridge walks. Perfect for both beginners and experienced hikers seeking scenic views.',
     difficulty: 'Easy-Very Hard',
@@ -81,7 +81,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '4',
+    id: '74',
     name: 'Mount Manunggal',
     description: 'A historic mountain in Balamban, Cebu featuring heritage trails, grass ridges, and forest climbs. Known for its historical significance and diverse terrain from meadows to narrow ridges.',
     difficulty: 'Easy-Very Hard',
@@ -99,7 +99,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '5',
+    id: '75',
     name: 'Mount Mago',
     description: 'A scenic mountain in Carmen, Cebu featuring meadow trails, farm ridges, and challenging climbs. Offers diverse terrain from rolling farmlands to continuous steep ascents with summit views.',
     difficulty: 'Easy-Very Hard',
@@ -109,15 +109,15 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     rating_count: 52,
     type: 'Mountain',
     category: 'hiking',
-    latitude: 10.7100,
-    longitude: 123.9000,
+    latitude: 10.6330,
+    longitude: 123.9330,
     upvotes: 0,
     downvotes: 0,
     vote_score: 0,
     combined_score: 0
   },
   {
-    id: '6',
+    id: '76',
     name: 'Mount Kapayas',
     description: 'A scenic mountain trail offering beautiful views and diverse flora.',
     difficulty: 'Moderate',
@@ -135,7 +135,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '7',
+    id: '77',
     name: 'Mount Lantoy',
     description: 'A scenic mountain trail with beautiful coastal views and diverse flora.',
     difficulty: 'Moderate',
@@ -153,7 +153,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   // {
-  //   id: '8',
+  //   id: '78',
   //   name: 'Mount Kalbasaan',
   //   description: 'A beautiful mountain offering panoramic views and challenging trails.',
   //   difficulty: 'Moderate',
@@ -171,7 +171,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
   //   combined_score: 0
   // }, // Removed - Mount Kalbasaan
   {
-    id: '9',
+    id: '79',
     name: 'Mount Mauyog',
     description: 'A scenic mountain trail with diverse flora near Mt. Manunggal.',
     difficulty: 'Moderate',
@@ -189,7 +189,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '10',
+    id: '80',
     name: 'Mount Lanaya',
     description: 'A beautiful mountain offering stunning views and peaceful hiking experience.',
     difficulty: 'Moderate',
@@ -207,7 +207,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '11',
+    id: '81',
     name: 'Mount Hambubuyog',
     description: 'A scenic mountain offering beautiful views and challenging hiking trails.',
     difficulty: 'Moderate',
@@ -225,7 +225,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '12',
+    id: '82',
     name: 'Osmeña Peak',
     description: 'The highest peak in Cebu offering breathtaking panoramic views.',
     difficulty: 'Easy',
@@ -243,7 +243,7 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     combined_score: 0
   },
   {
-    id: '13',
+    id: '83',
     name: 'Casino Peak',
     description: 'A scenic peak near Osmeña Peak offering stunning mountain views.',
     difficulty: 'Easy',
@@ -253,15 +253,15 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     rating_count: 89,
     type: 'Mountain',
     category: 'hiking',
-    latitude: 9.7100,
-    longitude: 123.5200,
+    latitude: 9.8112,
+    longitude: 123.4702,
     upvotes: 0,
     downvotes: 0,
     vote_score: 0,
     combined_score: 0
   },
   {
-    id: '14',
+    id: '84',
     name: 'Budlaan Falls',
     description: 'A beautiful waterfall with trekking trail to Mt. Kan-irag, perfect for nature lovers.',
     difficulty: 'Moderate',
@@ -271,15 +271,15 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     rating_count: 34,
     type: 'Waterfall',
     category: 'hiking',
-    latitude: 10.3300,
-    longitude: 123.8600,
+    latitude: 10.3740,
+    longitude: 123.8610,
     upvotes: 0,
     downvotes: 0,
     vote_score: 0,
     combined_score: 0
   },
   {
-    id: '15',
+    id: '85',
     name: 'Spartan Trail',
     description: 'Challenging urban trail through the city offering great workout and views.',
     difficulty: 'Hard',
@@ -289,8 +289,8 @@ const MOCK_HIKING_SPOTS: HikingSpot[] = [
     rating_count: 67,
     type: 'Trail',
     category: 'hiking',
-    latitude: 10.3167,
-    longitude: 123.8833,
+    latitude: 10.3500,
+    longitude: 123.8800,
     upvotes: 0,
     downvotes: 0,
     vote_score: 0,

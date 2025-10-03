@@ -9,7 +9,7 @@ export function MountMagoScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '5' } }}
+      route={{ params: { hiking_spot_id: '75' } }}
     />
   );
 }

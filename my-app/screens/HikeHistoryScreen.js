@@ -762,7 +762,7 @@ export default function HikeHistoryScreen({ navigation }) {
       </TouchableOpacity>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

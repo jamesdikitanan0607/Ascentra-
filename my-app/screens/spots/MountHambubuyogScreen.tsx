@@ -9,7 +9,7 @@ export function MountHambubuyogScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '11' } }}
+      route={{ params: { hiking_spot_id: '81' } }}
     />
   );
 }

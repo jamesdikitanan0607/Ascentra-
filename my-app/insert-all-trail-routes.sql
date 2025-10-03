@@ -55,12 +55,7 @@ INSERT INTO trail_routes (hiking_spot_id, route_name, difficulty, start_coordina
 
 -- Insert remaining spots (7-15) with generated coordinates
 -- Magellans Cross (ID: 7)
-INSERT INTO trail_routes (hiking_spot_id, route_name, difficulty, start_coordinates, distance_km, elevation_gain_m, estimated_duration_hr, highlights, route_color, geojson_path) VALUES
-(7, 'Magellans Cross Main Trail', 'Moderate', '(123.9015,10.2936)', 3.4, 390, 2.4, 'Magellans Cross main route, scenic views, well-marked trail', '#FF6B6B', '{"type":"LineString","coordinates":[[123.9015,10.2936],[123.9035,10.2956],[123.9055,10.2976],[123.9075,10.2996],[123.9095,10.3016]]}'),
-(7, 'Magellans Cross Summit Trail', 'Hard', '(123.9010,10.2931)', 4.9, 670, 3.6, 'Magellans Cross summit, challenging climb, panoramic views', '#4ECDC4', '{"type":"LineString","coordinates":[[123.9010,10.2931],[123.9030,10.2951],[123.9050,10.2971],[123.9070,10.2991],[123.9090,10.3011]]}'),
-(7, 'Magellans Cross Nature Trail', 'Easy', '(123.9020,10.2941)', 2.0, 210, 1.5, 'Magellans Cross nature walk, family-friendly, wildlife spotting', '#95E1D3', '{"type":"LineString","coordinates":[[123.9020,10.2941],[123.9040,10.2961],[123.9060,10.2981],[123.9080,10.3001],[123.9100,10.3021]]}'),
-(7, 'Magellans Cross Adventure Trail', 'Hard', '(123.9005,10.2926)', 5.5, 770, 4.0, 'Magellans Cross adventure route, technical sections, experienced hikers', '#F38BA8', '{"type":"LineString","coordinates":[[123.9005,10.2926],[123.9025,10.2946],[123.9045,10.2966],[123.9065,10.2986],[123.9085,10.3006]]}'),
-(7, 'Magellans Cross Explorer Trail', 'Advanced', '(123.9000,10.2921)', 6.5, 870, 4.7, 'Magellans Cross explorer route, multi-peak traverse, expert level', '#A8DADC', '{"type":"LineString","coordinates":[[123.9000,10.2921],[123.9020,10.2941],[123.9040,10.2961],[123.9060,10.2981],[123.9080,10.3001]]}');
+
 
 -- Continue with remaining spots (8-15) - abbreviated for space
 -- Note: In a real implementation, you would continue this pattern for all 15 spots

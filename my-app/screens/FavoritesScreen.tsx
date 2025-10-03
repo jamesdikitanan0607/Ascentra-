@@ -49,7 +49,7 @@ const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
             onPress: async () => {
               setIsRemoving(true);
               try {
-                await onRemoveFavorite(spot.id);
+                await onRemoveFavorite(spot.id.toString());
               } catch (error) {
                 logErrorContext('FavoriteSpotCard.handleRemoveFavorite', error);
               } finally {
@@ -216,7 +216,7 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
     [handleSpotPress, handleRemoveFavorite],
   );
 
-  const keyExtractor = useCallback((item: FavoriteSpot) => item.id, []);
+  const keyExtractor = useCallback((item: FavoriteSpot) => item.id.toString(), []);
 
   if (loading) {
     return (

@@ -20,10 +20,12 @@ import { WebView } from 'react-native-webview';
 import { useProfile } from '../../contexts/ProfileContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ImageCarousel } from '../../components/ImageCarousel';
-import TrailMap from '../../components/TrailMap';
+import LeafletTrailMap from '../../components/LeafletTrailMap';
 import ReviewSystem from '../../components/ReviewSystem';
-import TrailRoutesSlider from '../../components/TrailRoutesSlider';
+import TrailInfo from '../../components/TrailInfo';
+import WeatherWidget from '../../components/WeatherWidget';
 import { getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -48,6 +50,7 @@ const COLORS = {
 
 interface HikingSpotData {
   id: string;
+  hiking_spot_id?: string; // Added for component consistency
   name: string;
   description?: string;
   difficulty: string;
@@ -67,27 +70,23 @@ interface HikingSpotData {
   location?: string; // Added: human-readable place name for pinned location
 }
 
-interface WeatherData {
-  temperature: number;
-  condition: string;
-  humidity: number;
-  windSpeed: number;
-  icon: string;
-}
-
 interface HikingSpotTemplateProps {
   navigation: any;
   spotData: HikingSpotData;
 }
 
 export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotTemplateProps) {
+  console.log('HikingSpotTemplate - spotData:', spotData);
+  console.log('HikingSpotTemplate - spotData.hiking_spot_id:', spotData.hiking_spot_id);
+  console.log('HikingSpotTemplate - spotData.id:', spotData.id);
+  
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Trail routes state
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
   const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
   const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
@@ -98,7 +97,6 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
 
   useEffect(() => {
     fetchTrailRoutes();
-    fetchWeatherData();
     setIsLoading(false);
   }, []);
 
@@ -106,9 +104,10 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     setTrailRoutesLoading(true);
     setTrailRoutesError(null);
     try {
-      const routes = await getTrailRoutesBySpotId(spotData.id);
-      setTrailRoutes(routes || []);
-      if (routes && routes.length > 0) {
+      const response = await getTrailRoutesBySpotId(spotData.id.toString());
+      const routes = response.data as TrailRouteDetails[] || [];
+      setTrailRoutes(routes);
+      if (routes.length > 0) {
         setSelectedRoute(routes[0]);
       }
     } catch (error) {
@@ -184,82 +183,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     }
   };
 
-  const fetchWeatherData = async () => {
-    if (!spotData?.latitude || !spotData?.longitude) return;
-    
-    setWeatherLoading(true);
-    try {
-      // Using OpenWeatherMap API (free alternative to AccuWeather)
-      // For production, get API key from environment variables
-      const API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY || 'demo_key';
-      
-      if (API_KEY === 'demo_key') {
-        // Use mock weather data when no API key is available
-        const mockWeatherData = {
-          temperature: Math.floor(Math.random() * 15) + 20, // 20-35°C
-          condition: ['Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain'][Math.floor(Math.random() * 4)],
-          humidity: Math.floor(Math.random() * 40) + 40, // 40-80%
-          windSpeed: Math.floor(Math.random() * 10) + 5, // 5-15 km/h
-          icon: ['☀️', '⛅', '☁️', '🌧️'][Math.floor(Math.random() * 4)]
-        };
-        setWeatherData(mockWeatherData);
-      } else {
-        // Real API call when API key is available
-        const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${spotData.latitude}&lon=${spotData.longitude}&appid=${API_KEY}&units=metric`
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          const weatherData = {
-            temperature: Math.round(data.main.temp),
-            condition: data.weather[0].main,
-            humidity: data.main.humidity,
-            windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
-            icon: getWeatherIcon(data.weather[0].main)
-          };
-          setWeatherData(weatherData);
-        } else {
-          throw new Error('Weather API request failed');
-        }
-      }
-    } catch (error) {
-      // Error fetching weather data
-      // Fallback to mock data on error
-      const mockWeatherData = {
-        temperature: 25,
-        condition: 'Partly Cloudy',
-        humidity: 65,
-        windSpeed: 8,
-        icon: '⛅'
-      };
-      setWeatherData(mockWeatherData);
-    } finally {
-      setWeatherLoading(false);
-    }
-  };
 
-  const getWeatherIcon = (condition: string): string => {
-    switch (condition.toLowerCase()) {
-      case 'clear':
-        return '☀️';
-      case 'clouds':
-        return '☁️';
-      case 'rain':
-        return '🌧️';
-      case 'drizzle':
-        return '🌦️';
-      case 'thunderstorm':
-        return '⛈️';
-      case 'snow':
-        return '❄️';
-      case 'mist':
-      case 'fog':
-        return '🌫️';
-      default:
-        return '⛅';
-    }
-  };
 
   if (isLoading) {
     return (
@@ -374,10 +298,19 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                   routes={trailRoutes}
                   selectedRoute={selectedRoute}
                   onRouteSelect={setSelectedRoute}
+                  onTrailSelect={(trailId) => {
+                    const route = trailRoutes.find(r => r.route_id === Number(trailId));
+                    if (route) {
+                      setSelectedRoute(route);
+                    }
+                  }}
                   centerCoordinates={{
                     latitude: spotData.latitude,
                     longitude: spotData.longitude,
                   }}
+                  hikingSpotId={spotData.hiking_spot_id || spotData.id}
+                  selectedTrailId={selectedRoute?.route_id?.toString()}
+                  showFullscreenButton={true}
                 />
               ) : (
                 <View style={styles.noRouteMapContainer}>
@@ -409,7 +342,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                                 
                                 const marker = L.marker([${spotData.latitude}, ${spotData.longitude}])
                                     .addTo(map)
-                                    .bindPopup('<b>${spotData.name}</b><br>${spotData.description || ''}');
+                                    .bindPopup('<b>' + ${JSON.stringify(spotData.name)} + '</b><br>' + ${JSON.stringify(spotData.description || '')});
                                 
                                 marker.openPopup();
                             </script>
@@ -432,70 +365,27 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                 </View>
               )}
             </View>
+            {selectedRoute && (
+              <TrailInfo
+                selectedRoute={selectedRoute}
+                isLoading={trailRoutesLoading}
+                error={trailRoutesError}
+              />
+            )}
           </View>
 
-          {/* Trail Routes Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Trail Routes</Text>
-            <TrailRoutesSlider
-              routes={trailRoutes}
-              selectedRoute={selectedRoute}
-              onRouteSelect={setSelectedRoute}
-              loading={trailRoutesLoading}
-              error={trailRoutesError || undefined}
-              onRetry={fetchTrailRoutes}
-            />
-          </View>
 
-          {/* Trail Information Section */}
-          {selectedRoute && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Trail Information</Text>
-              <View style={styles.trailInfoContainer}>
-                <Text style={styles.trailInfoTitle}>{selectedRoute.route_name || 'Selected Route'}</Text>
-                {selectedRoute.highlights && (
-                  <View style={styles.trailHighlights}>
-                    <Text style={styles.trailHighlightsTitle}>Highlights:</Text>
-                    <Text style={styles.trailHighlightsText}>{selectedRoute.highlights}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
+
+
 
           {/* Weather Condition Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Weather Condition</Text>
-            {weatherLoading ? (
-              <View style={styles.weatherLoadingContainer}>
-                <Text style={styles.weatherLoadingText}>Loading weather data...</Text>
-              </View>
-            ) : weatherData ? (
-              <View style={styles.weatherContainer}>
-                <View style={styles.weatherHeader}>
-                  <Text style={styles.weatherIcon}>{weatherData.icon}</Text>
-                  <View style={styles.weatherMainInfo}>
-                    <Text style={styles.weatherTemperature}>{weatherData.temperature}°C</Text>
-                    <Text style={styles.weatherCondition}>{weatherData.condition}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.weatherDetails}>
-                  <View style={styles.weatherDetailItem}>
-                    <Ionicons name="water-outline" size={16} color={COLORS.primary} />
-                    <Text style={styles.weatherDetailText}>Humidity: {weatherData.humidity}%</Text>
-                  </View>
-                  <View style={styles.weatherDetailItem}>
-                    <Ionicons name="leaf-outline" size={16} color={COLORS.primary} />
-                    <Text style={styles.weatherDetailText}>Wind: {weatherData.windSpeed} km/h</Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.weatherErrorContainer}>
-                <Text style={styles.weatherErrorText}>Weather data unavailable</Text>
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>Current Weather</Text>
+            <WeatherWidget
+              latitude={spotData.latitude}
+              longitude={spotData.longitude}
+              locationName={spotData.name}
+            />
           </View>
 
           {/* Highlights Section */}
@@ -539,7 +429,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           {/* Reviews Section */}
           <View style={styles.section}>
             <ReviewSystem 
-              hikingSpotId={spotData.id} 
+              hikingSpotId={spotData.hiking_spot_id || spotData.id} 
               onReviewAdded={() => {
                 // Optionally refresh hiking spot data to update average rating
                 // Review added successfully
@@ -817,81 +707,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
   },
-  weatherContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.separator,
-  },
-  weatherLoadingContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.separator,
-  },
-  weatherLoadingText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  weatherErrorContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.separator,
-  },
-  weatherErrorText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  weatherHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  weatherIcon: {
-    fontSize: 48,
-    marginRight: 16,
-  },
-  weatherMainInfo: {
-    flex: 1,
-  },
-  weatherTemperature: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  },
-  weatherCondition: {
-    fontSize: 16,
-    color: COLORS.textMuted,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  weatherDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.separator,
-  },
-  weatherDetailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  weatherDetailText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+
   noRouteMapContainer: {
     position: 'relative',
   },

@@ -1,6 +1,6 @@
 export const hikingSpots = [
   { 
-    id: '1',
+    id: '71',
     name: "Mount Babag", 
     slug: "mount-babag", 
     thumbnail: require("../assets/images/mount-babag/thumbnail.webp"),
@@ -13,7 +13,7 @@ export const hikingSpots = [
     elevation_gain_m: 450
   },
   { 
-    id: '2',
+    id: '72',
     name: "Mount Kan-irag / Sirao Peak", 
     slug: "mt kan-irag", 
     thumbnail: require("../assets/images/mt kan-irag/thumbnail.jpg"),
@@ -26,7 +26,7 @@ export const hikingSpots = [
     elevation_gain_m: 520
   },
   { 
-    id: '3',
+    id: '73',
     name: "Mount Naupa", 
     slug: "mt naupa", 
     thumbnail: require("../assets/images/mt naupa/thumbnail.jpg"),
@@ -39,7 +39,7 @@ export const hikingSpots = [
     elevation_gain_m: 680
   },
   { 
-    id: '4',
+    id: '74',
     name: "Mount Manunggal", 
     slug: "mt manunggal", 
     thumbnail: require("../assets/images/mt manunggal/thumbnail.jpg"),
@@ -52,7 +52,7 @@ export const hikingSpots = [
     elevation_gain_m: 390
   },
   { 
-    id: '5',
+    id: '75',
     name: "Mount Mago", 
     slug: "mt mago", 
     thumbnail: require("../assets/images/mt mago/thumbnail.jpg"),
@@ -65,7 +65,7 @@ export const hikingSpots = [
     elevation_gain_m: 280
   },
   { 
-    id: '6',
+    id: '76',
     name: "Mount Kapayas", 
     slug: "mt kapayas", 
     thumbnail: require("../assets/images/mt kapayas/thumbnail.webp"),
@@ -78,7 +78,7 @@ export const hikingSpots = [
     elevation_gain_m: 510
   },
   { 
-    id: '7',
+    id: '77',
     name: "Mount Lantoy", 
     slug: "mount latoy", 
     thumbnail: require("../assets/images/mount latoy/thumbnail.webp"),
@@ -90,21 +90,21 @@ export const hikingSpots = [
     distance_km: 6.2,
     elevation_gain_m: 750
   },
-  // { 
-  //   id: '8',
-  //   name: "Mount Kalbasaan", 
-  //   slug: "mt kalbasan", 
-  //   thumbnail: require("../assets/images/mt kalbasan/thumbnail.jpg"),
-  //   latitude: 10.3100, 
-  //   longitude: 123.9300, 
-  //   average_rating: 4.0, 
-  //   rating_count: 65,
-  //   difficulty: 'Easy',
-  //   distance_km: 2.8,
-  //   elevation_gain_m: 320
-  // }, // Removed - Mount Kalbasaan
   { 
-    id: '9',
+    id: '78',
+    name: "Mount Kalbasaan", 
+    slug: "mt kalbasan", 
+    thumbnail: require("../assets/images/mt kalbasan/thumbnail.jpg"),
+    latitude: 10.3100, 
+    longitude: 123.9300, 
+    average_rating: 4.0, 
+    rating_count: 65,
+    difficulty: 'Easy',
+    distance_km: 2.8,
+    elevation_gain_m: 320
+  },
+  { 
+    id: '79',
     name: "Mount Mauyog", 
     slug: "mt mauyog", 
     thumbnail: require("../assets/images/mt mauyog/thumbnail.jpg"),
@@ -117,7 +117,7 @@ export const hikingSpots = [
     elevation_gain_m: 460
   },
   { 
-    id: '10',
+    id: '80',
     name: "Mount Lanaya", 
     slug: "mt lanaya", 
     thumbnail: require("../assets/images/mt lanaya/thumbnail.jpg"),
@@ -130,20 +130,7 @@ export const hikingSpots = [
     elevation_gain_m: 480
   },
   { 
-    id: '11',
-    name: "Mount Hambubuyog", 
-    slug: "mount hambubuyog", 
-    thumbnail: require("../assets/images/mount hambubuyog/thumbnail.jpg"),
-    latitude: 10.2900, 
-    longitude: 123.9100, 
-    average_rating: 4.2, 
-    rating_count: 89,
-    difficulty: 'Hard',
-    distance_km: 5.5,
-    elevation_gain_m: 620
-  },
-  { 
-    id: '12',
+    id: '81',
     name: "Osmeña Peak", 
     slug: "osmena peak", 
     thumbnail: require("../assets/images/osmena peak/thumbnail.jpg"),
@@ -156,7 +143,7 @@ export const hikingSpots = [
     elevation_gain_m: 180
   },
   { 
-    id: '13',
+    id: '82',
     name: "Casino Peak", 
     slug: "casino peak", 
     thumbnail: require("../assets/images/casino peak/thumbnail.jpg"),
@@ -169,7 +156,7 @@ export const hikingSpots = [
     elevation_gain_m: 420
   },
   { 
-    id: '14',
+    id: '83',
     name: "Budlaan Falls", 
     slug: "budlaanfalls", 
     thumbnail: require("../assets/images/budlaanfalls/thumbnail.jpg"),
@@ -182,7 +169,7 @@ export const hikingSpots = [
     elevation_gain_m: 150
   },
   { 
-    id: '15',
+    id: '84',
     name: "Spartan Trail", 
     slug: "spartantrail", 
     thumbnail: require("../assets/images/spartantrail/thumbnail.jpg"),
@@ -195,7 +182,7 @@ export const hikingSpots = [
     elevation_gain_m: 890
   },
   { 
-    id: '16',
+    id: '85',
     name: "Mount Hambubuyog", 
     slug: "mount-hambubuyog", 
     thumbnail: require("../assets/images/mount hambubuyog/thumbnail.jpg"),

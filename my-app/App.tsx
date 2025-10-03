@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
@@ -10,6 +10,7 @@ import { Session } from '@supabase/supabase-js';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { TrailProvider } from './contexts/TrailContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Navigation types
 export type RootStackParamList = {
@@ -25,7 +26,8 @@ export type RootStackParamList = {
   ChangePassword: undefined;
   Favorites: undefined;
   HikingSpotDetails: { spot: any };
-  HikingSpotLandingPage: { spotId: string };
+  HikingSpotLandingPage: { hiking_spot_id: string };
+  TrailMapFullScreen: { hiking_spot_id: string; spotName: string };
   ActivityDetails: { activity: any };
   Tracking: undefined;
   HikeHistory: { userId?: string | null };
@@ -34,6 +36,7 @@ export type RootStackParamList = {
   HikeDetail: { hikeId: string };
   ActivityComments: { activityId: string };
   SaveConfirmation: { hikeId: string };
+
   // Individual hiking spot screens (15 official spots)
   MountBabag: undefined;
   MountKanirag: undefined;
@@ -42,7 +45,6 @@ export type RootStackParamList = {
   MountMago: undefined;
   MountKapayas: undefined;
   MountLantoy: undefined;
-  // MountKalbasaan: undefined; // Removed - Mount Kalbasaan
   MountMauyog: undefined;
   MountLanaya: undefined;
   MountHambubuyog: undefined;
@@ -59,6 +61,7 @@ import HomeScreen from './screens/HomeScreen';
 import EmailConfirmationScreen from './screens/EmailConfirmationScreen';
 import BottomTabNavigator from './components/BottomTabNavigator';
 import { createLazyComponent } from './utils/performanceOptimizer';
+
 
 // Lazy load heavy screens for better performance
 const HistoryScreen = createLazyComponent(() => import('./screens/HistoryScreen'));
@@ -78,6 +81,7 @@ const SaveActivityScreen = createLazyComponent(() => import('./screens/SaveActiv
 const HikeDetailScreen = createLazyComponent(() => import('./screens/HikeDetailScreen'));
 const ActivityCommentsScreen = createLazyComponent(() => import('./screens/ActivityCommentsScreen'));
 const SaveConfirmationScreen = createLazyComponent(() => import('./screens/SaveConfirmationScreen'));
+const TrailMapFullScreen = createLazyComponent(() => import('./screens/TrailMapFullScreen'));
 
 // Lazy load individual hiking spot screens for better performance
 const MountBabagScreen = createLazyComponent(() => import('./screens/spots/MountBabagScreen'));
@@ -87,7 +91,6 @@ const MountManunggalScreen = createLazyComponent(() => import('./screens/spots/M
 const MountMagoScreen = createLazyComponent(() => import('./screens/spots/MountMagoScreen'));
 const MountKapayasScreen = createLazyComponent(() => import('./screens/spots/MountKapayasScreen'));
 const MountLantoyScreen = createLazyComponent(() => import('./screens/spots/MountLantoyScreen'));
-// const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen')); // Removed - Mount Kalbasaan
 const MountMauyogScreen = createLazyComponent(() => import('./screens/spots/MountMauyogScreen'));
 const MountLanayaScreen = createLazyComponent(() => import('./screens/spots/MountLanayaScreen'));
 const MountHambubuyogScreen = createLazyComponent(() => import('./screens/spots/MountHambubuyogScreen'));
@@ -185,9 +188,8 @@ function AppContent(): JSX.Element {
   ]);
 
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator>
-        {user ? (
+    <Stack.Navigator>
+          {user ? (
           <>
             <Stack.Screen name="MainTabs" component={BottomTabNavigator} options={{ headerShown: false }} />
             <Stack.Screen name="Comments" component={CommentsScreen} options={{ headerShown: false }} />
@@ -202,6 +204,11 @@ function AppContent(): JSX.Element {
             <Stack.Screen 
               name="HikingSpotLandingPage" 
               component={HikingSpotLandingPage} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="TrailMapFullScreen" 
+              component={TrailMapFullScreen} 
               options={{ headerShown: false }}
             />
             <Stack.Screen 
@@ -229,6 +236,7 @@ function AppContent(): JSX.Element {
             />
             <Stack.Screen name="ActivityComments" component={ActivityCommentsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SaveConfirmation" component={SaveConfirmationScreen} options={{ headerShown: false }} />
+    
             
             {/* Individual hiking spot screens (15 official spots) */}
             <Stack.Screen name="MountBabag" component={MountBabagScreen} options={{ headerShown: false }} />
@@ -256,21 +264,36 @@ function AppContent(): JSX.Element {
               options={{ headerShown: false }} 
             />
           </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          )}
+        </Stack.Navigator>
   );
 }
 
 export default function App(): JSX.Element {
   return (
-    <AuthProvider>
-      <ProfileProvider>
-        <TrailProvider>
-          <AppContent />
-        </TrailProvider>
-      </ProfileProvider>
-    </AuthProvider>
+    <NavigationContainer linking={linking}>
+      <ErrorBoundary
+        screenName="App"
+        onError={(error) => {
+          console.error('Critical error in App:', error);
+        }}
+      >
+        <AuthProvider>
+          <ProfileProvider>
+            <TrailProvider>
+              <Suspense fallback={
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#2E7D32" />
+                  <Text style={styles.loadingText}>Loading screen...</Text>
+                </View>
+              }>
+                <AppContent />
+              </Suspense>
+            </TrailProvider>
+          </ProfileProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </NavigationContainer>
   );
 }
 

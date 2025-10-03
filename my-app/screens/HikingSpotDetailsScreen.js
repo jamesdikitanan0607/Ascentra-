@@ -19,6 +19,7 @@ import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
 import { useProfile } from '../contexts/ProfileContext'
 import TrailMapComponent from '../components/TrailMapComponent'
 import WeatherWidget from '../components/WeatherWidget'
+import { formatDistance, formatElevation } from '../utils/formatters'
 
 // Define a consistent color palette
 const COLORS = {
@@ -37,7 +38,26 @@ const COLORS = {
 }
 
 export default function HikingSpotDetailsScreen({ route, navigation }) {
-  const { spotId } = route.params
+  // Add null checks for route.params and extract spot data
+  if (!route.params || !route.params.spot) {
+    console.error('HikingSpotDetailsScreen: Missing spot parameter');
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: Missing hiking spot information</Text>
+          <TouchableOpacity 
+            style={styles.errorBackButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorBackButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { spot: spotParam } = route.params;
+  const spotId = spotParam.id || spotParam.spotId;
   const [spot, setSpot] = useState(null)
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -349,12 +369,12 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
-              <Text style={styles.statValue}>{spot.distance || 'N/A'} km</Text>
+              <Text style={styles.statValue}>{spot.distance_km ? formatDistance(spot.distance_km) : 'N/A'}</Text>
               <Text style={styles.statLabel}>Distance</Text>
             </View>
             <View style={styles.statItem}>
               <MaterialIcons name="terrain" size={20} color={COLORS.primary} />
-              <Text style={styles.statValue}>{spot.elevation || 'N/A'} m</Text>
+              <Text style={styles.statValue}>{spot.elevation_gain_m ? formatElevation(spot.elevation_gain_m) : 'N/A'}</Text>
               <Text style={styles.statLabel}>Elevation</Text>
             </View>
             <View style={styles.statItem}>
@@ -422,15 +442,15 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
                 <View style={styles.routeStats}>
                   <View style={styles.routeStat}>
                     <Ionicons name="trail-sign-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.routeStatText}>{spot.distance}</Text>
+                    <Text style={styles.routeStatText}>{spot.distance_km ? formatDistance(spot.distance_km) : 'N/A'}</Text>
                   </View>
                   <View style={styles.routeStat}>
                     <Ionicons name="time-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.routeStatText}>{spot.duration}</Text>
+                    <Text style={styles.routeStatText}>{spot.duration || 'N/A'}</Text>
                   </View>
                   <View style={styles.routeStat}>
                     <Ionicons name="trending-up-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.routeStatText}>{spot.elevation_gain}</Text>
+                    <Text style={styles.routeStatText}>{spot.elevation_gain_m ? formatElevation(spot.elevation_gain_m) : 'N/A'}</Text>
                   </View>
                 </View>
               </View>
@@ -558,7 +578,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
                         </View>
                       </View>
                       <View style={styles.ratingBadge}>
-                        <Text style={styles.ratingBadgeText}>{comment.rating.toFixed(1)}</Text>
+                        <Text style={styles.ratingBadgeText}>{(comment.rating || 0).toFixed(1)}</Text>
                         <FontAwesome name="star" size={12} color="white" style={styles.ratingBadgeStar} />
                       </View>
                     </View>
@@ -601,18 +621,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textLight,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: COLORS.text,
-    marginVertical: 20,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   goBackButton: {
     backgroundColor: COLORS.primary,
@@ -1057,5 +1065,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: COLORS.textMuted,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.error,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  errorBackButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  errorBackButtonText: {
+    color: COLORS.background,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
 })

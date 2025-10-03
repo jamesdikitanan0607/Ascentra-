@@ -27,7 +27,7 @@ interface RouteCoordinate {
   longitude: number;
 }
 
-interface HikeStats {
+interface HikeStatsInterface {
   distance: number;
   duration: number;
   pace: number;
@@ -37,12 +37,13 @@ interface HikeStats {
 
 type SyncStatus = 'checking' | 'ready' | 'local-only' | 'offline';
 
+
 export default function TrackingScreen({ navigation }: TrackingScreenProps) {
   const [tracking, setTracking] = useState<boolean>(false);
   const [paused, setPaused] = useState<boolean>(false);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObjectCoords | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<RouteCoordinate[]>([]);
-  const [stats, setStats] = useState<HikeStats>({
+  const [stats, setStats] = useState<HikeStatsInterface>({
     distance: 0,       // in meters
     duration: 0,       // in seconds
     pace: 0,           // in minutes per km
@@ -63,7 +64,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
   const initialAltitudeRef = useRef<number | null>(null);
   const prevCoordinatesRef = useRef<RouteCoordinate[]>([]);
   const lastValidDistanceRef = useRef<number>(0); // To prevent erroneous distance jumps
-  const lastStatsRef = useRef<HikeStats>({} as HikeStats); // Store stats at pause time
+  const lastStatsRef = useRef<HikeStatsInterface>({} as HikeStatsInterface); // Store stats at pause time
   const paceReadingsRef = useRef<number[]>([]);  // To store last 5 pace readings for smoothing
 
   const MIN_SPEED_THRESHOLD = 0.5;     // Minimum speed in m/s to consider for pace calculation
@@ -696,7 +697,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
           <View style={styles.mapOverlay}>
             <Text style={styles.mapOverlayText}>
               <Text style={styles.mapDistanceValue}>
-                {(stats.distance / 1000).toFixed(2)}
+                {typeof stats.distance === 'number' ? (stats.distance / 1000).toFixed(2) : '0.00'}
               </Text>
               <Text style={styles.mapDistanceUnit}> km</Text>
               {" • "}
@@ -787,7 +788,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
                   <Ionicons name="speedometer-outline" size={22} color="#555" />
                   <Text style={styles.modalStatLabel}>Distance</Text>
                   <Text style={styles.modalStatValue}>
-                    {(stats.distance / 1000).toFixed(2)} km
+                    {typeof stats.distance === 'number' ? (stats.distance / 1000).toFixed(2) : '0.00'} km
                   </Text>
                 </View>
                 
@@ -808,7 +809,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
                 <View style={styles.modalStatItem}>
                   <MaterialIcons name="terrain" size={22} color="#555" />
                   <Text style={styles.modalStatLabel}>Elevation</Text>
-                  <Text style={styles.modalStatValue}>{stats.elevation.toFixed(1)}m</Text>
+                  <Text style={styles.modalStatValue}>{typeof stats.elevation === 'number' ? stats.elevation.toFixed(1) : '0.0'}m</Text>
                 </View>
               </View>
             </View>
@@ -844,7 +845,7 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
               <View style={styles.pausedStatRow}>
                 <Ionicons name="speedometer-outline" size={20} color="#2E7D32" />
                 <Text style={styles.pausedStat}>
-                  <Text style={styles.pausedStatValue}>{(stats.distance / 1000).toFixed(2)}</Text>
+                  <Text style={styles.pausedStatValue}>{typeof stats.distance === 'number' ? (stats.distance / 1000).toFixed(2) : '0.00'}</Text>
                   <Text style={styles.pausedStatUnit}> km</Text>
                 </Text>
               </View>

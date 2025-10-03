@@ -6,20 +6,23 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 interface ImageCarouselProps {
-  images: string[];
+  images?: string[];
   height?: number;
+  spotName?: string;
+  customImages?: any[];
 }
 
 const ImageCarousel: React.FC<ImageCarouselProps> = ({ 
   images, 
-  height = 300 
+  height = 300, 
+  spotName,
+  customImages
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);

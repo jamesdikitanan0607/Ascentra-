@@ -9,7 +9,7 @@ export function MountLantoyScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '7' } }}
+      route={{ params: { hiking_spot_id: '77' } }}
     />
   );
 }
