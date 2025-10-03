@@ -44,7 +44,7 @@ export const linking: LinkingOptions<any> = {
       BudlaanFalls: 'spots/budlaan-falls',
       SpartanTrail: 'spots/spartan-trail',
 
-      HikingSpotLandingPage: 'spots/landing/:spotId',
+      HikingSpotLandingPage: 'spots/landing/:hiking_spot_id',
     },
   },
 };

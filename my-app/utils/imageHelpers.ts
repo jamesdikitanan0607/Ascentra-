@@ -1,12 +1,5 @@
 // Image helper utilities for hiking spots and activities
-
-export interface HikingSpot {
-  id: string;
-  name: string;
-  image?: string;
-  location?: string;
-  difficulty?: string;
-}
+import { HikingSpot } from '../types';
 
 // Define the image mappings for each hiking spot
 const HIKING_SPOT_IMAGES = {
@@ -80,7 +73,7 @@ const HIKING_SPOT_IMAGES = {
       require('../assets/images/mount latoy/5.jpg'),
     ],
   },
-  'mt kalbasaan': {
+  'mt kalbasan': {
     thumbnail: require('../assets/images/mt kalbasan/thumbnail.jpg'),
     images: [
       require('../assets/images/mt kalbasan/thumbnail.jpg'),
@@ -222,8 +215,8 @@ export function getHikingSpotImageSource(spot: HikingSpot | string): any {
   }
 
   // If spot is an object and has an image URL, use it
-  if (typeof spot === 'object' && spot.image) {
-    return { uri: spot.image };
+  if (typeof spot === 'object' && spot.cover_image_url) {
+    return { uri: spot.cover_image_url };
   }
 
   // First, try to get thumbnail from HIKING_SPOT_IMAGES using SPOT_NAME_TO_FOLDER mapping

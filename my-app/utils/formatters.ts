@@ -108,3 +108,16 @@ export function formatRelativeTime(date: Date): string {
   const diffInYears = Math.floor(diffInMonths / 12);
   return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
 }
+
+/**
+ * Format elevation in meters with proper units
+ * @param meters - Elevation in meters
+ * @returns Formatted elevation string
+ */
+export const formatElevation = (meters: number): string => {
+  // Return 0m if no elevation or invalid
+  if (!meters || isNaN(meters) || meters < 0) return '0m';
+  
+  // For elevations, always show in meters with no decimal places
+  return `${Math.round(meters)}m`;
+};

@@ -16,11 +16,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabaseClient';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
+import { formatDistance, formatElevation } from '../utils/formatters';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { useProfile } from '../contexts/ProfileContext';
 import { User } from '@supabase/supabase-js';
 import { hikingSpots, getAllHikingSpots, getTopRatedHikingSpots } from '../data/hikingSpots';
+
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -48,32 +50,37 @@ const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
 
 // Mapping function to convert spot IDs to individual screen names
 const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
-  const screenMap: { [key: string]: keyof RootStackParamList } = {
-    '1': 'MountBabag',
-    '2': 'MountKanirag', 
-    '3': 'MountNaupa',
-    '4': 'MountManunggal',
-    '5': 'MountMago',
-    '6': 'MountKapayas',
-    '7': 'MountLantoy',
-    // '8': 'MountKalbasaan', // Removed - Mount Kalbasaan
-    '9': 'MountMauyog',
-    '10': 'MountLanaya',
-    '11': 'MountHambubuyog',
-    '12': 'OsmenaPeak',
-    '13': 'CasinoPeak',
-    '14': 'BudlaanFalls',
-    '15': 'SpartanTrail'
+  const screenMap: Record<string, string> = {
+    '71': 'MountBabag',
+    '72': 'MountKanirag', 
+    '73': 'MountNaupa',
+    '74': 'MountManunggal',
+    '75': 'MountMago',
+    '76': 'MountKapayas',
+    '77': 'MountLantoy',
+    '79': 'MountMauyog',
+    '80': 'MountLanaya',
+    '81': 'MountHambubuyog',
+    '82': 'OsmenaPeak',
+    '83': 'CasinoPeak',
+    '84': 'BudlaanFalls',
+    '85': 'SpartanTrail'
   };
-  return screenMap[spotId] || 'HikingSpotDetails';
+  return (screenMap[spotId] || 'HikingSpotDetails') as keyof RootStackParamList;
 };
 
 // Top Rated Card Component
 const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
-    const screenName = getSpotScreenName(spot.id);
-    navigation.navigate(screenName as any);
-  }, [navigation, spot.id]);
+    const screenName = getSpotScreenName(spot.id.toString());
+    if (screenName === 'HikingSpotDetails') {
+      // Pass the spot object for the generic details screen
+      navigation.navigate(screenName, { spot });
+    } else {
+      // For specific spot screens, navigate without parameters
+      navigation.navigate(screenName as any);
+    }
+  }, [navigation, spot]);
 
   return (
     <TouchableOpacity style={styles.topRatedCard} onPress={handlePress}>
@@ -99,9 +106,15 @@ const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navig
 // Hiking Spot Grid Card Component
 const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
-    const screenName = getSpotScreenName(spot.id);
-    navigation.navigate(screenName as any);
-  }, [navigation, spot.id]);
+    const screenName = getSpotScreenName(spot.id.toString());
+    if (screenName === 'HikingSpotDetails') {
+      // Pass the spot object for the generic details screen
+      navigation.navigate(screenName, { spot });
+    } else {
+      // For specific spot screens, navigate without parameters
+      navigation.navigate(screenName as any);
+    }
+  }, [navigation, spot]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
@@ -128,13 +141,13 @@ const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot;
           {spot.distance_km && (
             <View style={styles.statItem}>
               <MaterialIcons name="straighten" size={12} color="#666" />
-              <Text style={styles.statText}>{spot.distance_km}km</Text>
+              <Text style={styles.statText}>{formatDistance(spot.distance_km)}</Text>
             </View>
           )}
           {spot.elevation_gain_m && (
             <View style={styles.statItem}>
               <MaterialIcons name="terrain" size={12} color="#666" />
-              <Text style={styles.statText}>{spot.elevation_gain_m}m</Text>
+              <Text style={styles.statText}>{formatElevation(spot.elevation_gain_m)}</Text>
             </View>
           )}
         </View>
@@ -269,6 +282,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
               placeholderTextColor="#999"
             />
           </View>
+
+
         </View>
 
         {/* No Results */}
@@ -290,6 +305,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
             {renderTopRatedSpots()}
           </View>
         )}
+
+
 
         {/* All Hiking Spots Grid */}
         <View style={styles.section}>
@@ -558,6 +575,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginLeft: 4,
   },
+
 });
 
 export default HomeScreen;

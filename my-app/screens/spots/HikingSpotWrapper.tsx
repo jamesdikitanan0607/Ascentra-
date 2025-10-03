@@ -1,141 +1,191 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View, Alert } from 'react-native';
-import { getHikingSpotById, getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
-import { HikingSpot } from '../../types/database';
-import { getSpotById } from '../../data/hikingSpotData';
+import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import HikingSpotTemplate from './HikingSpotTemplate';
-// Add: import mock spots to pull human-readable location
-import MOCK_HIKING_SPOTS from '../../data/mockHikingSpots';
+import { HIKING_SPOTS_DATA } from '../../data/hikingSpotData';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 interface HikingSpotWrapperProps {
   navigation: any;
   route: {
     params: {
-      spotId: string;
+      hiking_spot_id: string;
     };
   };
 }
 
+interface HikingSpotData {
+  id: string;
+  hiking_spot_id?: string;
+  name: string;
+  description?: string;
+  difficulty: string;
+  elevation: number;
+  trail_length: number;
+  estimated_duration: string;
+  latitude: number;
+  longitude: number;
+  rating: number;
+  review_count: number;
+  image_url?: string;
+  amenities: string[];
+  best_season: string[];
+  highlights: string[];
+  tips: string[];
+  imageSource?: any;
+  location?: string;
+}
+
 const COLORS = {
-  primary: '#388E3C',
-  background: '#FFFFFF',
+  primary: '#2E7D32',
+  text: '#1F2933',
+  background: '#FAFAF7',
+  error: '#F44336',
 };
 
 export default function HikingSpotWrapper({ navigation, route }: HikingSpotWrapperProps) {
-  const { spotId } = route.params;
-  const [hikingSpot, setHikingSpot] = useState<HikingSpot | null>(null);
-  const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
+  const [spotData, setSpotData] = useState<HikingSpotData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { hiking_spot_id } = route.params;
 
   useEffect(() => {
-    fetchHikingSpotData();
-  }, [spotId]);
+    loadSpotData();
+  }, [hiking_spot_id]);
 
-  async function fetchHikingSpotData() {
+  const loadSpotData = async () => {
     try {
-      // Try to fetch from Supabase first
-      const [spotData, routesData] = await Promise.all([
-        getHikingSpotById(spotId),
-        getTrailRoutesBySpotId(spotId)
-      ]);
+      setLoading(true);
+      setError(null);
+
+      console.log('HikingSpotWrapper: Loading data for hiking_spot_id:', hiking_spot_id);
+
+      // Find the hiking spot data from local data
+      const spot = HIKING_SPOTS_DATA.find(s => s.id === hiking_spot_id);
       
-      if (spotData) {
-        setHikingSpot(spotData);
-        setTrailRoutes(routesData || []);
-      } else {
-        // Fallback to local data
-        const localSpotData = getSpotById(spotId);
-        if (localSpotData) {
-          // Convert local data to HikingSpot format
-          const convertedSpot: HikingSpot = {
-            id: parseInt(spotId),
-            name: localSpotData.name,
-            description: localSpotData.description,
-            coordinates: {
-              coordinates: [localSpotData.longitude, localSpotData.latitude]
-            },
-            average_rating: localSpotData.rating,
-            number_of_reviews: localSpotData.review_count,
-            cover_image_url: localSpotData.image_url,
-            is_verified: false
-          };
-          setHikingSpot(convertedSpot);
-          setTrailRoutes([]); // No trail routes in local data
-        }
+      if (!spot) {
+        throw new Error(`Hiking spot with ID ${hiking_spot_id} not found`);
       }
-    } catch (error) {
-      console.error('Error fetching hiking spot data:', error);
-      // Fallback to local data on error
-      const localSpotData = getSpotById(spotId);
-      if (localSpotData) {
-        const convertedSpot: HikingSpot = {
-          id: parseInt(spotId),
-          name: localSpotData.name,
-          description: localSpotData.description,
-          coordinates: {
-            coordinates: [localSpotData.longitude, localSpotData.latitude]
-          },
-          average_rating: localSpotData.rating,
-          number_of_reviews: localSpotData.review_count,
-          cover_image_url: localSpotData.image_url,
-          is_verified: false
-        };
-        setHikingSpot(convertedSpot);
-        setTrailRoutes([]);
-      } else {
-        Alert.alert('Error', 'Failed to load hiking spot details');
-      }
+
+      console.log('HikingSpotWrapper: Found spot data:', spot.name);
+
+      // Transform the data to match HikingSpotTemplate expectations
+      const transformedSpotData: HikingSpotData = {
+        id: spot.id,
+        hiking_spot_id: hiking_spot_id,
+        name: spot.name,
+        description: spot.description,
+        difficulty: spot.difficulty,
+        elevation: spot.elevation,
+        trail_length: spot.trail_length,
+        estimated_duration: spot.estimated_duration,
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        rating: spot.rating,
+        review_count: spot.review_count,
+        image_url: spot.image_url,
+        amenities: spot.amenities || [],
+        best_season: spot.best_season || [],
+        highlights: spot.highlights || [],
+        tips: spot.tips || [],
+        imageSource: spot.imageSource,
+        location: spot.location,
+      };
+
+      setSpotData(transformedSpotData);
+    } catch (err) {
+      console.error('HikingSpotWrapper: Error loading spot data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load hiking spot data');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading hiking spot...</Text>
       </View>
     );
   }
 
-  if (!hikingSpot) {
-    return null;
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Error</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorHint}>
+          Hiking Spot ID: {hiking_spot_id}
+        </Text>
+      </View>
+    );
   }
 
-  // Convert HikingSpot to HikingSpotData format expected by template
-  // Use trail route data to populate missing properties, or fallback to local data
-  const localSpotData = getSpotById(spotId);
-  const primaryRoute = trailRoutes.length > 0 ? trailRoutes[0] : null;
-  
-  // Add: find mock spot to obtain location string
-  const mockSpot = MOCK_HIKING_SPOTS.find(s => s.id === spotId);
-  
-  const spotData = {
-    id: hikingSpot.id?.toString() || spotId,
-    name: hikingSpot.name,
-    description: hikingSpot.description,
-    difficulty: primaryRoute?.difficulty || localSpotData?.difficulty || 'Moderate',
-    elevation: primaryRoute?.elevation_gain_m || localSpotData?.elevation || 0,
-    trail_length: primaryRoute?.distance_km || localSpotData?.trail_length || 0,
-    estimated_duration: primaryRoute ? `${primaryRoute.estimated_duration_hr} hours` : localSpotData?.estimated_duration || '2-3 hours',
-    latitude: hikingSpot.coordinates?.coordinates?.[1] || localSpotData?.latitude || 0,
-    longitude: hikingSpot.coordinates?.coordinates?.[0] || localSpotData?.longitude || 0,
-    rating: hikingSpot.average_rating || localSpotData?.rating || 0,
-    review_count: hikingSpot.number_of_reviews || localSpotData?.review_count || 0,
-    image_url: hikingSpot.cover_image_url || localSpotData?.image_url || '',
-    amenities: localSpotData?.amenities || ['Parking', 'Trail markers'],
-    best_season: localSpotData?.best_season || ['Dry season (November - April)'],
-    highlights: primaryRoute?.highlights ? [primaryRoute.highlights] : localSpotData?.highlights || [],
-    tips: localSpotData?.tips || ['Bring plenty of water', 'Wear proper hiking shoes', 'Start early to avoid heat'],
-    imageSource: localSpotData?.imageSource || (hikingSpot.cover_image_url ? { uri: hikingSpot.cover_image_url } : null),
-    // Added: human-readable location for pinned location display
-    location: mockSpot?.location,
-   };
+  if (!spotData) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Not Found</Text>
+        <Text style={styles.errorText}>
+          Hiking spot with ID {hiking_spot_id} was not found.
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <HikingSpotTemplate 
-      navigation={navigation} 
-      spotData={spotData} 
-    />
+    <ErrorBoundary 
+      navigation={navigation}
+      screenName={`HikingSpot-${spotData.name}`}
+      onError={(error, errorInfo) => {
+        console.error(`Error in ${spotData.name} hiking spot:`, error);
+        console.error('Error info:', errorInfo);
+      }}
+    >
+      <HikingSpotTemplate 
+        navigation={navigation} 
+        spotData={spotData} 
+      />
+    </ErrorBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.error,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorHint: {
+    fontSize: 14,
+    color: COLORS.text,
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+});

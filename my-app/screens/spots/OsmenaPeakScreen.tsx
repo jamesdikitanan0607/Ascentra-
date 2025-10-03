@@ -9,7 +9,7 @@ export function OsmenaPeakScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '12' } }}
+      route={{ params: { hiking_spot_id: '82' } }}
     />
   );
 }

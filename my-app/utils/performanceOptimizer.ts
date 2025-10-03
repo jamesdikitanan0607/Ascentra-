@@ -132,7 +132,27 @@ export const useRenderTracker = (componentName: string) => {
 export const createLazyComponent = <T extends React.ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>
 ) => {
-  return React.lazy(importFunc);
+  return React.lazy(() => 
+    importFunc().then(module => {
+      // Handle cases where default export might not exist
+      if (module.default) {
+        return { default: module.default };
+      }
+      // If no default export, try to find a named export that matches
+      const keys = Object.keys(module);
+      const componentKey = keys.find(key => 
+        key !== 'default' && 
+        typeof module[key as keyof typeof module] === 'function'
+      );
+      
+      if (componentKey) {
+        return { default: module[componentKey as keyof typeof module] as T };
+      }
+      
+      // If still no component found, throw an error
+      throw new Error(`No valid component export found in module. Available exports: ${keys.join(', ')}`);
+    })
+  );
 };
 
 // Bundle size analyzer (development only)

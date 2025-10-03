@@ -696,9 +696,9 @@ export default function ProfileScreen({
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {isOwnProfile && progressionStats
-                    ? progressionStats.totalDistance.toFixed(1)
+                    ? (progressionStats.totalDistance || 0).toFixed(1)
                     : (
-                        profile?.total_km_traveled || stats.totalDistance
+                        profile?.total_km_traveled || stats.totalDistance || 0
                       ).toFixed(1)}{' '}
                   km
                 </Text>
@@ -826,7 +826,7 @@ export default function ProfileScreen({
             ) : favorites.length > 0 ? (
               <FlatList
                 data={favorites}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
                 numColumns={2}
                 columnWrapperStyle={styles.favoritesRow}
                 showsVerticalScrollIndicator={false}
@@ -841,14 +841,14 @@ export default function ProfileScreen({
                   >
                     <Image
                       source={{
-                        uri: item.photos?.[0] || 'https://via.placeholder.com/150x100?text=No+Image',
+                        uri: item.cover_image_url || 'https://via.placeholder.com/150x100?text=No+Image',
                       }}
                       style={styles.favoriteImage}
                     />
                     <TouchableOpacity
                       style={styles.favoriteHeartButton}
                       onPress={async () => {
-                        const success = await removeFromFavorites(item.id);
+                        const success = await removeFromFavorites(item.id.toString());
                         if (!success) {
                           Alert.alert('Error', 'Failed to remove from favorites');
                         }
@@ -861,14 +861,14 @@ export default function ProfileScreen({
                         {item.name}
                       </Text>
                       <Text style={styles.favoriteCardLocation} numberOfLines={1}>
-                        {item.location_name}
+                        {item.location_text || 'Unknown Location'}
                       </Text>
                       <View style={styles.favoriteCardStats}>
                         <Text style={styles.favoriteCardStat}>
-                          {item.difficulty_level}
+                          {item.difficulty || 'Moderate'}
                         </Text>
                         <Text style={styles.favoriteCardStat}>
-                          {item.distance}km
+                          {formatDistance(item.trail_length_km || item.trail_length || 0)}
                         </Text>
                       </View>
                     </View>

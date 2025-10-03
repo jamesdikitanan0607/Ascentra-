@@ -9,7 +9,7 @@ export function SpartanTrailScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '15' } }}
+      route={{ params: { hiking_spot_id: '85' } }}
     />
   );
 }

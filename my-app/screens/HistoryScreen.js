@@ -121,7 +121,7 @@ export default function HistoryScreen({ navigation }) {
       `Date: ${formatDate(hike.date)}\n` +
       `Distance: ${formatDistance(hike.distance)}\n` +
       `Duration: ${formatDuration(hike.duration)}\n` +
-      `Elevation gain: ${hike.elevation.toFixed(0)}m`
+      `Elevation gain: ${(hike.elevation || 0).toFixed(0)}m`
     );
   };
 
@@ -153,7 +153,7 @@ export default function HistoryScreen({ navigation }) {
         
         <View style={styles.statItem}>
           <Ionicons name="trending-up" size={18} color="#3498db" />
-          <Text style={styles.statValue}>{item.elevation.toFixed(0)}m</Text>
+          <Text style={styles.statValue}>{(item.elevation || 0).toFixed(0)}m</Text>
         </View>
       </View>
     </TouchableOpacity>

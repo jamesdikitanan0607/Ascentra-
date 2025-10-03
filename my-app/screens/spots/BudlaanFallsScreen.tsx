@@ -9,7 +9,7 @@ export function BudlaanFallsScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '14' } }}
+      route={{ params: { hiking_spot_id: '84' } }}
     />
   );
 }

@@ -1,5 +1,6 @@
 export interface HikingSpotData {
   id: string;
+  hikingSpotId: string; // Added for consistency with components
   name: string;
   description: string;
   difficulty: 'Easy' | 'Moderate' | 'Hard';
@@ -20,15 +21,16 @@ export interface HikingSpotData {
 
 export const HIKING_SPOTS_DATA: HikingSpotData[] = [
   {
-    id: '1',
+    id: '71',
+    hikingSpotId: '71',
     name: 'Mount Babag',
     description: 'A popular hiking destination offering panoramic views of Cebu City and surrounding areas. Known for its accessible trails and beautiful sunrise views.',
     difficulty: 'Moderate',
     elevation: 850,
     trail_length: 8.5,
     estimated_duration: '2-3 hours',
-    latitude: 10.3157,
-    longitude: 123.9621,
+    latitude: 10.3470,
+    longitude: 123.8885,
     rating: 4.5,
     review_count: 128,
     image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
@@ -51,7 +53,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt manunggal/thumbnail.jpg') // Fallback - no mount babag folder
   },
   {
-    id: '2',
+    id: '72',
+    hikingSpotId: '72',
     name: 'Mount Kan-irag (Sirao Peak)',
     description: 'The highest peak in Cebu City offering challenging trails and spectacular panoramic views. Known for its cool climate and diverse flora.',
     difficulty: 'Hard',
@@ -82,7 +85,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt naupa/thumbnail.jpg')
   },
   {
-    id: '3',
+    id: '73',
+    hikingSpotId: '73',
     name: 'Mount Naupa',
     description: 'A moderate hiking destination known for its lush forest trails and beautiful mountain views. Popular among local hikers.',
     difficulty: 'Moderate',
@@ -113,7 +117,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt naupa/thumbnail.jpg')
   },
   {
-    id: '4',
+    id: '74',
+    hikingSpotId: '74',
     name: 'Mount Manunggal',
     description: 'A historically significant mountain where President Ramon Magsaysay crashed. Offers challenging trails and historical monuments.',
     difficulty: 'Hard',
@@ -144,15 +149,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt manunggal/thumbnail.jpg')
   },
   {
-    id: '5',
+    id: '75',
+    hikingSpotId: '75',
     name: 'Mount Mago',
     description: 'A scenic mountain offering moderate trails with beautiful views of the surrounding valleys and nearby peaks.',
     difficulty: 'Moderate',
     elevation: 680,
     trail_length: 5.5,
     estimated_duration: '2-3 hours',
-    latitude: 10.3234,
-    longitude: 123.8567,
+    latitude: 10.6330,
+    longitude: 123.9330,
     rating: 4.2,
     review_count: 78,
     image_url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=600&fit=crop',
@@ -175,15 +181,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt mago/thumbnail.jpg')
   },
   {
-    id: '6',
+    id: '76',
+    hikingSpotId: '76',
     name: 'Mount Kapayas',
     description: 'A challenging peak known for its steep trails and rewarding summit views. Popular among experienced hikers.',
     difficulty: 'Hard',
     elevation: 950,
     trail_length: 8.0,
     estimated_duration: '4-5 hours',
-    latitude: 10.2678,
-    longitude: 123.8234,
+    latitude: 10.7470,
+    longitude: 124.0070,
     rating: 4.4,
     review_count: 94,
     image_url: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=800&h=600&fit=crop',
@@ -206,15 +213,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt kapayas/thumbnail.webp')
   },
   {
-    id: '7',
+    id: '77',
+    hikingSpotId: '77',
     name: 'Mount Lantoy',
     description: 'A moderate mountain hike offering forest trails and scenic viewpoints. Great for nature lovers and bird watching.',
     difficulty: 'Moderate',
     elevation: 720,
     trail_length: 6.0,
     estimated_duration: '3-4 hours',
-    latitude: 10.3456,
-    longitude: 123.8789,
+    latitude: 9.8790,
+    longitude: 123.6070,
     rating: 4.1,
     review_count: 56,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -237,7 +245,7 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mount latoy/thumbnail.webp')
   },
   // {
-  //   id: '8',
+  //   id: '78',
   //   name: 'Mount Kalbasaan',
   //   description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
   //   difficulty: 'Moderate',
@@ -268,15 +276,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
   //   imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
   // }, // Removed - Mount Kalbasaan
   {
-    id: '9',
+    id: '79',
+    hikingSpotId: '79',
     name: 'Mount Mauyog',
     description: 'A scenic mountain offering diverse trails and beautiful panoramic views. Known for its varied terrain and natural beauty.',
     difficulty: 'Moderate',
     elevation: 780,
     trail_length: 7.0,
     estimated_duration: '3-4 hours',
-    latitude: 10.3123,
-    longitude: 123.8678,
+    latitude: 10.4330,
+    longitude: 123.8560,
     rating: 4.3,
     review_count: 87,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -299,15 +308,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt mauyog/thumbnail.jpg')
   },
   {
-    id: '10',
+    id: '80',
+    hikingSpotId: '80',
     name: 'Mount Lanaya',
     description: 'A challenging mountain hike known for its rugged terrain and spectacular summit views. Popular among serious hikers.',
     difficulty: 'Hard',
     elevation: 1100,
     trail_length: 11.0,
     estimated_duration: '5-6 hours',
-    latitude: 10.4234,
-    longitude: 123.7890,
+    latitude: 9.6470,
+    longitude: 123.3680,
     rating: 4.5,
     review_count: 76,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -330,7 +340,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt lanaya/thumbnail.jpg')
   },
   {
-    id: '11',
+    id: '81',
+    hikingSpotId: '81',
     name: 'Mount Hambubuyog',
     description: 'A moderate hiking destination offering forest trails and scenic mountain views. Great for nature enthusiasts.',
     difficulty: 'Moderate',
@@ -361,15 +372,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mount hambubuyog/thumbnail.jpg')
   },
   {
-    id: '12',
+    id: '82',
+    hikingSpotId: '82',
     name: 'Osmeña Peak',
     description: 'The highest peak in Cebu province offering breathtaking 360-degree views and rolling hills landscape. A must-visit destination.',
     difficulty: 'Easy',
     elevation: 1013,
     trail_length: 1.5,
     estimated_duration: '1-2 hours',
-    latitude: 9.9167,
-    longitude: 123.3333,
+    latitude: 9.8205,
+    longitude: 123.4652,
     rating: 4.8,
     review_count: 245,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -392,15 +404,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/osmena peak/thumbnail.jpg')
   },
   {
-    id: '13',
+    id: '83',
+    hikingSpotId: '83',
     name: 'Casino Peak',
     description: 'A scenic peak near Osmeña offering beautiful views and easier hiking trails. Perfect complement to Osmeña Peak visit.',
     difficulty: 'Easy',
     elevation: 980,
     trail_length: 2.0,
     estimated_duration: '1-2 hours',
-    latitude: 9.9234,
-    longitude: 123.3456,
+    latitude: 9.8112,
+    longitude: 123.4702,
     rating: 4.4,
     review_count: 134,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -423,15 +436,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/casino peak/thumbnail.jpg')
   },
   {
-    id: '14',
+    id: '84',
+    hikingSpotId: '84',
     name: 'Budlaan Falls',
     description: 'A beautiful waterfall destination combining hiking with swimming opportunities. Features pristine natural pools and lush surroundings.',
     difficulty: 'Moderate',
     elevation: 200,
     trail_length: 3.5,
     estimated_duration: '2-3 hours',
-    latitude: 10.1234,
-    longitude: 123.4567,
+    latitude: 10.3740,
+    longitude: 123.8610,
     rating: 4.6,
     review_count: 156,
     image_url: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=800&h=600&fit=crop',
@@ -454,15 +468,16 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/budlaanfalls/thumbnail.jpg')
   },
   {
-    id: '15',
+    id: '85',
+    hikingSpotId: '85',
     name: 'Spartan Trail',
     description: 'A challenging urban trail through the city offering great workout and scenic views. Perfect for fitness enthusiasts and adventure seekers.',
     difficulty: 'Hard',
     elevation: 300,
     trail_length: 4.0,
     estimated_duration: '2-3 hours',
-    latitude: 10.3167,
-    longitude: 123.8833,
+    latitude: 10.3500,
+    longitude: 123.8800,
     rating: 4.4,
     review_count: 67,
     image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -483,37 +498,6 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Combine with city exploration'
     ],
     imageSource: require('../assets/images/spartantrail/thumbnail.jpg')
-  },
-  {
-    id: '16',
-    name: 'Mount Hambubuyog',
-    description: 'A challenging mountain in Ginatilan offering spectacular views and diverse terrain. Known for its pine trees and scenic ridges, this peak provides an excellent hiking experience for adventurous hikers.',
-    difficulty: 'Moderate',
-    elevation: 1000,
-    trail_length: 4.2,
-    estimated_duration: '2.5 hours',
-    latitude: 9.6072,
-    longitude: 123.3312,
-    rating: 4.3,
-    review_count: 45,
-    image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-    amenities: ['Trail markers', 'Scenic viewpoints', 'Pine forest', 'Rest areas'],
-    best_season: ['Dry season', 'November to April'],
-    highlights: [
-      'Pine tree forest trails',
-      'Scenic mountain ridges',
-      'Panoramic summit views',
-      'Diverse flora and fauna',
-      'Cool mountain climate'
-    ],
-    tips: [
-      'Start early for the best views',
-      'Bring warm clothing for cool weather',
-      'Wear proper hiking boots for rocky terrain',
-      'Bring plenty of water and snacks',
-      'Check weather conditions before hiking'
-    ],
-    imageSource: require('../assets/images/mount hambubuyog/thumbnail.jpg')
   }
 
 ];

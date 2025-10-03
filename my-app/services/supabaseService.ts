@@ -1,831 +1,760 @@
-import { supabase } from './supabaseClient';
-import { Database } from '../types/database';
+import { supabase, isInDemoMode } from './supabaseClient';
+import { PostgrestError } from '@supabase/supabase-js';
 
-type HikingSpot = Database['public']['Tables']['hiking_spots']['Row'];
-type TrailRoute = Database['public']['Tables']['trail_routes']['Row'];
-
-export interface HikingSpotWithRoutes extends HikingSpot {
-  trail_routes?: TrailRoute[];
+// Error types for better error handling
+export enum SupabaseErrorType {
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  AUTHENTICATION_ERROR = 'AUTHENTICATION_ERROR',
+  PERMISSION_ERROR = 'PERMISSION_ERROR',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  NOT_FOUND_ERROR = 'NOT_FOUND_ERROR',
+  RATE_LIMIT_ERROR = 'RATE_LIMIT_ERROR',
+  SERVER_ERROR = 'SERVER_ERROR',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
-export interface TopRatedSpot {
-  id: number;
-  name: string;
-  coordinates: any;
-  description: string;
-  cover_image_url: string;
-  average_rating: number;
-  number_of_reviews: number;
+export interface SupabaseServiceError {
+  type: SupabaseErrorType;
+  message: string;
+  originalError?: any;
+  retryable: boolean;
+  statusCode?: number;
 }
 
+// Configuration for retry logic
+const RETRY_CONFIG = {
+  MAX_RETRIES: 3,
+  INITIAL_DELAY: 1000, // 1 second
+  MAX_DELAY: 10000, // 10 seconds
+  BACKOFF_MULTIPLIER: 2
+};
+
+// Network connectivity check
+export const checkNetworkConnectivity = async (): Promise<boolean> => {
+  try {
+    // Simple connectivity test using a lightweight Supabase query
+    const { error } = await supabase.from('hiking_spots').select('id').limit(1);
+    return !error;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Enhanced error classification
+export const classifySupabaseError = (error: any): SupabaseServiceError => {
+  if (!error) {
+    return {
+      type: SupabaseErrorType.UNKNOWN_ERROR,
+      message: 'Unknown error occurred',
+      retryable: false
+    };
+  }
+
+  // Network/connectivity errors
+  if (error.message?.includes('fetch') || 
+      error.message?.includes('network') ||
+      error.message?.includes('Failed to fetch') ||
+      error.code === 'NETWORK_ERROR') {
+    return {
+      type: SupabaseErrorType.NETWORK_ERROR,
+      message: 'Network connection failed. Please check your internet connection.',
+      originalError: error,
+      retryable: true
+    };
+  }
+
+  // Authentication errors
+  if (error.message?.includes('JWT') || 
+      error.message?.includes('auth') ||
+      error.status === 401) {
+    return {
+      type: SupabaseErrorType.AUTHENTICATION_ERROR,
+      message: 'Authentication failed. Please log in again.',
+      originalError: error,
+      retryable: false,
+      statusCode: 401
+    };
+  }
+
+  // Permission errors
+  if (error.message?.includes('permission') ||
+      error.message?.includes('RLS') ||
+      error.status === 403) {
+    return {
+      type: SupabaseErrorType.PERMISSION_ERROR,
+      message: 'You do not have permission to perform this action.',
+      originalError: error,
+      retryable: false,
+      statusCode: 403
+    };
+  }
+
+  // Not found errors
+  if (error.status === 404 || error.message?.includes('not found')) {
+    return {
+      type: SupabaseErrorType.NOT_FOUND_ERROR,
+      message: 'The requested resource was not found.',
+      originalError: error,
+      retryable: false,
+      statusCode: 404
+    };
+  }
+
+  // Rate limiting
+  if (error.status === 429) {
+    return {
+      type: SupabaseErrorType.RATE_LIMIT_ERROR,
+      message: 'Too many requests. Please try again later.',
+      originalError: error,
+      retryable: true,
+      statusCode: 429
+    };
+  }
+
+  // Server errors (5xx)
+  if (error.status >= 500) {
+    return {
+      type: SupabaseErrorType.SERVER_ERROR,
+      message: 'Server error occurred. Please try again later.',
+      originalError: error,
+      retryable: true,
+      statusCode: error.status
+    };
+  }
+
+  // Validation errors
+  if (error.message?.includes('invalid') || 
+      error.message?.includes('constraint') ||
+      error.message?.includes('duplicate')) {
+    return {
+      type: SupabaseErrorType.VALIDATION_ERROR,
+      message: error.message || 'Data validation failed.',
+      originalError: error,
+      retryable: false
+    };
+  }
+
+  // Default to unknown error
+  return {
+    type: SupabaseErrorType.UNKNOWN_ERROR,
+    message: error.message || 'An unexpected error occurred.',
+    originalError: error,
+    retryable: false
+  };
+};
+
+// Retry mechanism with exponential backoff
+export const withRetry = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = RETRY_CONFIG.MAX_RETRIES,
+  initialDelay: number = RETRY_CONFIG.INITIAL_DELAY
+): Promise<T> => {
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const classifiedError = classifySupabaseError(error);
+      
+      // Don't retry if error is not retryable
+      if (!classifiedError.retryable || attempt === maxRetries) {
+        throw classifiedError;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        initialDelay * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt),
+        RETRY_CONFIG.MAX_DELAY
+      );
+      
+      console.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms:`, classifiedError.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw classifySupabaseError(lastError);
+};
+
+// Data validation helpers
+export const validateHikingSpotData = (data: any): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (!data) {
+    errors.push('Hiking spot data is required');
+    return { isValid: false, errors };
+  }
+  
+  if (!data.name || typeof data.name !== 'string') {
+    errors.push('Hiking spot name is required and must be a string');
+  }
+  
+  if (!data.description || typeof data.description !== 'string') {
+    errors.push('Hiking spot description is required and must be a string');
+  }
+  
+  if (data.latitude && (typeof data.latitude !== 'number' || data.latitude < -90 || data.latitude > 90)) {
+    errors.push('Latitude must be a number between -90 and 90');
+  }
+  
+  if (data.longitude && (typeof data.longitude !== 'number' || data.longitude < -180 || data.longitude > 180)) {
+    errors.push('Longitude must be a number between -180 and 180');
+  }
+  
+  return { isValid: errors.length === 0, errors };
+};
+
+export const validateTrailData = (data: any): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (!data) {
+    errors.push('Trail data is required');
+    return { isValid: false, errors };
+  }
+  
+  if (!data.route_name || typeof data.route_name !== 'string') {
+    errors.push('Trail name is required and must be a string');
+  }
+  
+  if (data.distance_km && (typeof data.distance_km !== 'number' || data.distance_km < 0)) {
+    errors.push('Distance must be a positive number');
+  }
+  
+  if (data.elevation_gain_m && (typeof data.elevation_gain_m !== 'number' || data.elevation_gain_m < 0)) {
+    errors.push('Elevation gain must be a positive number');
+  }
+  
+  return { isValid: errors.length === 0, errors };
+};
+
+// Enhanced database operations with error handling
+export const safeSupabaseQuery = async <T>(
+  queryBuilder: any,
+  operationName: string = 'database operation'
+): Promise<{ data: T | null; error: SupabaseServiceError | null }> => {
+  try {
+    // Check if in demo mode
+    if (isInDemoMode) {
+      console.warn(`Demo mode: Skipping ${operationName}`);
+      return { data: null, error: null };
+    }
+    
+    // Execute query with retry logic
+    const result = await withRetry(async () => {
+      const { data, error } = await queryBuilder;
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    });
+    
+    return { data: result, error: null };
+  } catch (error) {
+    const classifiedError = classifySupabaseError(error);
+    console.error(`${operationName} failed:`, classifiedError);
+    return { data: null, error: classifiedError };
+  }
+};
+
+// Specific service methods with enhanced error handling
+export const fetchHikingSpots = async () => {
+  return safeSupabaseQuery(
+    supabase
+      .from('hiking_spots')
+      .select('*')
+      .order('name'),
+    'fetch hiking spots'
+  );
+};
+
+export const fetchHikingSpotById = async (id: string) => {
+  const { data, error } = await safeSupabaseQuery(
+    supabase
+      .from('hiking_spots')
+      .select('*')
+      .eq('id', id)
+      .single(),
+    `fetch hiking spot ${id}`
+  );
+  
+  // Additional validation for hiking spot data
+  if (data && !error) {
+    const validation = validateHikingSpotData(data);
+    if (!validation.isValid) {
+      return {
+        data: null,
+        error: {
+          type: SupabaseErrorType.VALIDATION_ERROR,
+          message: `Invalid hiking spot data: ${validation.errors.join(', ')}`,
+          retryable: false
+        }
+      };
+    }
+  }
+  
+  return { data, error };
+};
+
+export const fetchTrailRoutes = async (hikingSpotId: string) => {
+  const { data, error } = await safeSupabaseQuery(
+    supabase
+      .from('hiking_spot_routes')
+      .select('*')
+      .eq('hiking_spot_id', parseInt(hikingSpotId))
+      .order('route_name'),
+    `fetch trail routes for spot ${hikingSpotId}`
+  );
+
+  // Transform database data to match TrailRouteDetails interface
+  if (data && !error && Array.isArray(data)) {
+    const transformedData = data.map(route => {
+      // Parse start_coordinates from geography string if available
+      let startCoordinates = null;
+      if (route.start_coordinates && typeof route.start_coordinates === 'string') {
+        try {
+          // Parse POINT(longitude latitude) format
+          const pointMatch = route.start_coordinates.match(/POINT\(([^\s]+)\s+([^\s]+)\)/);
+          if (pointMatch) {
+            startCoordinates = {
+              longitude: parseFloat(pointMatch[1]),
+              latitude: parseFloat(pointMatch[2])
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to parse start_coordinates:', error);
+        }
+      }
+
+      // Parse end_coordinates from geography string if available
+      let endCoordinates = null;
+      if (route.end_coordinates && typeof route.end_coordinates === 'string') {
+        try {
+          // Parse POINT(longitude latitude) format
+          const pointMatch = route.end_coordinates.match(/POINT\(([^\s]+)\s+([^\s]+)\)/);
+          if (pointMatch) {
+            endCoordinates = {
+              longitude: parseFloat(pointMatch[1]),
+              latitude: parseFloat(pointMatch[2])
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to parse end_coordinates:', error);
+        }
+      }
+
+      // Use geojson_path from database if available, otherwise create from start/end points
+      let geojsonPath = route.geojson_path || null;
+      
+      if (!geojsonPath && startCoordinates && endCoordinates) {
+        geojsonPath = {
+          type: 'LineString',
+          coordinates: [
+            [startCoordinates.longitude, startCoordinates.latitude],
+            [endCoordinates.longitude, endCoordinates.latitude]
+          ]
+        };
+      }
+
+      // Create route coordinates array for compatibility
+      let routeCoordinates: Array<{latitude: number; longitude: number}> = [];
+      if (geojsonPath && geojsonPath.coordinates && Array.isArray(geojsonPath.coordinates)) {
+        routeCoordinates = geojsonPath.coordinates.map((coord: number[]) => ({
+          latitude: coord[1],
+          longitude: coord[0]
+        }));
+      } else if (startCoordinates && endCoordinates) {
+        routeCoordinates = [startCoordinates, endCoordinates];
+      }
+
+      return {
+        route_id: route.id?.toString() || '',
+        route_name: route.route_name || 'Unnamed Route',
+        hiking_spot_id: route.hiking_spot_id?.toString() || hikingSpotId,
+        difficulty_level: route.difficulty || 'Moderate',
+        difficulty: route.difficulty || 'Moderate',
+        distance_km: route.distance || 0,
+        elevation_gain_m: route.elevation_gain || 0,
+        estimated_duration_hr: route.estimated_duration ? route.estimated_duration / 60 : 0,
+        estimated_duration: route.estimated_duration ? `${route.estimated_duration} minutes` : '',
+        route_description: route.route_description || '',
+        highlights: route.route_features || '',
+        waypoints: [], // Not available in new schema
+        start_coordinates: startCoordinates,
+        end_coordinates: endCoordinates,
+        route_coordinates: routeCoordinates,
+        geojson_path: geojsonPath,
+        route_color: '#FF6B6B',
+        created_at: route.created_at,
+        updated_at: route.updated_at
+      };
+    });
+
+    // Validate trail data if successful
+    const invalidTrails = transformedData.filter(trail => !validateTrailData(trail).isValid);
+    if (invalidTrails.length > 0) {
+      console.warn(`Found ${invalidTrails.length} invalid trails for spot ${hikingSpotId}`);
+    }
+
+    return { data: transformedData, error };
+  }
+
+  return { data, error };
+};
+
+export const fetchUserProfile = async (userId: string) => {
+  return safeSupabaseQuery(
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single(),
+    `fetch user profile ${userId}`
+  );
+};
+
+// Health check function
+export const performHealthCheck = async (): Promise<{
+  isHealthy: boolean;
+  checks: Record<string, boolean>;
+  errors: string[];
+}> => {
+  const checks: Record<string, boolean> = {};
+  const errors: string[] = [];
+  
+  try {
+    // Check network connectivity
+    checks.connectivity = await checkNetworkConnectivity();
+    if (!checks.connectivity) {
+      errors.push('Network connectivity failed');
+    }
+    
+    // Check hiking_spots table access
+    const { error: hikingSpotsError } = await supabase
+      .from('hiking_spots')
+      .select('id')
+      .limit(1);
+    checks.hikingSpots = !hikingSpotsError;
+    if (hikingSpotsError) {
+      errors.push(`Hiking spots table: ${hikingSpotsError.message}`);
+    }
+    
+    // Check trail_routes table access
+    const { error: trailRoutesError } = await supabase
+      .from('hiking_spot_routes')
+      .select('id')
+      .limit(1);
+    checks.trailRoutes = !trailRoutesError;
+    if (trailRoutesError) {
+      errors.push(`Trail routes table: ${trailRoutesError.message}`);
+    }
+    
+    // Check profiles table access
+    const { error: profilesError } = await supabase
+      .from('profiles')
+      .select('id')
+      .limit(1);
+    checks.profiles = !profilesError;
+    if (profilesError) {
+      errors.push(`Profiles table: ${profilesError.message}`);
+    }
+    
+  } catch (error) {
+    errors.push(`Health check failed: ${error}`);
+  }
+  
+  const isHealthy = Object.values(checks).every(check => check === true) && errors.length === 0;
+  
+  return { isHealthy, checks, errors };
+};
+
+// Trail route interface for component compatibility
 export interface TrailRouteDetails {
-  route_id: number;
-  hiking_spot_id: number;
+  route_id: string;
   route_name: string;
-  difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Advanced';
-  start_coordinates: any;
-  end_coordinates?: any;
-  route_coordinates?: any[];
-  waypoints?: string; // JSON string containing waypoint coordinates
+  hiking_spot_id: string;
+  difficulty_level: string;
+  difficulty?: string;
   distance_km: number;
   elevation_gain_m: number;
-  estimated_duration_hr: number;
-  highlights: string;
-  geojson_path: any;
-  route_color: string;
+  estimated_duration_hr?: number;
+  estimated_duration?: string;
+  route_description?: string;
+  highlights?: string;
+  waypoints?: any;
+  start_coordinates?: { latitude: number; longitude: number } | null;
+  end_coordinates?: { latitude: number; longitude: number } | null;
+  route_coordinates?: { latitude: number; longitude: number }[] | null;
+  geojson_path?: any;
+  route_color?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
-/**
- * Fetch top-rated hiking spots ordered by average rating
- * @param limit Number of spots to fetch (default: 10)
- * @returns Promise<TopRatedSpot[]>
- */
-export async function getTopRatedHikingSpots(limit: number = 10): Promise<TopRatedSpot[]> {
-  try {
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select('*')
-      .order('average_rating', { ascending: false })
-      .limit(limit);
+// Alias function for component compatibility
+export const getTrailRoutesBySpotId = async (hikingSpotId: string) => {
+  return fetchTrailRoutes(hikingSpotId);
+};
 
-    if (error) {
-      // Error fetching top-rated hiking spots
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Failed to fetch top-rated hiking spots:', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch a specific hiking spot by ID with its trail routes
- * @param hikingSpotId The ID of the hiking spot
- * @returns Promise<HikingSpotWithRoutes | null>
- */
-export async function getHikingSpotWithRoutes(hikingSpotId: number): Promise<HikingSpotWithRoutes | null> {
-  try {
-    // Convert app ID to database ID
-    const dbId = mapAppIdToDbId(hikingSpotId);
-    
-    // First try with hiking_spot_id, then fallback to id
-    let data, error;
-    
-    // Try with hiking_spot_id column
-    const result1 = await supabase
-      .from('hiking_spots')
-      .select(`
-        *,
-        trail_routes (*)
-      `)
-      .eq('hiking_spot_id', dbId)
-      .single();
-    
-    if (result1.error && result1.error.code === '42703') {
-      // Column doesn't exist, try with id column
-      const result2 = await supabase
-        .from('hiking_spots')
-        .select(`
-          *,
-          trail_routes (*)
-        `)
-        .eq('id', dbId)
-        .single();
-      
-      data = result2.data;
-      error = result2.error;
-    } else {
-      data = result1.data;
-      error = result1.error;
-    }
-
-    if (error) {
-      console.error('Error fetching hiking spot with routes:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch hiking spot with routes:', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch all trail routes for a specific hiking spot
- * @param hikingSpotId The ID of the hiking spot
- * @returns Promise<TrailRouteDetails[]>
- */
-export async function getTrailRoutesByHikingSpot(hikingSpotId: number): Promise<TrailRouteDetails[]> {
-  try {
-    const { data, error } = await supabase
-      .from('trail_routes')
-      .select('*')
-      .eq('hiking_spot_id', hikingSpotId) // Fixed: use hiking_spot_id instead of id
-      .order('difficulty', { ascending: true }); // Order by difficulty: Easy -> Advanced
-
-    if (error) {
-      console.error('Error fetching trail routes:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Failed to fetch trail routes:', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch a specific trail route by ID
- * @param routeId The ID of the trail route
- * @returns Promise<TrailRouteDetails | null>
- */
-export async function getTrailRoute(routeId: number): Promise<TrailRouteDetails | null> {
-  try {
-    const { data, error } = await supabase
-      .from('trail_routes')
-      .select('*')
-      .eq('route_id', routeId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching trail route:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch trail route:', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch all hiking spots (for general listing)
- * @returns Promise<HikingSpot[]>
- */
-export async function getAllHikingSpots(): Promise<HikingSpot[]> {
-  try {
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (error) {
-      // Error fetching all hiking spots
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    // Failed to fetch all hiking spots
-    throw error;
-  }
-}
-
-/**
- * Search hiking spots by name or description
- * @param searchTerm The search term
- * @returns Promise<HikingSpot[]>
- */
-export async function searchHikingSpots(searchTerm: string): Promise<HikingSpot[]> {
-  try {
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select('*')
-      .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-      .order('average_rating', { ascending: false });
-
-    if (error) {
-      console.error('Error searching hiking spots:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Failed to search hiking spots:', error);
-    throw error;
-  }
-}
-
-/**
- * Get hiking spots by difficulty level
- * @param difficulty The difficulty level to filter by
- * @returns Promise<HikingSpot[]>
- */
-export async function getHikingSpotsByDifficulty(difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Advanced'): Promise<HikingSpot[]> {
-  try {
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select(`
-        *,
-        trail_routes!inner(*)
-      `)
-      .eq('trail_routes.difficulty', difficulty)
-      .order('average_rating', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching hiking spots by difficulty:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Failed to fetch hiking spots by difficulty:', error);
-    throw error;
-  }
-}
-
-/**
- * Update hiking spot rating (for future use)
- * @param hikingSpotId The ID of the hiking spot
- * @param newRating The new rating to add
- * @returns Promise<boolean>
- */
-export async function updateHikingSpotRating(hikingSpotId: number, newRating: number): Promise<boolean> {
-  try {
-    // First, get current rating data
-    const { data: currentData, error: fetchError } = await supabase
-      .from('hiking_spots')
-      .select('average_rating, number_of_reviews')
-      .eq('id', hikingSpotId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching current rating data:', fetchError);
-      throw fetchError;
-    }
-
-    // Calculate new average rating
-    const currentAverage = currentData.average_rating || 0;
-    const currentReviews = currentData.number_of_reviews || 0;
-    const newReviewCount = currentReviews + 1;
-    const newAverage = ((currentAverage * currentReviews) + newRating) / newReviewCount;
-
-    // Update the hiking spot with new rating data
-    const { error: updateError } = await supabase
-      .from('hiking_spots')
-      .update({
-        average_rating: Math.round(newAverage * 10) / 10, // Round to 1 decimal place
-        number_of_reviews: newReviewCount
-      })
-      .eq('id', hikingSpotId);
-
-    if (updateError) {
-      console.error('Error updating hiking spot rating:', updateError);
-      throw updateError;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Failed to update hiking spot rating:', error);
-    throw error;
-  }
-}
-
-/**
- * Map app IDs to database IDs based on current database state
- * All 15 hiking spots are now in the database with IDs 71-85
- */
-function mapAppIdToDbId(appId: string | number): number {
-  const id = typeof appId === 'string' ? parseInt(appId) : appId;
-  
-  // Complete mapping for all spots in database
-  const idMapping: { [key: number]: number } = {
-    1: 71,   // Mount Babag
-    2: 75,   // Mount Kan-irag / Sirao Peak
-    3: 76,   // Mount Naupa
-    4: 77,   // Mount Manunggal
-    5: 78,   // Mount Mago
-    6: 79,   // Mount Kapayas
-    7: 80,   // Mount Lantoy
-    8: 81,   // Mount Kalbasaan
-    9: 82,   // Mount Mauyog
-    10: 83,  // Mount Lanaya
-    11: 84,  // Mount Hambubuyog
-    12: 72,  // Osmeña Peak  
-    13: 73,  // Casino Peak
-    14: 85,  // Budlaan Falls
-    15: 74,  // Spartan Trail
-  };
-  
-  return idMapping[id] || (id + 70); // Fallback for unmapped IDs
-}
-
-/**
- * Fetch a specific hiking spot by ID
- * @param hikingSpotId The ID of the hiking spot (can be string or number)
- * @returns Promise<HikingSpot | null>
- */
-export async function getHikingSpotById(hikingSpotId: string | number): Promise<HikingSpot | null> {
-  try {
-    // Convert app ID to database ID
-    const dbId = mapAppIdToDbId(hikingSpotId);
-
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select('*')
-      .eq('hiking_spot_id', dbId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching hiking spot by ID:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch hiking spot by ID:', error);
-    throw error;
-  }
-}
-
-/**
- * Fetch all trail routes for a specific hiking spot (alias for getTrailRoutesByHikingSpot)
- * @param spotId The ID of the hiking spot
- * @returns Promise<TrailRouteDetails[]>
- */
-export async function getTrailRoutesBySpotId(spotId: string): Promise<TrailRouteDetails[]> {
-  const dbId = mapAppIdToDbId(parseInt(spotId));
-  return getTrailRoutesByHikingSpot(dbId);
-}
-
-/**
- * Get coordinates for a hiking spot (for weather API)
- * @param hikingSpotId The ID of the hiking spot
- * @returns Promise<{latitude: number, longitude: number} | null>
- */
-export async function getHikingSpotCoordinates(hikingSpotId: number): Promise<{latitude: number, longitude: number} | null> {
-  try {
-    const { data, error } = await supabase
-      .from('hiking_spots')
-      .select('coordinates')
-      .eq('id', hikingSpotId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching hiking spot coordinates:', error);
-      throw error;
-    }
-
-    if (data?.coordinates) {
-      // Assuming coordinates are stored as POINT(longitude, latitude)
-      // You may need to adjust this based on your actual data structure
-      return {
-        latitude: data.coordinates.coordinates[1],
-        longitude: data.coordinates.coordinates[0]
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Failed to fetch hiking spot coordinates:', error);
-    throw error;
-  }
-}
-
-// =====================================================
-// WEATHER SYSTEM FUNCTIONS
-// =====================================================
-
+// Weather data interfaces
 export interface WeatherData {
   temperature: number;
   condition: string;
   humidity: number;
   windSpeed: number;
   icon: string;
+  description?: string;
+  visibility?: number;
+  uvIndex?: number;
+  pressure?: number;
 }
 
-/**
- * Get weather data with caching from Supabase
- * @param latitude The latitude coordinate
- * @param longitude The longitude coordinate
- * @returns Promise<WeatherData>
- */
-export async function getWeatherData(latitude: number, longitude: number): Promise<WeatherData> {
-  try {
-    // First, check if we have cached weather data that's still valid
-    const { data: cachedData, error: cacheError } = await supabase
-      .from('weather_cache')
-      .select('*')
-      .eq('latitude', latitude)
-      .eq('longitude', longitude)
-      .gt('expires_at', new Date().toISOString())
-      .order('cached_at', { ascending: false })
-      .limit(1)
-      .single();
+// OpenWeatherMap API configuration
+const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY || 'demo_key';
+const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
-    if (!cacheError && cachedData) {
-      // Return cached data if it's still valid
-      return {
-        temperature: cachedData.temperature,
-        condition: cachedData.weather_condition,
-        humidity: cachedData.humidity,
-        windSpeed: Math.round(cachedData.wind_speed * 3.6), // Convert m/s to km/h
-        icon: getWeatherIcon(cachedData.weather_condition)
-      };
+// Weather cache duration (1 hour)
+const WEATHER_CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+// Weather data fetching with caching
+export const getWeatherData = async (latitude: number, longitude: number): Promise<WeatherData | null> => {
+  try {
+    // Validate coordinates
+    if (!latitude || !longitude || 
+        latitude < -90 || latitude > 90 || 
+        longitude < -180 || longitude > 180) {
+      throw new Error('Invalid coordinates provided');
     }
 
-    // If no valid cache, fetch from OpenWeatherMap API
-    const API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
-    
-    if (!API_KEY || API_KEY === 'your_openweather_api_key_here') {
-      // Return mock data when no API key is available
-      const mockWeatherData = {
-        temperature: Math.floor(Math.random() * 15) + 20, // 20-35°C
-        condition: ['Clear', 'Clouds', 'Rain', 'Drizzle'][Math.floor(Math.random() * 4)],
-        humidity: Math.floor(Math.random() * 40) + 40, // 40-80%
-        windSpeed: Math.floor(Math.random() * 10) + 5, // 5-15 km/h
-        icon: getWeatherIcon(['Clear', 'Clouds', 'Rain', 'Drizzle'][Math.floor(Math.random() * 4)])
-      };
-      return mockWeatherData;
+    // Check cache first
+    const cachedWeather = await getCachedWeatherData(latitude, longitude);
+    if (cachedWeather) {
+      return cachedWeather;
+    }
+
+    // If no API key is configured, return mock data for demo
+    if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'demo_key') {
+      console.warn('OpenWeatherMap API key not configured, returning mock weather data');
+      return getMockWeatherData(latitude, longitude);
     }
 
     // Fetch from OpenWeatherMap API
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
-    );
-
-    if (!response.ok) {
-      throw new Error('Weather API request failed');
-    }
-
-    const data = await response.json();
+    const weatherData = await fetchWeatherFromAPI(latitude, longitude);
     
-    const weatherData: WeatherData = {
-      temperature: Math.round(data.main.temp),
-      condition: data.weather[0].main,
-      humidity: data.main.humidity,
-      windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
-      icon: getWeatherIcon(data.weather[0].main)
-    };
-
-    // Cache the weather data in Supabase
-    try {
-      await supabase
-        .from('weather_cache')
-        .insert({
-          latitude,
-          longitude,
-          weather_data: data,
-          temperature: weatherData.temperature,
-          humidity: weatherData.humidity,
-          wind_speed: data.wind.speed, // Store in m/s
-          weather_condition: weatherData.condition,
-          visibility: data.visibility ? data.visibility / 1000 : null, // Convert to km
-          uv_index: data.uvi || null,
-          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour from now
-        });
-    } catch (cacheInsertError) {
-      console.error('Failed to cache weather data:', cacheInsertError);
-      // Continue anyway, we have the weather data
+    // Cache the result
+    if (weatherData) {
+      await cacheWeatherData(latitude, longitude, weatherData);
     }
 
     return weatherData;
   } catch (error) {
     console.error('Error fetching weather data:', error);
     
-    // Return fallback mock data on error
-    return {
-      temperature: 25,
-      condition: 'Partly Cloudy',
-      humidity: 65,
-      windSpeed: 8,
-      icon: getWeatherIcon('Clouds')
-    };
+    // Return mock data as fallback
+    return getMockWeatherData(latitude, longitude);
   }
-}
+};
 
-/**
- * Get weather icon based on condition
- * @param condition The weather condition
- * @returns string Weather icon emoji
- */
-function getWeatherIcon(condition: string): string {
-  switch (condition.toLowerCase()) {
-    case 'clear':
-      return '☀️';
-    case 'clouds':
-      return '☁️';
-    case 'rain':
-      return '🌧️';
-    case 'drizzle':
-      return '🌦️';
-    case 'thunderstorm':
-      return '⛈️';
-    case 'snow':
-      return '❄️';
-    case 'mist':
-    case 'fog':
-      return '🌫️';
-    default:
-      return '⛅';
-  }
-}
-
-/**
- * Clean up expired weather cache entries
- * @returns Promise<boolean>
- */
-export async function cleanupExpiredWeatherCache(): Promise<boolean> {
+// Fetch weather data from OpenWeatherMap API
+const fetchWeatherFromAPI = async (latitude: number, longitude: number): Promise<WeatherData | null> => {
   try {
-    const { error } = await supabase
-      .from('weather_cache')
-      .delete()
-      .lt('expires_at', new Date().toISOString());
+    const url = `${OPENWEATHER_BASE_URL}/weather?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform OpenWeatherMap response to our format
+    return {
+      temperature: Math.round(data.main.temp),
+      condition: data.weather[0].main,
+      humidity: data.main.humidity,
+      windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
+      icon: data.weather[0].icon,
+      description: data.weather[0].description,
+      visibility: data.visibility ? Math.round(data.visibility / 1000) : undefined, // Convert m to km
+      uvIndex: data.uvi || undefined,
+      pressure: data.main.pressure
+    };
+  } catch (error) {
+    console.error('OpenWeatherMap API error:', error);
+    throw error;
+  }
+};
 
-    if (error) {
-      console.error('Error cleaning up weather cache:', error);
-      return false;
+// Get cached weather data
+const getCachedWeatherData = async (latitude: number, longitude: number): Promise<WeatherData | null> => {
+  try {
+    if (isInDemoMode) {
+      return null; // Skip cache in demo mode
     }
 
-    return true;
+    const { data, error } = await supabase
+      .from('weather_cache')
+      .select('*')
+      .gte('fetched_at', new Date(Date.now() - WEATHER_CACHE_DURATION).toISOString())
+      .order('fetched_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    // Transform cached data to our format
+    const weatherData = data.data;
+    return {
+      temperature: weatherData?.main?.temp || 25,
+      condition: weatherData?.weather?.[0]?.main || 'Clear',
+      humidity: weatherData?.main?.humidity || 70,
+      windSpeed: Math.round((weatherData?.wind?.speed || 5) * 3.6), // Convert m/s to km/h
+      icon: weatherData?.weather?.[0]?.icon || 'partly-sunny',
+      description: weatherData?.weather?.[0]?.description,
+      visibility: weatherData?.visibility ? Math.round(weatherData.visibility / 1000) : undefined,
+      uvIndex: weatherData?.uvi || undefined,
+      pressure: weatherData?.main?.pressure
+    };
   } catch (error) {
-    console.error('Failed to cleanup weather cache:', error);
-    return false;
+    console.error('Error fetching cached weather data:', error);
+    return null;
   }
-}
+};
 
-// =====================================================
-// REVIEWS SYSTEM FUNCTIONS
-// =====================================================
+// Cache weather data
+const cacheWeatherData = async (latitude: number, longitude: number, weatherData: WeatherData): Promise<void> => {
+  try {
+    if (isInDemoMode) {
+      return; // Skip caching in demo mode
+    }
 
-export interface Review {
-  id: string;
-  user_id: string;
-  hiking_spot_id: number;
+    // Find the closest hiking spot to cache the weather data
+    const { data: spot } = await supabase
+      .from('hiking_spots')
+      .select('id')
+      .order('created_at')
+      .limit(1)
+      .single();
+
+    if (!spot) {
+      console.warn('No hiking spot found for weather caching');
+      return;
+    }
+
+    await supabase
+      .from('weather_cache')
+      .insert({
+        spot_id: spot.id,
+        data: {
+          main: {
+            temp: weatherData.temperature,
+            humidity: weatherData.humidity,
+            pressure: weatherData.pressure
+          },
+          weather: [{
+            main: weatherData.condition,
+            description: weatherData.description,
+            icon: weatherData.icon
+          }],
+          wind: {
+            speed: weatherData.windSpeed / 3.6 // Convert back to m/s for storage
+          },
+          visibility: weatherData.visibility ? weatherData.visibility * 1000 : null
+        }
+      });
+  } catch (error) {
+    console.error('Error caching weather data:', error);
+    // Don't throw error for caching failures
+  }
+};
+
+// Generate mock weather data for demo/fallback
+const getMockWeatherData = (latitude: number, _longitude: number): WeatherData => {
+  // Mark parameter as intentionally unused for API compatibility
+  void _longitude;
+  // Generate realistic weather data based on location and time
+  const now = new Date();
+  const hour = now.getHours();
+  const isDay = hour >= 6 && hour < 18;
+  
+  // Base temperature on latitude (tropical climate for Philippines)
+  const baseTemp = 28 - (Math.abs(latitude - 10) * 2); // Cooler at higher altitudes
+  const tempVariation = Math.sin((hour - 6) * Math.PI / 12) * 5; // Daily temperature variation
+  const temperature = Math.round(baseTemp + tempVariation + (Math.random() - 0.5) * 4);
+  
+  // Mock conditions based on time and randomness
+  const conditions = isDay 
+    ? ['Clear', 'Partly Cloudy', 'Cloudy', 'Hazy']
+    : ['Clear', 'Partly Cloudy', 'Cloudy'];
+  
+  const condition = conditions[Math.floor(Math.random() * conditions.length)];
+  
+  return {
+    temperature,
+    condition,
+    humidity: Math.round(65 + Math.random() * 25), // 65-90% humidity (tropical)
+    windSpeed: Math.round(5 + Math.random() * 15), // 5-20 km/h
+    icon: getWeatherIcon(condition, isDay),
+    description: `${condition.toLowerCase()} skies`,
+    visibility: Math.round(8 + Math.random() * 7), // 8-15 km
+    uvIndex: isDay ? Math.round(6 + Math.random() * 5) : 0, // 6-11 during day
+    pressure: Math.round(1010 + Math.random() * 20) // 1010-1030 hPa
+  };
+};
+
+// Get appropriate weather icon
+const getWeatherIcon = (condition: string, isDay: boolean = true): string => {
+  const conditionLower = condition.toLowerCase();
+  
+  if (conditionLower.includes('clear')) {
+    return isDay ? 'sunny' : 'moon';
+  } else if (conditionLower.includes('partly') || conditionLower.includes('few')) {
+    return isDay ? 'partly-sunny' : 'cloudy-night';
+  } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+    return 'cloudy';
+  } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+    return 'rainy';
+  } else if (conditionLower.includes('storm') || conditionLower.includes('thunder')) {
+    return 'thunderstorm';
+  } else if (conditionLower.includes('snow')) {
+    return 'snow';
+  } else if (conditionLower.includes('fog') || conditionLower.includes('mist') || conditionLower.includes('haze')) {
+    return 'cloudy';
+  }
+  
+  return isDay ? 'partly-sunny' : 'cloudy-night';
+};
+
+// Additional service methods for hiking spot reviews
+export const getHikingSpotReviews = async (hikingSpotId: string) => {
+  return safeSupabaseQuery(
+    supabase
+      .from('reviews')
+      .select('*')
+      .eq('hiking_spot_id', hikingSpotId)
+      .order('created_at', { ascending: false }),
+    `fetch reviews for hiking spot ${hikingSpotId}`
+  );
+};
+
+export const addHikingSpotReview = async (reviewData: {
+  hiking_spot_id: string;
+  user_name: string;
   rating: number;
   comment: string;
-  created_at: string;
-  updated_at: string;
-  user_name?: string;
-  user_avatar?: string;
-}
-
-export interface ReviewStats {
-  averageRating: number;
-  totalReviews: number;
-  ratingDistribution: { [key: number]: number };
-}
-
-/**
- * Fetch all reviews for a hiking spot with user information
- * @param hikingSpotId The ID of the hiking spot
- * @returns Promise<Review[]>
- */
-export async function getReviewsForHikingSpot(hikingSpotId: number): Promise<Review[]> {
-  try {
-    const { data, error } = await supabase
+}) => {
+  return safeSupabaseQuery(
+    supabase
       .from('reviews')
-      .select(`
-        *,
-        profiles!reviews_user_id_fkey (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq('hiking_spot_id', hikingSpotId)
-      .order('created_at', { ascending: false });
+      .insert(reviewData),
+    'add hiking spot review'
+  );
+};
 
-    if (error) {
-      console.error('Error fetching reviews:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching reviews:', error);
-    throw error;
-  }
-}
-
-/**
- * Get review statistics for a hiking spot
- * @param hikingSpotId The ID of the hiking spot
- * @returns Promise<ReviewStats>
- */
-export async function getReviewStats(hikingSpotId: number): Promise<ReviewStats> {
-  try {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('hiking_spot_id', hikingSpotId);
-
-    if (error) {
-      console.error('Error fetching review stats:', error);
-      throw error;
-    }
-
-    const reviews = data || [];
-    const totalReviews = reviews.length;
-    
-    if (totalReviews === 0) {
-      return {
-        averageRating: 0,
-        totalReviews: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-      };
-    }
-
-    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews;
-    
-    const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    reviews.forEach(review => {
-      const rating = review.rating as keyof typeof ratingDistribution;
-      if (rating >= 1 && rating <= 5) {
-        ratingDistribution[rating]++;
-      }
-    });
-
-    return {
-      averageRating: Math.round(averageRating * 10) / 10,
-      totalReviews,
-      ratingDistribution
-    };
-  } catch (error) {
-    console.error('Failed to fetch review stats:', error);
-    throw error;
-  }
-}
-
-/**
- * Submit a new review for a hiking spot
- * @param hikingSpotId The ID of the hiking spot
- * @param userId The ID of the user
- * @param rating The rating (1-5)
- * @param comment The review comment
- * @returns Promise<Review>
- */
-export async function submitReview(
-  hikingSpotId: number,
-  userId: string,
-  rating: number,
-  comment: string
-): Promise<Review> {
-  try {
-    // Check if user already reviewed this spot
-    const { data: existingReview } = await supabase
-      .from('reviews')
-      .select('id')
-      .eq('hiking_spot_id', hikingSpotId)
-      .eq('user_id', userId)
-      .single();
-
-    if (existingReview) {
-      throw new Error('You have already reviewed this hiking spot');
-    }
-
-    const { data, error } = await supabase
-      .from('reviews')
-      .insert({
-        hiking_spot_id: hikingSpotId,
-        user_id: userId,
-        rating,
-        comment: comment.trim(),
-      })
-      .select(`
-        *,
-        profiles:user_id (
-          full_name,
-          avatar_url
-        )
-      `)
-      .single();
-
-    if (error) {
-      console.error('Error submitting review:', error);
-      throw error;
-    }
-
-    return {
-      ...data,
-      user_name: data.profiles?.full_name || 'Anonymous User',
-      user_avatar: data.profiles?.avatar_url,
-    };
-  } catch (error) {
-    console.error('Failed to submit review:', error);
-    throw error;
-  }
-}
-
-/**
- * Update an existing review
- * @param reviewId The ID of the review
- * @param userId The ID of the user (for authorization)
- * @param rating The new rating (1-5)
- * @param comment The new review comment
- * @returns Promise<Review>
- */
-export async function updateReview(
-  reviewId: string,
-  userId: string,
-  rating: number,
-  comment: string
-): Promise<Review> {
-  try {
-    const { data, error } = await supabase
-      .from('reviews')
-      .update({
-        rating,
-        comment: comment.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', reviewId)
-      .eq('user_id', userId) // Ensure user can only update their own review
-      .select(`
-        *,
-        profiles:user_id (
-          full_name,
-          avatar_url
-        )
-      `)
-      .single();
-
-    if (error) {
-      console.error('Error updating review:', error);
-      throw error;
-    }
-
-    return {
-      ...data,
-      user_name: data.profiles?.full_name || 'Anonymous User',
-      user_avatar: data.profiles?.avatar_url,
-    };
-  } catch (error) {
-    console.error('Failed to update review:', error);
-    throw error;
-  }
-}
-
-/**
- * Delete a review
- * @param reviewId The ID of the review
- * @param userId The ID of the user (for authorization)
- * @returns Promise<boolean>
- */
-export async function deleteReview(reviewId: string, userId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', reviewId)
-      .eq('user_id', userId); // Ensure user can only delete their own review
-
-    if (error) {
-      console.error('Error deleting review:', error);
-      throw error;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Failed to delete review:', error);
-    throw error;
-  }
-}
-
-/**
- * Get a user's review for a specific hiking spot
- * @param hikingSpotId The ID of the hiking spot
- * @param userId The ID of the user
- * @returns Promise<Review | null>
- */
-export async function getUserReviewForSpot(hikingSpotId: number, userId: string): Promise<Review | null> {
-  try {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select(`
-        *,
-        profiles:user_id (
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('hiking_spot_id', hikingSpotId)
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No review found
-        return null;
-      }
-      console.error('Error fetching user review:', error);
-      throw error;
-    }
-
-    return {
-      ...data,
-      user_name: data.profiles?.full_name || 'Anonymous User',
-      user_avatar: data.profiles?.avatar_url,
-    };
-  } catch (error) {
-    console.error('Failed to fetch user review:', error);
-    throw error;
-  }
-}
+// Export error types and utilities
+export { RETRY_CONFIG };

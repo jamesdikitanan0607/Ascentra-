@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,17 +15,23 @@ import {
   Dimensions,
   TextInput,
   useWindowDimensions,
+  Animated,
+  Modal,
 } from 'react-native';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../contexts/ProfileContext';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import { useTrail, normalizeTrailRoute } from '../../contexts/TrailContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getHikingSpotById, getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
+import { fetchHikingSpotById, getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
 import { HikingSpot } from '../../types/database';
 import WeatherWidget from '../../components/WeatherWidget';
-import GoogleMapsTrailMap from '../../components/GoogleMapsTrailMap';
+import { formatDistance, formatElevation } from '../../utils/formatters';
+import LeafletTrailMap from '../../components/LeafletTrailMap';
 import { ImageCarousel } from '../../components/ImageCarousel';
 import ReviewSystem from '../../components/ReviewSystem';
+import TrailInfo from '../../components/TrailInfo';
+import AvailableRoutes, { TrailRoute } from '../../components/AvailableRoutes';
 
 const { width, height } = Dimensions.get('window');
 
@@ -53,17 +59,41 @@ interface HikingSpotLandingPageProps {
   navigation: any;
   route: {
     params: {
-      spotId: string;
+      hiking_spot_id: string;
     };
   };
 }
 
 export default function HikingSpotLandingPage({ navigation, route }: HikingSpotLandingPageProps) {
-  const { spotId } = route.params;
+  // Add null checks for route.params
+  if (!route.params || !route.params.hiking_spot_id) {
+    console.error('HikingSpotLandingPage: Missing hiking_spot_id parameter');
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: Missing hiking spot information</Text>
+          <TouchableOpacity 
+            style={styles.errorBackButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorBackButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { hiking_spot_id } = route.params;
   const [hikingSpot, setHikingSpot] = useState<HikingSpot | null>(null);
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const trailInfoYRef = useRef<number>(0);
+  const infoOpacity = useRef(new Animated.Value(0)).current;
+  const infoTranslateY = useRef(new Animated.Value(12)).current;
+  const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
@@ -71,9 +101,41 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   // Trail context for shared trail selection
   const { selectedTrail, setSelectedTrail, setTrails } = useTrail();
 
+  // Convert selectedTrail to selectedRoute format for TrailInfo component
+  const convertTrailToRoute = (trail: any): TrailRouteDetails | null => {
+    if (!trail) return null;
+    
+    // Find the corresponding route in trailRoutes using route_id
+    const route = trailRoutes.find(r => String(r.route_id) === String(trail.route_id || trail.id));
+    if (route) {
+      return route;
+    }
+    
+    // If not found, create a compatible structure from the normalized trail data
+    return {
+      route_id: String(trail.route_id || trail.id) || '',
+      hiking_spot_id: hiking_spot_id,
+      route_name: trail.route_name || trail.name || 'Unnamed Trail',
+      difficulty_level: trail.difficulty_level || trail.difficulty || 'Unknown',
+      difficulty: trail.difficulty || 'Unknown',
+      distance_km: trail.distance_km || trail.distance || trail.length || 0,
+      elevation_gain_m: trail.elevation_gain_m || trail.elevationGain || trail.elevation_gain || 0,
+      estimated_duration_hr: trail.estimated_duration_hr || (trail.estimatedTime || 0) / 60 || trail.estimated_time || 0,
+      highlights: trail.highlights || trail.description || '',
+      start_coordinates: trail.start_coordinates || null,
+      end_coordinates: trail.end_coordinates || null,
+      route_coordinates: trail.route_coordinates || null,
+      geojson_path: trail.geojson_path || null,
+      waypoints: trail.waypoints || null,
+      route_color: trail.route_color || null,
+      created_at: trail.created_at || new Date().toISOString(),
+      updated_at: trail.updated_at || new Date().toISOString()
+    };
+  };
+
   useEffect(() => {
     fetchHikingSpotData();
-  }, [spotId]);
+  }, [hiking_spot_id]);
 
   useEffect(() => {
     if (hikingSpot) {
@@ -81,37 +143,84 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     }
   }, [hikingSpot]);
 
+  useEffect(() => {
+    setSelectedRoute(convertTrailToRoute(selectedTrail));
+  }, [selectedTrail, trailRoutes]);
+
+  useEffect(() => {
+    // Animate Trail Information panel on selection
+    if (selectedRoute) {
+      Animated.parallel([
+        Animated.timing(infoOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.timing(infoTranslateY, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
+    } else {
+      infoOpacity.setValue(0);
+      infoTranslateY.setValue(12);
+    }
+  }, [selectedRoute]);
+
   async function fetchHikingSpotData() {
     try {
       setLoading(true);
       
+      // Validate hiking_spot_id before making API calls
+      if (!hiking_spot_id) {
+        navigation.goBack();
+        return;
+      }
+      
       // Fetch hiking spot details
-      const spot = await getHikingSpotById(spotId);
+      const spotData = await fetchHikingSpotById(hiking_spot_id);
+      const spot = (spotData?.data as unknown) as HikingSpot | null;
       if (spot) {
         setHikingSpot(spot);
         
         // Fetch trail routes for this spot
-        const routes = await getTrailRoutesBySpotId(spotId);
-        setTrailRoutes(routes);
+        const routesResponse = await getTrailRoutesBySpotId(hiking_spot_id);
         
-        // Convert to TrailRoute format and update context
-        const normalizedTrails = routes.map(route => normalizeTrailRoute({
-          id: route.route_id,
-          name: route.route_name,
-          description: route.highlights || '',
-          difficulty: route.difficulty,
-          length: route.distance_km,
-          elevation_gain: route.elevation_gain_m,
-          estimated_time: route.estimated_duration_hr * 60, // Convert hours to minutes
-          trail_type: 'trail',
-          waypoints: '',
-          gpx_data: null,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          hiking_spot_id: spotId,
-          route_id: route.route_id
-        }));
+        // Handle the response structure properly
+        const routes = routesResponse?.data || [];
+        if (routesResponse?.error) {
+          console.error('Error fetching trail routes:', routesResponse.error);
+        }
+        
+        // Ensure routes is an array
+        const validRoutes = Array.isArray(routes) ? routes : [];
+        setTrailRoutes(validRoutes);
+        
+        // Convert to TrailRoute format and update context with null checks
+        const normalizedTrails = validRoutes
+          .filter(route => route && route.route_id) // Filter out null/undefined routes
+          .map(route => {
+            try {
+              return normalizeTrailRoute({
+                id: route.route_id,
+                name: route.route_name || 'Unnamed Route',
+                description: route.highlights || '',
+                difficulty: route.difficulty || 'Unknown',
+                length: route.distance_km || 0,
+                elevation_gain: route.elevation_gain_m || 0,
+                estimated_time: (route.estimated_duration_hr || 0) * 60, // Convert hours to minutes
+                trail_type: 'trail',
+                waypoints: route.waypoints || '',
+                gpx_data: null,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                hiking_spot_id: hiking_spot_id,
+                route_id: route.route_id,
+                start_coordinates: route.start_coordinates || null,
+                end_coordinates: route.end_coordinates || null,
+                route_coordinates: route.route_coordinates || null,
+                geojson_path: route.geojson_path || null
+              });
+            } catch (error) {
+              console.error('Error normalizing trail route:', error);
+              return null;
+            }
+          })
+          .filter(trail => trail !== null); // Remove any failed normalizations
         
         setTrails(normalizedTrails);
         
@@ -124,8 +233,9 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         navigation.goBack();
       }
     } catch (error) {
-      // Error fetching hiking spot data
+      console.error('Error fetching hiking spot data:', error);
       Alert.alert('Error', 'Failed to load hiking spot details');
+      navigation.goBack();
     } finally {
       setLoading(false);
     }
@@ -156,16 +266,10 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       if (isCurrentlyFavorited) {
         await removeFromFavorites(hikingSpot.id.toString());
       } else {
-        await addToFavorites({
-          id: hikingSpot.id.toString(),
-          name: hikingSpot.name,
-          description: hikingSpot.description,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+        await addToFavorites(hikingSpot);
       }
     } catch (error) {
-      // Error toggling favorite
+      console.error('Error toggling favorite:', error);
       Alert.alert('Error', 'Failed to update favorites');
     }
   };
@@ -180,8 +284,19 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     });
     
     if (url) {
-      Linking.openURL(url);
+      Linking.openURL(url).catch(err => {
+        console.error('Error opening maps:', err);
+        Alert.alert('Error', 'Could not open maps application');
+      });
     }
+  };
+
+  const handleFullscreenMap = () => {
+    setIsFullscreenMap(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setIsFullscreenMap(false);
   };
 
   const renderStars = (rating: number) => {
@@ -235,9 +350,16 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ErrorBoundary
+      navigation={navigation}
+      screenName="HikingSpotLandingPage"
+      onError={(error) => {
+        console.error('Error in HikingSpotLandingPage:', error);
+      }}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+        <ScrollView ref={scrollViewRef} style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Section with Image Carousel */}
         <View style={styles.imageContainer}>
           <ImageCarousel spotName={hikingSpot.name} />
@@ -276,40 +398,261 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
         {/* Content Container */}
         <View style={styles.contentContainer}>
-          {/* Trail Map Section */}
-          {coordinates && trailRoutes.length > 0 && (
+          {/* Available Trails Section */}
+          {trailRoutes && trailRoutes.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Trail Map</Text>
-              <GoogleMapsTrailMap
-                selectedHikingSpotId={spotId}
-                selectedTrailId={selectedTrail?.id}
-                onTrailSelect={(trailId) => {
-                  const route = trailRoutes.find(r => r.route_id === Number(trailId));
-                  if (route) {
+              <Text style={styles.sectionTitle}>Available Trails ({trailRoutes.length})</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.trailsScrollView}
+                contentContainerStyle={styles.trailsScrollContent}
+              >
+                {trailRoutes.map((route) => {
+                  if (!route || !route.route_id) return null;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={route.route_id}
+                      style={[
+                        styles.trailChip,
+                        String(selectedTrail?.id) === String(route.route_id) && styles.trailChipSelected,
+                      ]}
+                      onPress={() => {
+                        try {
+                          const normalizedTrail = normalizeTrailRoute({
+                            id: route.route_id,
+                            name: route.route_name || 'Unnamed Trail',
+                            description: route.highlights || '',
+                            difficulty: route.difficulty || 'Unknown',
+                            length: route.distance_km || 0,
+                            elevation_gain: route.elevation_gain_m || 0,
+                            estimated_time: (route.estimated_duration_hr || 0) * 60,
+                            trail_type: 'trail',
+                            waypoints: route.waypoints || '',
+                            gpx_data: null,
+                            is_active: true,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            hiking_spot_id: hiking_spot_id,
+                            route_id: route.route_id,
+                            start_coordinates: route.start_coordinates || null,
+                            end_coordinates: route.end_coordinates || null,
+                            route_coordinates: route.route_coordinates || null,
+                            geojson_path: route.geojson_path || null
+                          });
+                          setSelectedTrail(normalizedTrail);
+                        } catch (error) {
+                          console.error('Error selecting trail:', error);
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.trailChipText,
+                        String(selectedTrail?.id) === String(route.route_id) && styles.trailChipTextSelected,
+                      ]}>
+                        {route.route_name || 'Unnamed Trail'}
+                      </Text>
+                      <View style={[
+                        styles.trailChipDifficulty,
+                        { backgroundColor: getDifficultyColor(route.difficulty || 'Unknown') }
+                      ]}>
+                        <Text style={styles.trailChipDifficultyText}>{route.difficulty || 'Unknown'}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Trail Map Section */}
+          {coordinates && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Trail Map</Text>
+                <TouchableOpacity 
+                  style={styles.fullscreenButton}
+                  onPress={handleFullscreenMap}
+                  disabled={!trailRoutes || trailRoutes.length === 0}
+                >
+                  <Ionicons name="expand" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.mapContainer}>
+                {trailRoutes && trailRoutes.length > 0 ? (
+                  <LeafletTrailMap
+                    selectedHikingSpotId={hiking_spot_id}
+                    selectedTrailId={selectedTrail?.id}
+                    onTrailSelect={(trailId) => {
+                      try {
+                        if (!trailId || !trailRoutes) return;
+                        
+                        const route = trailRoutes.find(r => r && String(r.route_id) === String(trailId));
+                        if (route && route.route_id) {
+                          const normalizedTrail = normalizeTrailRoute({
+                            id: route.route_id,
+                            name: route.route_name || 'Unnamed Route',
+                            description: route.highlights || '',
+                            difficulty: route.difficulty || 'Unknown',
+                            length: route.distance_km || 0,
+                            elevation_gain: route.elevation_gain_m || 0,
+                            estimated_time: (route.estimated_duration_hr || 0) * 60,
+                            trail_type: 'trail',
+                            waypoints: route.waypoints || '',
+                            gpx_data: null,
+                            is_active: true,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            hiking_spot_id: hiking_spot_id,
+                            route_id: route.route_id,
+                            start_coordinates: route.start_coordinates || null,
+                            end_coordinates: route.end_coordinates || null,
+                            route_coordinates: route.route_coordinates || null,
+                            geojson_path: route.geojson_path || null
+                          });
+                          setSelectedTrail(normalizedTrail);
+                          // Scroll Trail Information into view
+                          if (trailInfoYRef.current && scrollViewRef.current) {
+                            scrollViewRef.current.scrollTo({ y: Math.max(trailInfoYRef.current - 20, 0), animated: true });
+                          }
+                        }
+                    } catch (error) {
+                      console.error('Error selecting trail from map:', error);
+                    }
+                  }}
+                  style={styles.mapStyle}
+                  showFullscreenButton={false}
+                  navigation={navigation}
+                />
+              ) : (
+                <View style={styles.noRoutesContainer}>
+                  <MaterialIcons name="terrain" size={48} color={COLORS.textMuted} />
+                  <Text style={styles.noRoutesTitle}>No Trail Routes Available</Text>
+                  <Text style={styles.noRoutesDescription}>Trail routes for this hiking spot will be available soon. Check back later for updates!</Text>
+                </View>
+              )}
+              
+              {/* Available Routes Section */}
+              {trailRoutes && trailRoutes.length > 0 && (
+                <AvailableRoutes
+                  routes={trailRoutes.map(route => ({
+                    id: route.route_id?.toString() || '',
+                    route_name: route.route_name || 'Unnamed Route',
+                    difficulty: (route.difficulty || 'Moderate') as 'Easy' | 'Easy-Moderate' | 'Moderate' | 'Hard' | 'Very Hard',
+                    distance: route.distance_km || 0,
+                    elevation_gain: route.elevation_gain_m || 0,
+                    estimated_duration: (route.estimated_duration_hr || 0) * 60, // Convert to minutes
+                    route_description: route.highlights || '',
+                    highlights: route.highlights || '',
+                    route_color: route.route_color || '#FF6B6B',
+                    start_coordinates: route.start_coordinates || { latitude: 0, longitude: 0 },
+                    end_coordinates: route.end_coordinates || { latitude: 0, longitude: 0 },
+                    waypoints: route.waypoints || '',
+                    coordinates: route.route_coordinates?.map(coord => [coord.longitude, coord.latitude]) || []
+                  }))}
+                  selectedRoute={selectedRoute ? {
+                    id: selectedRoute.route_id?.toString() || '',
+                    route_name: selectedRoute.route_name || 'Unnamed Route',
+                    difficulty: (selectedRoute.difficulty_level || selectedRoute.difficulty || 'Moderate') as 'Easy' | 'Easy-Moderate' | 'Moderate' | 'Hard' | 'Very Hard',
+                    distance: selectedRoute.distance_km || 0,
+                    elevation_gain: selectedRoute.elevation_gain_m || 0,
+                    estimated_duration: selectedRoute.estimated_duration_hr || 0,
+                    route_description: selectedRoute.route_description || '',
+                    highlights: selectedRoute.route_description || '',
+                    route_color: '#FF6B6B',
+                    start_coordinates: selectedRoute.start_coordinates || { latitude: 0, longitude: 0 },
+                    end_coordinates: selectedRoute.end_coordinates || { latitude: 0, longitude: 0 },
+                    waypoints: selectedRoute.waypoints || '',
+                    coordinates: selectedRoute.route_coordinates?.map(coord => [coord.longitude, coord.latitude]) || []
+                  } : null}
+                  onRouteSelect={(route) => {
                     const normalizedTrail = normalizeTrailRoute({
-                      id: route.route_id,
+                      id: route.id,
                       name: route.route_name,
-                      description: route.highlights || '',
+                      description: route.route_description,
                       difficulty: route.difficulty,
-                      length: route.distance_km,
-                      elevation_gain: route.elevation_gain_m,
-                      estimated_time: route.estimated_duration_hr * 60,
+                      length: route.distance,
+                      elevation_gain: route.elevation_gain,
+                      estimated_time: route.estimated_duration,
                       trail_type: 'trail',
-                      waypoints: '',
+                      waypoints: route.waypoints,
                       gpx_data: null,
                       is_active: true,
                       created_at: new Date().toISOString(),
                       updated_at: new Date().toISOString(),
-                      hiking_spot_id: spotId,
-                      route_id: route.route_id
+                      hiking_spot_id: hiking_spot_id,
+                      route_id: route.id,
+                      start_coordinates: route.start_coordinates,
+                      end_coordinates: route.end_coordinates,
+                      route_coordinates: route.coordinates?.map(coord => ({ latitude: coord[1], longitude: coord[0] })) || [],
+                      geojson_path: {
+                        type: 'LineString',
+                        coordinates: route.coordinates || []
+                      }
                     });
                     setSelectedTrail(normalizedTrail);
-                  }
-                }}
-                style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
-              />
+                    // Scroll Trail Information into view
+                    if (trailInfoYRef.current && scrollViewRef.current) {
+                      scrollViewRef.current.scrollTo({ y: Math.max(trailInfoYRef.current - 20, 0), animated: true });
+                    }
+                  }}
+                />
+              )}
+              </View>
             </View>
           )}
+
+          {/* Trail Information Section (moved before Weather) */}
+          <View
+            style={styles.section}
+            onLayout={e => { trailInfoYRef.current = e.nativeEvent.layout.y; }}
+          >
+            <Text style={styles.sectionTitle}>Trail Information</Text>
+            {trailRoutes && trailRoutes.length > 0 ? (
+              <Animated.View style={{ opacity: infoOpacity, transform: [{ translateY: infoTranslateY }] }}>
+                <TrailInfo 
+                  selectedRoute={selectedRoute}
+                  onFocusOnMap={(routeId: string) => {
+                    try {
+                      const route = trailRoutes.find(r => String(r.route_id) === String(routeId));
+                      if (!route) return;
+                      const normalizedTrail = normalizeTrailRoute({
+                        id: route.route_id,
+                        name: route.route_name || 'Unnamed Route',
+                        description: route.highlights || '',
+                        difficulty: route.difficulty || 'Unknown',
+                        length: route.distance_km || 0,
+                        elevation_gain: route.elevation_gain_m || 0,
+                        estimated_time: (route.estimated_duration_hr || 0) * 60,
+                        trail_type: 'trail',
+                        waypoints: route.waypoints || '',
+                        gpx_data: null,
+                        is_active: true,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        hiking_spot_id: hiking_spot_id,
+                        route_id: route.route_id,
+                        start_coordinates: route.start_coordinates || null,
+                        end_coordinates: route.end_coordinates || null,
+                        route_coordinates: route.route_coordinates || null,
+                        geojson_path: route.geojson_path || null
+                      });
+                      setSelectedTrail(normalizedTrail);
+                    } catch (err) {
+                      console.error('Error focusing trail on map:', err);
+                    }
+                  }}
+                />
+              </Animated.View>
+            ) : (
+              <View style={styles.noRoutesContainer}>
+                <MaterialIcons name="terrain" size={48} color={COLORS.textMuted} />
+                <Text style={styles.noRoutesTitle}>No Trail Routes Available</Text>
+                <Text style={styles.noRoutesDescription}>No trail routes available yet — check back later for detailed trail maps.</Text>
+              </View>
+            )}
+          </View>
 
           {/* Weather Section */}
           {coordinates && (
@@ -320,109 +663,6 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
                 longitude={coordinates.longitude}
                 locationName={hikingSpot?.name || 'Hiking Spot'}
               />
-            </View>
-          )}
-
-          {/* Trail Routes Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Trail Routes ({trailRoutes.length})</Text>
-            <View style={styles.routesGrid}>
-              {trailRoutes.map((route) => (
-                <TouchableOpacity
-                  key={route.route_id}
-                  style={[
-                    styles.routeCard,
-                    styles.routeCardCompact,
-                    selectedTrail?.id === String(route.route_id) && styles.routeCardSelected,
-                    { width: cardWidth, marginRight: CARD_GAP, marginBottom: CARD_GAP },
-                  ]}
-                  onPress={() => {
-                    const normalizedTrail = normalizeTrailRoute({
-                      id: route.route_id,
-                      name: route.route_name,
-                      description: route.highlights || '',
-                      difficulty: route.difficulty,
-                      length: route.distance_km,
-                      elevation_gain: route.elevation_gain_m,
-                      estimated_time: route.estimated_duration_hr * 60,
-                      trail_type: 'trail',
-                      waypoints: '',
-                      gpx_data: null,
-                      is_active: true,
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                      hiking_spot_id: spotId,
-                      route_id: route.route_id
-                    });
-                    setSelectedTrail(normalizedTrail);
-                  }}
-                >
-                  <View style={styles.routeHeader}>
-                    <Text style={styles.routeName}>{route.route_name}</Text>
-                    <View
-                      style={[
-                        styles.difficultyBadge,
-                        { backgroundColor: getDifficultyColor(route.difficulty) },
-                      ]}
-                    >
-                      <Text style={styles.difficultyText}>{route.difficulty}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.routeStats}>
-                    <View style={styles.routeStat}>
-                      <MaterialIcons name="straighten" size={16} color={COLORS.textLight} />
-                      <Text style={styles.routeStatText}>{route.distance_km}km</Text>
-                    </View>
-                    <View style={styles.routeStat}>
-                      <MaterialIcons name="terrain" size={16} color={COLORS.textLight} />
-                      <Text style={styles.routeStatText}>{route.elevation_gain_m}m</Text>
-                    </View>
-                    <View style={styles.routeStat}>
-                      <MaterialIcons name="schedule" size={16} color={COLORS.textLight} />
-                      <Text style={styles.routeStatText}>{route.estimated_duration_hr}h</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Trail Information Panel */}
-          {selectedTrail && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Trail Information</Text>
-              <View style={styles.trailInfoCard}>
-                <View style={styles.trailInfoHeader}>
-                  <Text style={styles.trailInfoTitle}>{selectedTrail.name}</Text>
-                  <View style={[
-                    styles.difficultyBadge,
-                    { backgroundColor: getDifficultyColor(selectedTrail.difficulty) }
-                  ]}>
-                    <Text style={styles.difficultyText}>{selectedTrail.difficulty}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.trailInfoStats}>
-                  <View style={styles.trailInfoStat}>
-                    <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{selectedTrail.distance}km</Text>
-                    <Text style={styles.trailInfoStatLabel}>Distance</Text>
-                  </View>
-                  <View style={styles.trailInfoStat}>
-                    <MaterialIcons name="terrain" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{selectedTrail.elevationGain}m</Text>
-                    <Text style={styles.trailInfoStatLabel}>Elevation Gain</Text>
-                  </View>
-                  <View style={styles.trailInfoStat}>
-                    <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
-                    <Text style={styles.trailInfoStatValue}>{Math.round((selectedTrail.estimatedTime || 0) / 60)}h</Text>
-                    <Text style={styles.trailInfoStatLabel}>Duration</Text>
-                  </View>
-                </View>
-                
-                <Text style={styles.highlightsTitle}>Trail Highlights</Text>
-                <Text style={styles.highlightsText}>{selectedTrail.description}</Text>
-              </View>
             </View>
           )}
 
@@ -458,16 +698,158 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           <View style={styles.section}>
             <ReviewSystem 
               hikingSpotId={hikingSpot.id.toString()} 
-              onReviewAdded={() => {
+              onReviewsUpdate={(_reviews) => {
                 // Optionally refresh hiking spot data to update average rating
-                // Review added successfully
+                // Reviews updated successfully
               }}
             />
           </View>
-
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Fullscreen Map Modal */}
+      <Modal
+        visible={isFullscreenMap}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SafeAreaView style={styles.fullscreenContainer}>
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity
+              style={styles.fullscreenCloseButton}
+              onPress={handleCloseFullscreen}
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.fullscreenTitle}>
+              {hikingSpot?.name || 'Trail Map'}
+            </Text>
+            <View style={styles.fullscreenHeaderSpacer} />
+          </View>
+          
+          {coordinates && trailRoutes && trailRoutes.length > 0 ? (
+            <View style={styles.fullscreenMapContainer}>
+              <LeafletTrailMap
+                selectedHikingSpotId={hiking_spot_id}
+                selectedTrailId={selectedTrail?.id}
+                onTrailSelect={(trailId) => {
+                  try {
+                    if (!trailId || !trailRoutes) return;
+                    
+                    const route = trailRoutes.find(r => r && String(r.route_id) === String(trailId));
+                    if (route && route.route_id) {
+                      const normalizedTrail = normalizeTrailRoute({
+                        id: route.route_id,
+                        name: route.route_name || 'Unnamed Route',
+                        description: route.highlights || '',
+                        difficulty: route.difficulty || 'Unknown',
+                        length: route.distance_km || 0,
+                        elevation_gain: route.elevation_gain_m || 0,
+                        estimated_time: (route.estimated_duration_hr || 0) * 60,
+                        trail_type: 'trail',
+                        waypoints: route.waypoints || '',
+                        gpx_data: null,
+                        is_active: true,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        hiking_spot_id: hiking_spot_id,
+                        route_id: route.route_id,
+                        start_coordinates: route.start_coordinates || null,
+                        end_coordinates: route.end_coordinates || null,
+                        route_coordinates: route.route_coordinates || null,
+                        geojson_path: route.geojson_path || null
+                      });
+                      setSelectedTrail(normalizedTrail);
+                    }
+                  } catch (error) {
+                    console.error('Error selecting trail from fullscreen map:', error);
+                  }
+                }}
+                style={styles.fullscreenMapStyle}
+                showFullscreenButton={false}
+                navigation={navigation}
+              />
+              
+              {/* Available Routes Section in Fullscreen */}
+              <View style={styles.fullscreenRoutesContainer}>
+                <AvailableRoutes
+                  routes={trailRoutes.map(route => ({
+                    id: route.route_id?.toString() || '',
+                    route_name: route.route_name || 'Unnamed Route',
+                    difficulty: (route.difficulty_level || route.difficulty || 'Moderate') as 'Easy' | 'Easy-Moderate' | 'Moderate' | 'Hard' | 'Very Hard',
+                    distance: route.distance_km || 0,
+                    elevation_gain: route.elevation_gain_m || 0,
+                    estimated_duration: (route.estimated_duration_hr || 0) * 60,
+                    route_description: route.highlights || '',
+                    highlights: route.highlights || '',
+                    route_color: route.route_color || '#FF6B6B',
+                    start_coordinates: route.start_coordinates || { latitude: 0, longitude: 0 },
+                    end_coordinates: route.end_coordinates || { latitude: 0, longitude: 0 },
+                    waypoints: route.waypoints || '',
+                    coordinates: route.route_coordinates?.map(coord => [coord.longitude, coord.latitude]) || []
+                  }))}
+                  selectedRoute={selectedRoute ? {
+                    id: selectedRoute.route_id?.toString() || '',
+                    route_name: selectedRoute.route_name || 'Unnamed Route',
+                    difficulty: (selectedRoute.difficulty_level || selectedRoute.difficulty || 'Moderate') as 'Easy' | 'Easy-Moderate' | 'Moderate' | 'Hard' | 'Very Hard',
+                    distance: selectedRoute.distance_km || 0,
+                    elevation_gain: selectedRoute.elevation_gain_m || 0,
+                    estimated_duration: selectedRoute.estimated_duration_hr || 0,
+                    route_description: selectedRoute.route_description || '',
+                    highlights: selectedRoute.route_description || '',
+                    route_color: '#FF6B6B',
+                    start_coordinates: selectedRoute.start_coordinates || { latitude: 0, longitude: 0 },
+                    end_coordinates: selectedRoute.end_coordinates || { latitude: 0, longitude: 0 },
+                    waypoints: selectedRoute.waypoints || '',
+                    coordinates: selectedRoute.route_coordinates?.map(coord => [coord.longitude, coord.latitude]) || []
+                  } : null}
+                  onRouteSelect={(route) => {
+                    const normalizedTrail = normalizeTrailRoute({
+                      id: route.id,
+                      name: route.route_name,
+                      description: route.route_description,
+                      difficulty: route.difficulty,
+                      length: route.distance,
+                      elevation_gain: route.elevation_gain,
+                      estimated_time: route.estimated_duration,
+                      trail_type: 'trail',
+                      waypoints: route.waypoints,
+                      gpx_data: null,
+                      is_active: true,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      hiking_spot_id: hiking_spot_id,
+                      route_id: route.id,
+                      start_coordinates: route.start_coordinates,
+                      end_coordinates: route.end_coordinates,
+                      route_coordinates: route.coordinates?.map(coord => ({ latitude: coord[1], longitude: coord[0] })) || [],
+                      geojson_path: {
+                        type: 'LineString',
+                        coordinates: route.coordinates || []
+                      }
+                    });
+                    setSelectedTrail(normalizedTrail);
+                  }}
+                />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.fullscreenNoRoutesContainer}>
+              <MaterialIcons name="terrain" size={64} color={COLORS.textMuted} />
+              <Text style={styles.fullscreenNoRoutesTitle}>No Trail Routes Available</Text>
+              <Text style={styles.fullscreenNoRoutesDescription}>Trail routes for this hiking spot will be available soon.</Text>
+              <TouchableOpacity
+                style={styles.fullscreenBackButton}
+                onPress={handleCloseFullscreen}
+              >
+                <Text style={styles.fullscreenBackButtonText}>Back to Spot</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }
 
@@ -583,6 +965,134 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 16,
+  },
+  fullscreenButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.mapPlaceholder,
+  },
+  mapStyle: {
+    flex: 1,
+  },
+  noRoutesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  noRoutesTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noRoutesDescription: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // Fullscreen styles
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  fullscreenCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    flex: 1,
+    textAlign: 'center',
+  },
+  fullscreenHeaderSpacer: {
+    width: 40,
+  },
+  fullscreenMapContainer: {
+    flex: 1,
+  },
+  fullscreenMapStyle: {
+    flex: 1,
+  },
+  fullscreenRoutesContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '40%',
+  },
+  fullscreenNoRoutesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  fullscreenNoRoutesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  fullscreenNoRoutesDescription: {
+    fontSize: 16,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  fullscreenBackButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  fullscreenBackButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  section: {
+    marginBottom: 24,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -666,54 +1176,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textLight,
   },
-  trailInfoCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 16,
-  },
-  trailInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  trailInfoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    flex: 1,
-    marginRight: 12,
-  },
-  trailInfoStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  trailInfoStat: {
-    alignItems: 'center',
-  },
-  trailInfoStatValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: 4,
-  },
-  trailInfoStatLabel: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
-  highlightsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  highlightsText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    lineHeight: 20,
-  },
+
   favoriteButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -807,6 +1270,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorBackButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  errorBackButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   reviewsPlaceholder: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
@@ -836,4 +1311,86 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  mapContainer: {
+    width: '100%',
+    alignSelf: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  mapStyle: {
+    height: 500,
+    width: '100%',
+    borderRadius: 12,
+  },
+  trailsScrollView: {
+    marginHorizontal: -20,
+  },
+  trailsScrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+  },
+  trailChip: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.separator,
+  },
+  trailChipSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  trailChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.text,
+    marginRight: 8,
+  },
+  trailChipTextSelected: {
+    color: 'white',
+  },
+  trailChipDifficulty: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  trailChipDifficultyText: {
+    fontWeight: '600',
+    color: 'white',
+  },
+  noRoutesContainer: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.separator,
+    borderStyle: 'dashed',
+    minHeight: 200,
+  },
+  noRoutesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noRoutesDescription: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
 });

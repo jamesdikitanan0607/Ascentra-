@@ -9,7 +9,7 @@ export function MountManunggalScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { spotId: '4' } }}
+      route={{ params: { hiking_spot_id: '74' } }}
     />
   );
 }

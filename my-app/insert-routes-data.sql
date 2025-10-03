@@ -4,6 +4,22 @@
 -- This script inserts 1-5 trail routes for each of the 15 official hiking spots
 -- Run this after creating the hiking_spot_routes table
 
+-- Add waypoints and coordinates columns if they don't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hiking_spot_routes' AND column_name = 'waypoints') THEN
+        ALTER TABLE hiking_spot_routes ADD COLUMN waypoints JSONB;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hiking_spot_routes' AND column_name = 'coordinates') THEN
+        ALTER TABLE hiking_spot_routes ADD COLUMN coordinates JSONB;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hiking_spot_routes' AND column_name = 'route_color') THEN
+        ALTER TABLE hiking_spot_routes ADD COLUMN route_color VARCHAR(7) DEFAULT '#FF6B6B';
+    END IF;
+END $$;
+
 -- Temporarily disable RLS for routes table
 ALTER TABLE hiking_spot_routes DISABLE ROW LEVEL SECURITY;
 
@@ -21,7 +37,10 @@ INSERT INTO hiking_spot_routes (
     safety_notes,
     best_time_to_hike,
     route_features,
-    is_main_route
+    is_main_route,
+    waypoints,
+    coordinates,
+    route_color
 ) VALUES
 (
     (SELECT id FROM hiking_spots WHERE name = 'Mount Babag'),
@@ -36,7 +55,10 @@ INSERT INTO hiking_spot_routes (
     'Bring plenty of water and start early to avoid afternoon heat',
     ARRAY['Early morning', 'Late afternoon'],
     ARRAY['Summit viewpoint', 'City views', 'Sunrise spot'],
-    true
+    true,
+    '[{"lat": 10.3451, "lng": 123.8863}, {"lat": 10.3458, "lng": 123.8870}, {"lat": 10.3465, "lng": 123.8878}, {"lat": 10.3470, "lng": 123.8885}, {"lat": 10.3475, "lng": 123.8892}, {"lat": 10.3480, "lng": 123.8898}, {"lat": 10.3485, "lng": 123.8905}, {"lat": 10.3490, "lng": 123.8912}]',
+    '[[123.8863, 10.3451], [123.8870, 10.3458], [123.8878, 10.3465], [123.8885, 10.3470], [123.8892, 10.3475], [123.8898, 10.3480], [123.8905, 10.3485], [123.8912, 10.3490]]',
+    '#4CAF50'
 ),
 (
     (SELECT id FROM hiking_spots WHERE name = 'Mount Babag'),
@@ -51,7 +73,10 @@ INSERT INTO hiking_spot_routes (
     'Experienced hikers only, inform someone of your plans',
     ARRAY['Early morning'],
     ARRAY['Multiple viewpoints', 'Forest trail', 'Wildlife spotting'],
-    false
+    false,
+    '[{"lat": 10.3451, "lng": 123.8863}, {"lat": 10.3455, "lng": 123.8868}, {"lat": 10.3460, "lng": 123.8872}, {"lat": 10.3468, "lng": 123.8880}, {"lat": 10.3475, "lng": 123.8887}, {"lat": 10.3482, "lng": 123.8894}, {"lat": 10.3490, "lng": 123.8902}, {"lat": 10.3495, "lng": 123.8908}, {"lat": 10.3490, "lng": 123.8915}, {"lat": 10.3485, "lng": 123.8920}, {"lat": 10.3478, "lng": 123.8918}, {"lat": 10.3470, "lng": 123.8910}, {"lat": 10.3462, "lng": 123.8902}, {"lat": 10.3455, "lng": 123.8890}, {"lat": 10.3451, "lng": 123.8863}]',
+    '[[123.8863, 10.3451], [123.8868, 10.3455], [123.8872, 10.3460], [123.8880, 10.3468], [123.8887, 10.3475], [123.8894, 10.3482], [123.8902, 10.3490], [123.8908, 10.3495], [123.8915, 10.3490], [123.8920, 10.3485], [123.8918, 10.3478], [123.8910, 10.3470], [123.8902, 10.3462], [123.8890, 10.3455], [123.8863, 10.3451]]',
+    '#FF6B6B'
 );
 
 -- Insert routes for Mount Kan-irag / Sirao Peak
