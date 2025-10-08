@@ -25,6 +25,9 @@ import ReviewSystem from '../../components/ReviewSystem';
 import TrailInfo from '../../components/TrailInfo';
 import WeatherWidget from '../../components/WeatherWidget';
 import { getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
+import { TrailRoutesSection } from './components/TrailRoutesSection';
+import { TrailInfoSection } from './components/TrailInfoSection';
+import { TrailRoute } from '../../types';
 
 
 const { width, height } = Dimensions.get('window');
@@ -85,6 +88,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   // Trail routes state
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
+  const [selectedUiRoute, setSelectedUiRoute] = useState<TrailRoute | null>(null);
   const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
   const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
   
@@ -101,14 +105,22 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   }, []);
 
   async function fetchTrailRoutes() {
+    console.log('fetchTrailRoutes called with spotId:', spotData.id);
     setTrailRoutesLoading(true);
     setTrailRoutesError(null);
     try {
       const response = await getTrailRoutesBySpotId(spotData.id.toString());
-      const routes = response.data as TrailRouteDetails[] || [];
+      console.log('API Response:', JSON.stringify(response, null, 2));
+      
+      const routes = (response.data || []) as TrailRouteDetails[];
+      console.log('Fetched routes:', routes);
+      
       setTrailRoutes(routes);
       if (routes.length > 0) {
+        console.log('Setting selected route to first route:', routes[0]);
         setSelectedRoute(routes[0]);
+      } else {
+        console.log('No routes found for this spot');
       }
     } catch (error) {
       console.error('Error fetching trail routes:', error);
@@ -117,6 +129,136 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
       setTrailRoutesLoading(false);
     }
   }
+
+  // Map DB routes to UI routes used by slider/info components
+  const uiRoutes: TrailRoute[] = React.useMemo(() => {
+    console.log('Mapping trail routes. Input trailRoutes:', trailRoutes);
+    if (!Array.isArray(trailRoutes)) {
+      console.log('trailRoutes is not an array');
+      return [];
+    }
+    
+    return trailRoutes.map((r) => {
+      // Parse start and end coordinates from the database
+      let startLat = spotData.latitude;
+      let startLng = spotData.longitude;
+      let endLat = spotData.latitude;
+      let endLng = spotData.longitude;
+      
+      // Use provided coordinates if available
+      if (r.start_coordinates) {
+        startLat = r.start_coordinates.latitude;
+        startLng = r.start_coordinates.longitude;
+      }
+      
+      if (r.end_coordinates) {
+        endLat = r.end_coordinates.latitude;
+        endLng = r.end_coordinates.longitude;
+      }
+      
+      // Parse waypoints if available
+      let coordinates: [number, number][] = [];
+      if (r.route_coordinates && Array.isArray(r.route_coordinates)) {
+        coordinates = r.route_coordinates
+          .filter(coord => coord && typeof coord.latitude === 'number' && typeof coord.longitude === 'number')
+          .map(coord => [coord.longitude, coord.latitude] as [number, number]);
+      }
+      
+      // Map database fields to UI model
+      const route: TrailRoute = {
+        id: r.route_id,  // Using route_id from the database
+        route_name: r.route_name || 'Unnamed Route',
+        difficulty: (() => {
+          const d = (r.difficulty || r.difficulty_level || 'moderate').toLowerCase();
+          if (d.includes('easy')) return 'Easy';
+          if (d.includes('moderate')) return 'Moderate';
+          if (d.includes('hard')) return 'Hard';
+          if (d.includes('expert') || d.includes('challenging')) return 'Expert';
+          return 'Moderate';
+        })() as 'Easy' | 'Moderate' | 'Hard' | 'Expert',
+        distance: r.distance_km || 0,
+        elevation_gain: r.elevation_gain_m || 0,
+        estimated_duration: r.estimated_duration_hr ? Math.round(r.estimated_duration_hr * 60) : 0, // Convert hours to minutes
+        route_description: r.route_description || '',
+        highlights: r.highlights || '',
+        route_color: r.route_color || '#2E7D32',
+        start_coordinates: {
+          latitude: startLat,
+          longitude: startLng
+        },
+        end_coordinates: {
+          latitude: endLat,
+          longitude: endLng
+        },
+        coordinates: coordinates,
+        waypoints: r.waypoints ? JSON.stringify(r.waypoints) : '[]',
+        created_at: r.created_at,
+        updated_at: r.updated_at
+      };
+      
+      console.log(`Mapped route ${route.id} (${route.route_name}):`, route);
+      return route;
+    });
+  }, [trailRoutes, spotData.latitude, spotData.longitude]);
+
+  // Keep selected UI route in sync with selected DB route
+  useEffect(() => {
+    console.log('Selected route changed:', selectedRoute);
+    console.log('Available UI routes:', uiRoutes);
+    
+    if (!selectedRoute) { 
+      console.log('No selected route, setting selectedUiRoute to null');
+      setSelectedUiRoute(null); 
+      return; 
+    }
+    
+    const found = uiRoutes.find(u => String(u.id) === String(selectedRoute.route_id));
+    console.log('Found matching UI route for selected route:', found);
+    setSelectedUiRoute(found || null);
+  }, [selectedRoute, uiRoutes]);
+
+  // Normalize difficulty and prefer easiest default
+  useEffect(() => {
+    if (!uiRoutes.length) return;
+    if (selectedRoute) return; // Already selected from fetch
+    const ORDER = ['Easy', 'Moderate', 'Challenging', 'Hard', 'Expert'] as const;
+    function normalize(raw?: string) {
+      if (!raw) return 'Moderate' as const;
+      const d = raw.toLowerCase();
+      if (d.includes('easy') && !d.includes('moderate')) return 'Easy' as const;
+      if (d.includes('easy') && d.includes('moderate')) return 'Moderate' as const;
+      if (d === 'moderate') return 'Moderate' as const;
+      if (d.includes('very hard') || d.includes('expert')) return 'Expert' as const;
+      if (d.includes('hard')) return 'Hard' as const;
+      return 'Challenging' as const;
+    }
+    const sorted = [...uiRoutes].sort((a, b) => ORDER.indexOf(normalize(a.difficulty)) - ORDER.indexOf(normalize(b.difficulty)));
+    const easiest = sorted[0];
+    if (easiest) {
+      const details = trailRoutes.find(r => String(r.route_id) === String(easiest.id)) || null;
+      setSelectedRoute(details);
+    }
+  }, [uiRoutes, trailRoutes, selectedRoute]);
+
+  const handleSelectFromSlider = (trailId: string) => {
+    console.log('handleSelectFromSlider called with trailId:', trailId);
+    console.log('Available trailRoutes:', trailRoutes);
+    
+    // Find the route in the database routes
+    const details = trailRoutes.find(r => String(r.route_id) === String(trailId));
+    console.log('Found route details:', details);
+    
+    if (details) {
+      setSelectedRoute(details);
+      
+      // Also update the selected UI route
+      const uiRoute = uiRoutes.find(r => r.id === trailId);
+      if (uiRoute) {
+        console.log('Setting selected UI route:', uiRoute);
+        setSelectedUiRoute(uiRoute);
+      }
+    }
+  };
 
 
 
@@ -365,13 +507,41 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                 </View>
               )}
             </View>
-            {selectedRoute && (
-              <TrailInfo
-                selectedRoute={selectedRoute}
-                isLoading={trailRoutesLoading}
-                error={trailRoutesError}
+          </View>
+
+          {/* Trail Routes Section (slider) */}
+          <View style={styles.section}>
+            <Text style={{color: 'red', marginBottom: 10}}>
+              Debug: {uiRoutes.length} routes, selected: {selectedUiRoute?.id || 'none'}
+            </Text>
+            {trailRoutesLoading ? (
+              <View style={{padding: 20, alignItems: 'center'}}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text>Loading trail routes...</Text>
+              </View>
+            ) : trailRoutesError ? (
+              <View style={{padding: 20, alignItems: 'center'}}>
+                <Text style={{color: 'red'}}>{trailRoutesError}</Text>
+              </View>
+            ) : uiRoutes.length === 0 ? (
+              <View style={{padding: 20, alignItems: 'center'}}>
+                <Text>No trail routes available for this spot.</Text>
+              </View>
+            ) : (
+              <TrailRoutesSection
+                trailRoutes={uiRoutes}
+                onTrailSelect={handleSelectFromSlider}
+                selectedTrailId={selectedUiRoute?.id || null}
               />
             )}
+          </View>
+
+          {/* Trail Information Panel */}
+          <View style={styles.section}>
+            <TrailInfoSection
+              selectedRoute={selectedUiRoute}
+              onFocusOnMap={(rid) => handleSelectFromSlider(rid)}
+            />
           </View>
 
 
