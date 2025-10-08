@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,50 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
-  Alert,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { MaterialIcons } from '@expo/vector-icons';
-import { TrailRouteDetails, fetchTrailRoutes } from '../services/supabaseService';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import { fetchTrailRoutes } from '../services/supabaseService';
 import { isInDemoMode } from '../services/supabaseClient';
-import ErrorHandlingService from '../services/ErrorHandlingService';
-import AvailableRoutes, { TrailRoute } from './AvailableRoutes';
-import TrailInformation from './TrailInformation';
-import WeatherWidget from './WeatherWidget';
+import { TrailInfoCarousel } from './TrailInfoCarousel';
+import { MaterialIcons } from '@expo/vector-icons';
+
+// Import TrailRoute type from shared types
+import { TrailRoute } from '../types';
+
+// Type for the raw trail route data from the API
+interface TrailRouteDetails extends Omit<TrailRoute, 'waypoints' | 'id' | 'distance' | 'elevation_gain' | 'estimated_duration' | 'difficulty'> {
+  route_id: string;
+  distance_km: number;
+  elevation_gain_m: number;
+  estimated_duration_hr: number;
+  difficulty_level: string;
+  waypoints: string; // Always stored as JSON string in the database
+  coordinates: [number, number][];
+  start_coordinates: { latitude: number; longitude: number };
+  end_coordinates: { latitude: number; longitude: number };
+}
+
+// Helper function to parse waypoints from JSON string or object array
+const parseWaypoints = (waypoints: string | Array<{latitude: number; longitude: number; name?: string; description?: string}>): Array<{latitude: number; longitude: number; name?: string; description?: string}> => {
+  try {
+    if (!waypoints) return [];
+    if (typeof waypoints === 'string') {
+      // If it's an empty string, return empty array
+      if (waypoints.trim() === '') return [];
+      // Try to parse as JSON
+      const parsed = JSON.parse(waypoints);
+      // Ensure we return an array
+      return Array.isArray(parsed) ? parsed : [parsed];
+    }
+    // If it's already an array, return it
+    return Array.isArray(waypoints) ? waypoints : [waypoints];
+  } catch (error) {
+    console.error('Error parsing waypoints:', error);
+    return [];
+  }
+};
 
 const COLORS = {
   primary: '#2196F3',
@@ -47,25 +80,52 @@ interface TrailMapProps {
   onWeatherUpdate?: (coordinates: { latitude: number; longitude: number }) => void;
 }
 
-export default function TrailMap({
+// Cache for storing loaded routes to prevent unnecessary refetches
+const routeCache = new Map<string, TrailRoute[]>();
+
+export const TrailMap = React.memo(({
   hikingSpotId,
-  centerCoordinates,
+  centerCoordinates = [0, 0],
   onWeatherUpdate,
-}: TrailMapProps) {
+}: TrailMapProps) => {
   const webViewRef = useRef<WebView>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const [routes, setRoutes] = useState<TrailRoute[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRoute | null>(null);
-  const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
-  const [routesError, setRoutesError] = useState<string | null>(null);
+  const [, setIsLoadingRoutes] = useState(true);
+  const [, setRoutesError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Load trail routes from database (with demo fallback)
-  const loadTrails = useCallback(async (attempt = 1) => {
+  // Handle layout changes for responsive design
+  const handleLayout = useCallback((event: any) => {
+    const { width, height } = event.nativeEvent.layout;
+    setMapDimensions({ width, height });
+  }, []);
+
+  // Format time since last update
+  const formatTimeSinceLastUpdate = useCallback((date: Date | null) => {
+    if (!date) return 'Never';
+    
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return 'Just now';
+    
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    
+    return date.toLocaleDateString();
+  }, []);
+
+    // Load trail routes from database (with demo fallback)
+  const loadTrails = useCallback(async (isRefreshing = false, attempt = 0) => {
     if (!hikingSpotId) {
       setRoutesError('Hiking spot ID is required to load trails');
       setIsLoadingRoutes(false);
@@ -73,7 +133,11 @@ export default function TrailMap({
     }
 
     try {
-      setIsLoadingRoutes(true);
+      if (isRefreshing) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoadingRoutes(true);
+      }
       setRoutesError(null);
 
       const { data, error } = await fetchTrailRoutes(hikingSpotId);
@@ -84,561 +148,672 @@ export default function TrailMap({
 
       // If in demo mode or no data, provide sample routes
       if (isInDemoMode || !data || (Array.isArray(data) && data.length === 0)) {
-        if (isInDemoMode) {
-          console.log('Demo mode: Using sample trail data');
-        } else {
-          console.log('No trail routes found in database, using sample data');
-        }
-
-        // Create sample trail routes for demo/testing
         const sampleRoutes: TrailRoute[] = [
           {
-            id: 'sample-route-1',
-            route_name: 'Mount Babag Summit Trail',
+            id: 'sample-1',
+            route_name: 'Osmeña Peak Trail',
             difficulty: 'Moderate',
-            distance: 8.5,
-            elevation_gain: 650,
-            estimated_duration: 3,
-            route_description: 'The primary route to Mount Babag summit with well-marked trails and scenic viewpoints.',
-            highlights: 'Summit viewpoint, City views, Sunrise spot',
-            route_color: '#4CAF50',
-            start_coordinates: { latitude: 10.3451, longitude: 123.8863 },
-            end_coordinates: { latitude: 10.3470, longitude: 123.8885 },
+            distance: 5.2,
+            elevation_gain: 350,
+            estimated_duration: 150, // in minutes
+            route_description: 'A beautiful scenic trail with moderate difficulty, featuring stunning 360-degree views of Cebu',
+            highlights: 'Panoramic views, unique rock formations, cool climate',
+            route_color: ROUTE_COLORS[0],
+            start_coordinates: { latitude: 10.3157, longitude: 123.8854 },
+            end_coordinates: { latitude: 10.3257, longitude: 123.8954 },
             waypoints: JSON.stringify([
-              { lat: 10.3451, lng: 123.8863 },
-              { lat: 10.3458, lng: 123.8870 },
-              { lat: 10.3465, lng: 123.8878 },
-              { lat: 10.3470, lng: 123.8885 }
+              { 
+                latitude: 10.3157, 
+                longitude: 123.8854, 
+                name: 'Trailhead',
+                description: 'Starting point of the trail with parking available'
+              },
+              { 
+                latitude: 10.3187, 
+                longitude: 123.8874, 
+                name: 'First Viewpoint',
+                description: 'First scenic viewpoint with rest area'
+              },
+              { 
+                latitude: 10.3227, 
+                longitude: 123.8914, 
+                name: 'Summit',
+                description: 'Highest point with 360° views'
+              }
             ]),
             coordinates: [
-              [123.8863, 10.3451],
-              [123.8870, 10.3458],
-              [123.8878, 10.3465],
-              [123.8885, 10.3470]
-            ],
-          },
-          {
-            id: 'sample-route-2',
-            route_name: 'Scenic Loop Trail',
-            difficulty: 'Hard',
-            distance: 12.3,
-            elevation_gain: 750,
-            estimated_duration: 4,
-            route_description: 'A longer loop trail that offers multiple viewpoints and a more challenging experience.',
-            highlights: 'Multiple viewpoints, Forest trail, Wildlife spotting',
-            route_color: '#FF6B6B',
-            start_coordinates: { latitude: 10.3451, longitude: 123.8863 },
-            end_coordinates: { latitude: 10.3451, longitude: 123.8863 },
-            waypoints: JSON.stringify([
-              { lat: 10.3451, lng: 123.8863 },
-              { lat: 10.3455, lng: 123.8868 },
-              { lat: 10.3460, lng: 123.8872 },
-              { lat: 10.3468, lng: 123.8880 },
-              { lat: 10.3475, lng: 123.8887 },
-              { lat: 10.3482, lng: 123.8894 },
-              { lat: 10.3490, lng: 123.8902 },
-              { lat: 10.3495, lng: 123.8908 },
-              { lat: 10.3490, lng: 123.8915 },
-              { lat: 10.3485, lng: 123.8920 },
-              { lat: 10.3478, lng: 123.8918 },
-              { lat: 10.3470, lng: 123.8910 },
-              { lat: 10.3462, lng: 123.8902 },
-              { lat: 10.3455, lng: 123.8890 },
-              { lat: 10.3451, lng: 123.8863 }
-            ]),
-            coordinates: [
-              [123.8863, 10.3451],
-              [123.8868, 10.3455],
-              [123.8872, 10.3460],
-              [123.8880, 10.3468],
-              [123.8887, 10.3475],
-              [123.8894, 10.3482],
-              [123.8902, 10.3490],
-              [123.8908, 10.3495],
-              [123.8915, 10.3490],
-              [123.8920, 10.3485],
-              [123.8918, 10.3478],
-              [123.8910, 10.3470],
-              [123.8902, 10.3462],
-              [123.8890, 10.3455],
-              [123.8863, 10.3451]
-            ],
+              [123.8854, 10.3157],
+              [123.8864, 10.3167],
+              [123.8874, 10.3187],
+              [123.8894, 10.3207],
+              [123.8914, 10.3227],
+              [123.8934, 10.3247],
+              [123.8954, 10.3257]
+            ]
           }
         ];
-
         setRoutes(sampleRoutes);
+        setIsLoadingRoutes(false);
+        return;
+      }
 
-        // Auto-select first route if none selected
-        if (!selectedRoute && sampleRoutes.length > 0) {
-          const firstRoute = sampleRoutes[0];
-          setSelectedRoute(firstRoute);
-          onWeatherUpdate?.(firstRoute.start_coordinates);
+      // Transform and set the routes
+      const transformedRoutes: TrailRoute[] = (data as TrailRouteDetails[]).map((route, index) => {
+        // Parse waypoints from string to array of waypoint objects
+        let waypoints: string | Array<{latitude: number; longitude: number; name?: string; description?: string}> = [];
+        
+        try {
+          // If waypoints is already an array, use it as is
+          if (Array.isArray(route.waypoints)) {
+            waypoints = route.waypoints;
+          } 
+          // If it's a string, parse it and ensure it's in the correct format
+          else if (typeof route.waypoints === 'string') {
+            // If it's an empty string, use empty array
+            if (route.waypoints.trim() === '') {
+              waypoints = [];
+            } else {
+              // Try to parse as JSON
+              const parsed = JSON.parse(route.waypoints);
+              waypoints = Array.isArray(parsed) ? parsed : [parsed];
+            }
+          }
+          // If waypoints is undefined or null, use empty array
+          else {
+            waypoints = [];
+          }
+        } catch (error) {
+          console.error('Error parsing waypoints for route', route.route_id, error);
+          waypoints = [];
         }
 
-        setRetryCount(0); // Reset retry count on success
-        setIsLoadingRoutes(false);
-        return;
-      }
+        // Create the route object with proper type safety
+        const trailRoute: TrailRoute = {
+          id: route.route_id || `route-${index}`,
+          route_name: route.route_name || 'Unnamed Trail',
+          difficulty: (route.difficulty_level === 'Easy' ? 'Easy' : 
+                      route.difficulty_level === 'Moderate' ? 'Moderate' :
+                      route.difficulty_level === 'Hard' ? 'Hard' : 'Expert') as TrailRoute['difficulty'],
+          distance: route.distance_km || 0,
+          elevation_gain: route.elevation_gain_m || 0,
+          estimated_duration: route.estimated_duration_hr || 2,
+          route_description: route.route_description || '',
+          highlights: route.highlights || '',
+          route_color: route.route_color || ROUTE_COLORS[index % ROUTE_COLORS.length],
+          start_coordinates: route.start_coordinates || { latitude: 0, longitude: 0 },
+          end_coordinates: route.end_coordinates || { latitude: 0, longitude: 0 },
+          waypoints,
+          coordinates: route.coordinates || [],
+          created_at: route.created_at,
+          updated_at: route.updated_at
+        };
 
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        setRoutesError('No trail routes available for this hiking spot');
-        setRoutes([]);
-        setIsLoadingRoutes(false);
-        return;
-      }
-
-      // Transform database routes to TrailRoute format
-      const transformedRoutes: TrailRoute[] = (data as TrailRouteDetails[]).map((route: TrailRouteDetails, index: number) => ({
-        id: route.route_id,
-        route_name: route.route_name,
-        difficulty: (route.difficulty_level || route.difficulty || 'Moderate') as TrailRoute['difficulty'],
-        distance: route.distance_km,
-        elevation_gain: route.elevation_gain_m,
-        estimated_duration: route.estimated_duration_hr || 2,
-        route_description: route.route_description,
-        highlights: route.highlights,
-        route_color: route.route_color || ROUTE_COLORS[index % ROUTE_COLORS.length],
-        start_coordinates: route.start_coordinates || { latitude: 0, longitude: 0 },
-        end_coordinates: route.end_coordinates || { latitude: 0, longitude: 0 },
-        waypoints: route.waypoints,
-        coordinates: (route.route_coordinates || []).map(coord => [coord.longitude || 0, coord.latitude || 0]),
-      }));
+        return trailRoute;
+      });
 
       setRoutes(transformedRoutes);
-
-      // Auto-select first route if none selected
-      if (!selectedRoute && transformedRoutes.length > 0) {
-        const firstRoute = transformedRoutes[0];
-        setSelectedRoute(firstRoute);
-        onWeatherUpdate?.(firstRoute.start_coordinates);
-      }
-
-      setRetryCount(0); // Reset retry count on success
-    } catch (error) {
-      ErrorHandlingService.logError(error, 'trails', { hikingSpotId, attempt });
-
-      const errorInfo = ErrorHandlingService.analyzeError(error, 'trails');
-
-      if (errorInfo.retryable && attempt < MAX_RETRY_ATTEMPTS) {
-        console.log(`Retrying trail load (attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS})`);
-        setRetryCount(attempt);
-        setTimeout(() => loadTrails(attempt + 1), RETRY_DELAY);
-        return;
-      }
-
-      const contextualMessage = ErrorHandlingService.getContextualErrorMessage(error, 'trails');
-      setRoutesError(contextualMessage);
-    } finally {
       setIsLoadingRoutes(false);
+      
+      // Select the first route by default if none is selected
+      if (!selectedRoute && transformedRoutes.length > 0) {
+        setSelectedRoute(transformedRoutes[0]);
+        onWeatherUpdate?.(transformedRoutes[0].start_coordinates);
+      }
+    } catch (error) {
+      console.error('Error loading trails:', error);
+      setRoutesError('Failed to load trail data. Please try again.');
+      setIsLoadingRoutes(false);
+      
+      // Retry logic
+      if (attempt < MAX_RETRY_ATTEMPTS) {
+        console.log(`Retrying... Attempt ${attempt + 1} of ${MAX_RETRY_ATTEMPTS}`);
+        setTimeout(() => loadTrails(isRefreshing, attempt + 1), RETRY_DELAY);
+      }
     }
   }, [hikingSpotId, selectedRoute, onWeatherUpdate]);
 
+  // Handle refresh action
+  const handleRefresh = useCallback(() => {
+    setLastUpdated(new Date());
+    loadTrails(true);
+  }, [loadTrails]);
+
+  // Load trails when component mounts or hikingSpotId changes
   useEffect(() => {
     if (hikingSpotId) {
       loadTrails();
     }
   }, [hikingSpotId, loadTrails]);
 
-  const sendMessageToWebView = useCallback((message: any) => {
-    if (webViewRef.current && mapReady) {
-      webViewRef.current.postMessage(JSON.stringify(message));
-    }
-  }, [mapReady]);
-
-  const handleWebViewMessage = useCallback((event: any) => {
+  // Handle WebView messages
+  const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-
-      switch (data.type) {
+      const message = JSON.parse(event.nativeEvent.data);
+      
+      switch (message.type) {
         case 'mapReady':
           setMapReady(true);
           setIsLoading(false);
-          setMapError(null);
           break;
         case 'mapError':
-          console.error('Map error:', data.error);
-          if (retryCount < MAX_RETRY_ATTEMPTS) {
-            console.log(`Retrying map load (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
-            setRetryCount(prev => prev + 1);
-            setTimeout(() => {
-              webViewRef.current?.reload();
-            }, RETRY_DELAY);
-          } else {
-            setMapError(data.error || 'Failed to load map');
-            setIsLoading(false);
-          }
+          setMapError(message.error || 'Failed to load map');
+          setIsLoading(false);
           break;
-        default:
-          console.log('Unknown message type:', data.type);
+        case 'routeClick':
+          // Handle route click if needed
+          break;
       }
     } catch (error) {
-      console.error('Error parsing WebView message:', error);
+      console.error('Error handling WebView message:', error);
     }
-  }, [retryCount]);
-
-  const handleRouteSelect = useCallback((route: TrailRoute) => {
-    setSelectedRoute(route);
-
-    // Send route data to map - WebView expects [lng, lat] format
-    const webViewCoordinates = (route.coordinates || []).map((coord: any) => [
-      coord.longitude || 0,
-      coord.latitude || 0
-    ]);
-
-    sendMessageToWebView({
-      type: 'selectRoute',
-      route: {
-        ...route,
-        coordinates: webViewCoordinates,
-        waypoints: route.waypoints,
-        start_coordinates: [
-          route.start_coordinates?.longitude || 0,
-          route.start_coordinates?.latitude || 0
-        ],
-        end_coordinates: [
-          route.end_coordinates?.longitude || 0,
-          route.end_coordinates?.latitude || 0
-        ],
-      },
-    });
-
-    // Update weather with route coordinates
-    onWeatherUpdate?.(route.start_coordinates);
-  }, [sendMessageToWebView, onWeatherUpdate]);
-
-  const toggleMapType = useCallback(() => {
-    const newMapType = mapType === 'standard' ? 'satellite' : 'standard';
-    setMapType(newMapType);
-    sendMessageToWebView({
-      type: 'changeMapType',
-      mapType: newMapType,
-    });
-  }, [mapType, sendMessageToWebView]);
-
-  const centerMap = useCallback(() => {
-    if (selectedRoute) {
-      sendMessageToWebView({
-        type: 'centerMap',
-        coordinates: [selectedRoute.start_coordinates.longitude, selectedRoute.start_coordinates.latitude],
-      });
-    }
-  }, [selectedRoute, sendMessageToWebView]);
-
-  const handleRetryMap = useCallback(() => {
-    setMapError(null);
-    setIsLoading(true);
-    setRetryCount(0);
-    webViewRef.current?.reload();
   }, []);
 
-  const mapHTML = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-      <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100vw; }
-        .custom-div-icon {
-          background: none;
-          border: none;
+  // Handle route selection
+  const handleRouteSelect = useCallback((route: TrailRoute) => {
+    // Ensure waypoints are properly parsed before setting the selected route
+    const routeWithParsedWaypoints = {
+      ...route,
+      waypoints: parseWaypoints(route.waypoints)
+    };
+    
+    setSelectedRoute(routeWithParsedWaypoints);
+    onWeatherUpdate?.(route.start_coordinates);
+    
+    // Send message to WebView to highlight the selected route
+    if (webViewRef.current && route.coordinates && route.coordinates.length > 0) {
+      webViewRef.current.injectJavaScript(`
+        if (window.fitBoundsToRoute) {
+          window.fitBoundsToRoute(${JSON.stringify(route.coordinates)});
         }
-        .trail-marker {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .waypoint-marker {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          border: 1px solid white;
-          background-color: #2196F3;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-      <script>
-        try {
-          const map = L.map('map').setView([${centerCoordinates?.[0] || 14.5995}, ${centerCoordinates?.[1] || 120.9842}], 13);
+        true;
+      `);
+    }
+  }, [onWeatherUpdate]);
 
-          let currentMapType = '${mapType}';
-          let tileLayer;
-
-          function updateTileLayer() {
-            if (tileLayer) {
-              map.removeLayer(tileLayer);
-            }
-
-            if (currentMapType === 'satellite') {
-              tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-              });
-            } else {
-              tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-              });
-            }
-
-            tileLayer.addTo(map);
+  // Generate HTML for the WebView
+  const mapHTML = useMemo(() => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+        <style>
+          body, html, #map {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
           }
-
-          updateTileLayer();
-
-          let routeLayers = [];
-          let markerLayers = [];
-          let waypointLayers = [];
-
-          function clearLayers() {
-            routeLayers.forEach(layer => map.removeLayer(layer));
-            markerLayers.forEach(layer => map.removeLayer(layer));
-            waypointLayers.forEach(layer => map.removeLayer(layer));
-            routeLayers = [];
-            markerLayers = [];
-            waypointLayers = [];
-          }
-
-          function addRoute(route) {
-            if (!route) return;
-
-            // Add waypoints if available
-            if (route.waypoints && typeof route.waypoints === 'string') {
-              try {
-                const waypoints = JSON.parse(route.waypoints);
-                waypoints.forEach((waypoint, index) => {
-                  if (waypoint.lat && waypoint.lng) {
-                    const waypointMarker = L.circleMarker([waypoint.lat, waypoint.lng], {
-                      radius: 4,
-                      fillColor: '#2196F3',
-                      color: '#ffffff',
-                      weight: 1,
-                      opacity: 0.8,
-                      fillOpacity: 0.8
-                    }).addTo(map);
-
-                    waypointLayers.push(waypointMarker);
-                  }
-                });
-              } catch (e) {
-                console.error('Error parsing waypoints:', e);
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+        <script>
+          let map;
+          let currentRouteLayer = null;
+          
+          try {
+            // Initialize the map
+            map = L.map('map').setView([${centerCoordinates[0]}, ${centerCoordinates[1]}], 13);
+            
+            // Add tile layer based on map type
+            const tileLayer = L.tileLayer(
+              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18,
               }
-            }
-
-            // Add route path
-            if (route.coordinates && Array.isArray(route.coordinates)) {
-              const polyline = L.polyline(route.coordinates, {
-                color: route.color || '#FF6B6B',
-                weight: 4,
-                opacity: 0.8
-              }).addTo(map);
-
-              routeLayers.push(polyline);
-
-              // Add start marker
-              if (route.start_coordinates && route.start_coordinates.length === 2) {
-                const startMarker = L.divIcon({
-                  className: 'custom-div-icon',
-                  html: '<div style="display: flex; flex-direction: column; align-items: center;">' +
-                         '<div class="trail-marker" style="background-color: #4CAF50; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>' +
-                         '<div style="background-color: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-top: 2px; white-space: nowrap;">START</div>' +
-                         '</div>',
-                  iconSize: [50, 35],
-                  iconAnchor: [25, 35]
-                });
-
-                const startMarkerLayer = L.marker(route.start_coordinates, { icon: startMarker }).addTo(map);
-                markerLayers.push(startMarkerLayer);
+            ).addTo(map);
+            
+            // Function to fit bounds to a route
+            window.fitBoundsToRoute = function(coordinates) {
+              if (!map) return;
+              
+              // Remove previous route layer if it exists
+              if (currentRouteLayer) {
+                map.removeLayer(currentRouteLayer);
               }
-
-              // Add end marker
-              if (route.end_coordinates && route.end_coordinates.length === 2) {
-                const endMarker = L.divIcon({
-                  className: 'custom-div-icon',
-                  html: '<div style="display: flex; flex-direction: column; align-items: center;">' +
-                         '<div class="trail-marker" style="background-color: #F44336; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>' +
-                         '<div style="background-color: #F44336; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-top: 2px; white-space: nowrap;">END</div>' +
-                         '</div>',
-                  iconSize: [50, 35],
-                  iconAnchor: [25, 35]
-                });
-
-                const endMarkerLayer = L.marker(route.end_coordinates, { icon: endMarker }).addTo(map);
-                markerLayers.push(endMarkerLayer);
+              
+              // Create a polyline for the route
+              if (coordinates && coordinates.length > 0) {
+                const latLngs = coordinates.map(coord => L.latLng(coord[0], coord[1]));
+                currentRouteLayer = L.polyline(latLngs, { color: '#2196F3', weight: 4 }).addTo(map);
+                map.fitBounds(currentRouteLayer.getBounds(), { padding: [20, 20] });
               }
-
-              // Fit map to route bounds
-              if (route.coordinates.length > 0) {
-                const bounds = L.latLngBounds(route.coordinates);
-                map.fitBounds(bounds, { padding: [20, 20] });
-              }
-            }
-          }
-
-          window.addEventListener('message', function(event) {
-            try {
-              const data = JSON.parse(event.data);
-
-              switch(data.type) {
-                case 'selectRoute':
-                  clearLayers();
-                  if (data.route) {
-                    addRoute(data.route);
-                  }
-                  break;
-                case 'changeMapType':
-                  currentMapType = data.mapType;
-                  updateTileLayer();
-                  break;
-                case 'centerMap':
-                  if (data.coordinates) {
-                    map.setView(data.coordinates, 15);
-                  }
-                  break;
-              }
-            } catch (error) {
-              console.error('Error processing message:', error);
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'mapError',
-                error: error.message
-              }));
-            }
-          });
-
-          map.on('load', function() {
+            };
+            
+            // Notify React Native that the map is ready
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapReady' }));
+            
+          } catch (error) {
+            console.error('Map initialization error:', error);
             window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'mapReady'
+              type: 'mapError',
+              error: error.message
             }));
-          });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+  }, [centerCoordinates]);
 
-          // Trigger mapReady immediately if map is already loaded
-          setTimeout(() => {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'mapReady'
-            }));
-          }, 1000);
+  // Define all styles in one place
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+      position: 'relative',
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: COLORS.background,
+    },
+    loadingText: {
+      marginTop: 10,
+      color: COLORS.textLight,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+      backgroundColor: COLORS.background,
+    },
+    errorTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: COLORS.error,
+      marginTop: 10,
+      marginBottom: 5,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: COLORS.text,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    retryButton: {
+      backgroundColor: COLORS.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 5,
+    },
+    retryButtonText: {
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    webView: {
+      flex: 1,
+    },
+    mapControls: {
+      position: 'absolute',
+      top: 10,
+      left: 10,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderRadius: 20,
+      padding: 5,
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    controlButton: {
+      padding: 8,
+      borderRadius: 15,
+      margin: 2,
+    },
+    controlButtonActive: {
+      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+    },
+    routeSelector: {
+      position: 'absolute',
+      bottom: 20,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 10,
+    },
+    routeList: {
+      paddingHorizontal: 10,
+    },
+    routeButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderRadius: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 15,
+      marginRight: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
+    routeButtonSelected: {
+      backgroundColor: COLORS.primary,
+    },
+    routeButtonText: {
+      color: COLORS.text,
+      marginRight: 5,
+      maxWidth: 120,
+    },
+    routeButtonTextSelected: {
+      color: 'white',
+    },
+    routeDifficulty: {
+      fontSize: 10,
+      fontWeight: 'bold',
+      textTransform: 'uppercase',
+    },
+    lastUpdatedContainer: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      padding: 8,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      zIndex: 10,
+      elevation: 3,
+    },
+    lastUpdatedText: {
+      fontSize: 12,
+      color: COLORS.textLight,
+      marginRight: 4,
+    },
+    refreshButton: {
+      padding: 4,
+    },
+    loadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    },
+    trailInfoContainer: {
+      backgroundColor: COLORS.background,
+      borderTopWidth: 1,
+      borderTopColor: '#eee',
+      padding: 16,
+    },
+    noRoutesContainer: {
+      padding: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: COLORS.card,
+      borderRadius: 12,
+      margin: 16,
+    },
+    noRoutesTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: COLORS.text,
+      marginTop: 12,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    noRoutesText: {
+      fontSize: 14,
+      color: COLORS.textLight,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    routeInfoContainer: {
+      position: 'absolute',
+      bottom: 80,
+      left: 10,
+      right: 10,
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 12,
+      padding: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    routeInfoText: {
+      flex: 1,
+      marginRight: 10,
+    },
+    routeName: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: COLORS.text,
+      marginBottom: 4,
+    },
+    routeDetails: {
+      fontSize: 12,
+      color: COLORS.textLight,
+      marginBottom: 4,
+    },
+    routeHighlights: {
+      fontSize: 12,
+      color: COLORS.textLight,
+      fontStyle: 'italic',
+    },
+    directionsButton: {
+      backgroundColor: COLORS.primary,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fullscreenContainer: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
+    closeButton: {
+      position: 'absolute',
+      top: 40,
+      right: 20,
+      zIndex: 10,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderRadius: 20,
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 3,
+    },
+    fullscreenWebView: {
+      flex: 1,
+    },
+  });
 
-        } catch (error) {
-          console.error('Map initialization error:', error);
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'mapError',
-            error: error.message
-          }));
-        }
-      </script>
-    </body>
-    </html>
-  `;
+  // Render loading state
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading map...</Text>
+      </View>
+    );
+  }
+
+  // Render error state
+  if (mapError) {
+    return (
+      <View style={styles.errorContainer}>
+        <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+        <Text style={styles.errorTitle}>Map Error</Text>
+        <Text style={styles.errorMessage}>{mapError}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setMapError(null);
+            setIsLoading(true);
+          }}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Loading Overlay */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading map...</Text>
-          {retryCount > 0 && (
-            <Text style={styles.retryText}>Retry attempt {retryCount}/{MAX_RETRY_ATTEMPTS}</Text>
-          )}
-        </View>
-      )}
-
-      {/* Map Error Overlay */}
-      {mapError && (
-        <View style={styles.errorOverlay}>
-          <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
-          <Text style={styles.errorTitle}>Map Error</Text>
-          <Text style={styles.errorMessage}>{mapError}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetryMap}>
-            <MaterialIcons name="refresh" size={20} color={COLORS.background} />
-            <Text style={styles.retryButtonText}>Retry</Text>
+    <View style={styles.container} onLayout={handleLayout}>
+      {/* Last updated indicator */}
+      {!isLoading && !isRefreshing && (
+        <View style={styles.lastUpdatedContainer}>
+          <Text style={styles.lastUpdatedText}>
+            Updated {formatTimeSinceLastUpdate(lastUpdated)}
+          </Text>
+          <TouchableOpacity 
+            onPress={handleRefresh}
+            style={styles.refreshButton}
+          >
+            <MaterialIcons name="refresh" size={18} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* WebView */}
+      {/* Map View */}
       <WebView
         ref={webViewRef}
         source={{ html: mapHTML }}
-        style={styles.webView}
+        style={[styles.webView, { 
+          height: mapDimensions.height || '100%',
+          opacity: isRefreshing ? 0.7 : 1
+        }]}
         onMessage={handleWebViewMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        startInLoadingState={false}
-        onError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          console.error('WebView error:', nativeEvent);
-          setMapError('Failed to load map content');
-          setIsLoading(false);
+        onError={() => {
+          setMapError('Failed to load map. Please check your internet connection.');
         }}
-        onHttpError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          console.error('WebView HTTP error:', nativeEvent);
-          setMapError('Network error loading map');
-          setIsLoading(false);
+        onHttpError={() => {
+          setMapError('Failed to load map resources. Please try again later.');
         }}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        )}
       />
 
       {/* Map Controls */}
-      {mapReady && !mapError && (
-        <View style={styles.mapControls}>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleMapType}>
-            <MaterialIcons
-              name={mapType === 'standard' ? 'satellite' : 'map'}
-              size={24}
-              color={COLORS.text}
-            />
-          </TouchableOpacity>
+      <View style={styles.mapControls}>
+        <TouchableOpacity
+          style={[
+            styles.controlButton,
+            mapType === 'standard' && styles.controlButtonActive
+          ]}
+          onPress={() => setMapType('standard')}
+        >
+          <MaterialIcons name="map" size={24} color={mapType === 'standard' ? COLORS.primary : COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.controlButton,
+            mapType === 'satellite' && styles.controlButtonActive
+          ]}
+          onPress={() => setMapType('satellite')}
+        >
+          <MaterialIcons name="satellite" size={24} color={mapType === 'satellite' ? COLORS.primary : COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => setIsFullscreen(true)}
+        >
+          <MaterialIcons name="fullscreen" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
 
-          <TouchableOpacity style={styles.controlButton} onPress={centerMap}>
-            <MaterialIcons name="my-location" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => setIsFullscreen(true)}
+      {/* Route Selector */}
+      {routes.length > 0 && (
+        <View style={styles.routeSelector}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.routeList}
           >
-            <MaterialIcons name="fullscreen" size={24} color={COLORS.text} />
-          </TouchableOpacity>
+            {routes.map((route) => (
+              <TouchableOpacity
+                key={route.id}
+                style={[
+                  styles.routeButton,
+                  selectedRoute?.id === route.id && styles.routeButtonSelected,
+                ]}
+                onPress={() => handleRouteSelect(route)}
+              >
+                <Text
+                  style={[
+                    styles.routeButtonText,
+                    selectedRoute?.id === route.id && styles.routeButtonTextSelected,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {route.route_name}
+                </Text>
+                <Text style={[styles.routeDifficulty, { color: route.route_color }]}>
+                  {route.difficulty}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 
-      {/* Available Routes Section */}
-      <View style={styles.routesContainer}>
-        <AvailableRoutes
-          routes={routes}
-          selectedRoute={selectedRoute}
-          onRouteSelect={handleRouteSelect}
-          isLoading={isLoadingRoutes}
-          error={routesError}
-        />
-      </View>
-
-      {/* Trail Information Section */}
+      {/* Trail Information Carousel */}
       <View style={styles.trailInfoContainer}>
-        <TrailInformation
-          selectedRoute={selectedRoute}
-          onRouteSelect={handleRouteSelect}
-          availableRoutes={routes}
-          isLoadingRoutes={isLoadingRoutes}
-          routesError={routesError}
-        />
+        {routes.length > 0 ? (
+          <TrailInfoCarousel 
+            routes={routes}
+            selectedRouteId={selectedRoute?.id || null}
+            onSelectRoute={(route) => {
+              setSelectedRoute(route);
+              onWeatherUpdate?.(route.start_coordinates);
+            }}
+          />
+        ) : (
+          <View style={styles.noRoutesContainer}>
+            <MaterialIcons name="terrain" size={48} color="#ccc" />
+            <Text style={styles.noRoutesTitle}>Trail Data Loading</Text>
+            <Text style={styles.noRoutesText}>
+              Trail data is loading. Please check back shortly.
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Weather Section */}
+      {/* Remove      {/* Selected Route Info */}
       {selectedRoute && (
-        <View style={styles.weatherContainer}>
-          <WeatherWidget
-            latitude={selectedRoute.start_coordinates.latitude}
-            longitude={selectedRoute.start_coordinates.longitude}
-            locationName={selectedRoute.route_name}
-            compact={true}
-          />
+        <View style={styles.routeInfoContainer}>
+          <View style={styles.routeInfoText}>
+            <Text style={styles.routeName} numberOfLines={1}>
+              {selectedRoute?.route_name}
+            </Text>
+            <Text style={styles.routeDetails}>
+              {selectedRoute.distance.toFixed(1)} km • {Math.round(selectedRoute.estimated_duration * 60)} min • {selectedRoute.difficulty}
+            </Text>
+            {selectedRoute?.highlights ? (
+              <Text style={styles.routeHighlights} numberOfLines={2}>
+                {selectedRoute.highlights}
+              </Text>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            style={styles.directionsButton}
+            onPress={() => {
+              // Handle directions
+            }}
+          >
+            <MaterialIcons name="directions" size={24} color="white" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -646,7 +821,7 @@ export default function TrailMap({
       <Modal
         visible={isFullscreen}
         animationType="slide"
-        statusBarTranslucent={true}
+        onRequestClose={() => setIsFullscreen(false)}
       >
         <View style={styles.fullscreenContainer}>
           <TouchableOpacity
@@ -655,7 +830,6 @@ export default function TrailMap({
           >
             <MaterialIcons name="close" size={24} color={COLORS.text} />
           </TouchableOpacity>
-
           <WebView
             source={{ html: mapHTML }}
             style={styles.fullscreenWebView}
@@ -667,91 +841,126 @@ export default function TrailMap({
       </Modal>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+    position: 'relative',
   },
   webView: {
     flex: 1,
+    minHeight: 300,
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: COLORS.text,
-    fontWeight: '500',
   },
-  retryText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: COLORS.textLight,
-  },
-  errorOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  errorContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
-    padding: 20,
+    padding: 24,
+    backgroundColor: COLORS.background,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.error,
-    marginTop: 12,
+    marginTop: 16,
     marginBottom: 8,
-    textAlign: 'center',
   },
   errorMessage: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
+    marginBottom: 24,
   },
   retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    gap: 8,
   },
   retryButtonText: {
-    color: COLORS.background,
+    color: 'white',
+    fontWeight: 'bold',
     fontSize: 16,
-    fontWeight: '600',
   },
   mapControls: {
     position: 'absolute',
-    top: 50,
+    top: 16,
     right: 16,
-    gap: 8,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   controlButton: {
-    backgroundColor: COLORS.background,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  controlButtonActive: {
+    backgroundColor: '#f5f5f5',
+  },
+  routeSelector: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+  },
+  routeList: {
+    paddingBottom: 8,
+  },
+  routeButton: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  routeButtonSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  routeButtonText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  routeButtonTextSelected: {
+    color: 'white',
+  },
+  routeDifficulty: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  routeInfoContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     elevation: 4,
     shadowColor: '#000',
@@ -759,35 +968,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  routesContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    maxHeight: 200,
+  routeInfoText: {
+    flex: 1,
+    marginRight: 12,
   },
-  trailInfoContainer: {
-    position: 'absolute',
-    bottom: 200,
-    left: 0,
-    right: 0,
-    top: 0,
-    backgroundColor: COLORS.background,
+  routeName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
   },
-  weatherContainer: {
-    position: 'absolute',
-    top: 100,
-    left: 16,
-    right: 16,
-    zIndex: 100,
+  routeDetails: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginBottom: 4,
+  },
+  routeHighlights: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontStyle: 'italic',
+  },
+  directionsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fullscreenContainer: {
     flex: 1,
@@ -795,12 +1002,12 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 50,
+    top: 48,
     right: 16,
-    backgroundColor: COLORS.background,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -814,3 +1021,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export default TrailMap;
