@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Dimensions, Platform, TouchableOpacity, Modal, Text, StatusBar, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -46,7 +46,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   const [isMapReady, setIsMapReady] = useState(false);
   const [currentSpotId, setCurrentSpotId] = useState<string | undefined>(selectedHikingSpotId);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [databaseRoutes, setDatabaseRoutes] = useState<TrailRoute[]>([]);
+  const [databaseRoutes, setDatabaseRoutes] = useState<TrailRoute[]>(NEW_TRAIL_ROUTES);
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
 
@@ -201,6 +201,21 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
           if (onTrailSelect && typeof onTrailSelect === 'function') {
             onTrailSelect(data.trailId);
           }
+          
+          // Log detailed trail information when a trail is selected
+          const selectedTrail = (databaseRoutes.length > 0 ? databaseRoutes : NEW_TRAIL_ROUTES)
+            .find(r => r.id === data.trailId);
+          if (selectedTrail) {
+            console.log('Selected Trail Info:', {
+              id: selectedTrail.id,
+              name: selectedTrail.route_name,
+              difficulty: selectedTrail.difficulty,
+              distance: selectedTrail.distance_km,
+              elevation: selectedTrail.elevation_gain_m,
+              duration: selectedTrail.estimated_duration_hr,
+              highlights: selectedTrail.highlights
+            });
+          }
           break;
         case 'error':
           console.error('Map error:', data.message);
@@ -274,10 +289,16 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
       })) : [];
       
       setDatabaseRoutes(transformedRoutes);
+      
+      // Force WebView to reload after a small delay to ensure new routes are displayed
+      setTimeout(() => {
+        if (webViewRef.current) webViewRef.current.reload();
+      }, 100);
     } catch (error) {
       console.error('Error loading trail routes:', error);
       setRouteError('Failed to load trail routes');
-      setDatabaseRoutes([]);
+      // Fall back to static data for this spot
+      setDatabaseRoutes(NEW_TRAIL_ROUTES.filter(r => r.hiking_spot_id === spotId));
     } finally {
       setIsLoadingRoutes(false);
     }
@@ -290,10 +311,12 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
     }
   }, [selectedTrailId, isMapReady]);
 
-  // Generate HTML for the Leaflet map
-  const generateMapHTML = () => {
+  // Generate HTML for the Leaflet map with useMemo for better performance
+  const generateMapHTML = useMemo(() => {
     const preparedRoutes = buildPreparedRoutes();
     const hikingSpots = HIKING_SPOTS_DATA;
+    
+    console.log(`Generating map with ${preparedRoutes.length} routes, selected: ${selectedTrailId || 'none'}`);
 
     return `
 <!DOCTYPE html>
@@ -856,7 +879,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   const renderMap = (fullscreenStyle?: any) => (
     <WebView
       ref={webViewRef}
-      source={{ html: generateMapHTML() }}
+      source={{ html: generateMapHTML }}
       style={[styles.webview, fullscreenStyle]}
       onMessage={handleWebViewMessage}
       javaScriptEnabled={true}

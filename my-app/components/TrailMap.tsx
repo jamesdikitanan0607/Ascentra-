@@ -408,6 +408,10 @@ export const TrailMap = React.memo(({
       backgroundColor: COLORS.background,
       position: 'relative',
     },
+    webView: {
+      flex: 1,
+      minHeight: 300,
+    },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
@@ -415,62 +419,60 @@ export const TrailMap = React.memo(({
       backgroundColor: COLORS.background,
     },
     loadingText: {
-      marginTop: 10,
-      color: COLORS.textLight,
+      marginTop: 16,
+      fontSize: 16,
+      color: COLORS.text,
     },
     errorContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 20,
+      padding: 24,
       backgroundColor: COLORS.background,
     },
     errorTitle: {
       fontSize: 18,
       fontWeight: 'bold',
       color: COLORS.error,
-      marginTop: 10,
-      marginBottom: 5,
+      marginTop: 16,
+      marginBottom: 8,
     },
     errorMessage: {
       fontSize: 14,
       color: COLORS.text,
       textAlign: 'center',
-      marginBottom: 20,
+      marginBottom: 24,
     },
     retryButton: {
       backgroundColor: COLORS.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 5,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
     },
     retryButtonText: {
       color: 'white',
       fontWeight: 'bold',
-    },
-    webView: {
-      flex: 1,
+      fontSize: 16,
     },
     mapControls: {
       position: 'absolute',
-      top: 10,
-      left: 10,
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-      borderRadius: 20,
-      padding: 5,
-      elevation: 3,
+      top: 16,
+      right: 16,
+      backgroundColor: 'white',
+      borderRadius: 8,
+      elevation: 4,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
+      shadowOpacity: 0.2,
       shadowRadius: 4,
     },
     controlButton: {
-      padding: 8,
-      borderRadius: 15,
-      margin: 2,
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f0f0f0',
     },
     controlButtonActive: {
-      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+      backgroundColor: '#f5f5f5',
     },
     routeSelector: {
       position: 'absolute',
@@ -478,39 +480,69 @@ export const TrailMap = React.memo(({
       left: 0,
       right: 0,
       paddingHorizontal: 10,
+      zIndex: 10,
     },
     routeList: {
-      paddingHorizontal: 10,
+      paddingVertical: 8,
     },
     routeButton: {
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-      borderRadius: 20,
-      paddingVertical: 8,
-      paddingHorizontal: 15,
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 12,
+      padding: 12,
       marginRight: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      elevation: 2,
+      width: 180,
+      elevation: 3,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 2,
+      shadowRadius: 4,
     },
     routeButtonSelected: {
       backgroundColor: COLORS.primary,
+      shadowColor: COLORS.primary,
     },
-    routeButtonText: {
+    routeCardContent: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    routeTextContainer: {
+      flex: 1,
+    },
+    routeName: {
+      fontSize: 14,
+      fontWeight: '600',
       color: COLORS.text,
-      marginRight: 5,
-      maxWidth: 120,
+      marginBottom: 4,
     },
-    routeButtonTextSelected: {
+    routeNameSelected: {
       color: 'white',
     },
-    routeDifficulty: {
+    routeStats: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    routeStat: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    routeStatText: {
+      fontSize: 12,
+      color: COLORS.textLight,
+      marginLeft: 4,
+    },
+    routeStatTextSelected: {
+      color: 'rgba(255,255,255,0.8)',
+    },
+    difficultyBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      alignSelf: 'flex-start',
+    },
+    difficultyText: {
       fontSize: 10,
       fontWeight: 'bold',
-      textTransform: 'uppercase',
+      color: 'white',
     },
     lastUpdatedContainer: {
       position: 'absolute',
@@ -544,28 +576,6 @@ export const TrailMap = React.memo(({
       borderTopWidth: 1,
       borderTopColor: '#eee',
       padding: 16,
-    },
-    noRoutesContainer: {
-      padding: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: COLORS.card,
-      borderRadius: 12,
-      margin: 16,
-    },
-    noRoutesTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: COLORS.text,
-      marginTop: 12,
-      marginBottom: 8,
-      textAlign: 'center',
-    },
-    noRoutesText: {
-      fontSize: 14,
-      color: COLORS.textLight,
-      textAlign: 'center',
-      lineHeight: 20,
     },
     routeInfoContainer: {
       position: 'absolute',
@@ -749,19 +759,59 @@ export const TrailMap = React.memo(({
                   selectedRoute?.id === route.id && styles.routeButtonSelected,
                 ]}
                 onPress={() => handleRouteSelect(route)}
+                activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.routeButtonText,
-                    selectedRoute?.id === route.id && styles.routeButtonTextSelected,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {route.route_name}
-                </Text>
-                <Text style={[styles.routeDifficulty, { color: route.route_color }]}>
-                  {route.difficulty}
-                </Text>
+                <View style={styles.routeCardContent}>
+                  <View style={styles.routeTextContainer}>
+                    <Text 
+                      style={[
+                        styles.routeName,
+                        selectedRoute?.id === route.id && styles.routeNameSelected
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {route.route_name}
+                    </Text>
+                    <View style={[
+                      styles.difficultyBadge,
+                      { backgroundColor: route.route_color }
+                    ]}>
+                      <Text style={styles.difficultyText}>
+                        {route.difficulty}
+                      </Text>
+                    </View>
+                    <View style={styles.routeStats}>
+                      <View style={styles.routeStat}>
+                        <MaterialIcons 
+                          name="directions-walk" 
+                          size={14} 
+                          color={selectedRoute?.id === route.id ? 'white' : COLORS.textLight} 
+                        />
+                        <Text style={[
+                          styles.routeStatText,
+                          selectedRoute?.id === route.id && styles.routeStatTextSelected
+                        ]}>
+                          {route.distance.toFixed(1)} km
+                        </Text>
+                      </View>
+                      <View style={styles.routeStat}>
+                        <MaterialIcons 
+                          name="schedule" 
+                          size={14} 
+                          color={selectedRoute?.id === route.id ? 'white' : COLORS.textLight} 
+                        />
+                        <Text style={[
+                          styles.routeStatText,
+                          selectedRoute?.id === route.id && styles.routeStatTextSelected
+                        ]}>
+                          {Math.round(route.estimated_duration * 60)} min
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  {/* Placeholder for future elevation sparkline */}
+                  <View style={{ width: 40 }} />
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -779,18 +829,10 @@ export const TrailMap = React.memo(({
               onWeatherUpdate?.(route.start_coordinates);
             }}
           />
-        ) : (
-          <View style={styles.noRoutesContainer}>
-            <MaterialIcons name="terrain" size={48} color="#ccc" />
-            <Text style={styles.noRoutesTitle}>Trail Data Loading</Text>
-            <Text style={styles.noRoutesText}>
-              Trail data is loading. Please check back shortly.
-            </Text>
-          </View>
-        )}
+        ) : null}
       </View>
 
-      {/* Remove      {/* Selected Route Info */}
+      {/* Selected Route Info */}
       {selectedRoute && (
         <View style={styles.routeInfoContainer}>
           <View style={styles.routeInfoText}>
@@ -841,185 +883,6 @@ export const TrailMap = React.memo(({
       </Modal>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    position: 'relative',
-  },
-  webView: {
-    flex: 1,
-    minHeight: 300,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: COLORS.background,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.error,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  mapControls: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  controlButton: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  controlButtonActive: {
-    backgroundColor: '#f5f5f5',
-  },
-  routeSelector: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-  },
-  routeList: {
-    paddingBottom: 8,
-  },
-  routeButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  routeButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  routeButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  routeButtonTextSelected: {
-    color: 'white',
-  },
-  routeDifficulty: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  routeInfoContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  routeInfoText: {
-    flex: 1,
-    marginRight: 12,
-  },
-  routeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  routeDetails: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: 4,
-  },
-  routeHighlights: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    fontStyle: 'italic',
-  },
-  directionsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 48,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  fullscreenWebView: {
-    flex: 1,
-  },
 });
 
 export default TrailMap;

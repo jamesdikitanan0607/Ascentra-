@@ -11,11 +11,13 @@ import {
   Alert,
   useWindowDimensions,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { getTrailRoutesBySpotId, TrailRouteDetails } from '../services/supabaseService';
+import { getTrailRoutesBySpotId, TrailRoute } from '../services/supabaseService';
 import TrailInfo from '../components/TrailInfo';
+import LeafletTrailMap from '../components/LeafletTrailMap';
+import TrailRoutesSection from '../components/TrailRoutesSection';
 import { formatDistance, formatElevation } from '../utils/formatters';
+import { WebView } from 'react-native-webview';
 
 const COLORS = {
   primary: '#2E7D32',
@@ -29,6 +31,21 @@ const COLORS = {
   routeContainer: 'rgba(255, 255, 255, 0.4)',
   selectedRoute: 'rgba(46, 125, 50, 0.6)'
 };
+
+interface TrailRouteDetails {
+  id: string;
+  route_id: string;
+  route_name: string;
+  hiking_spot_id: string;
+  difficulty: string;
+  distance_km: number;
+  elevation_gain_m: number;
+  estimated_duration_min: number;
+  start_coordinates?: { latitude: number; longitude: number } | null;
+  end_coordinates?: { latitude: number; longitude: number } | null;
+  geojson_path?: { type: 'LineString'; coordinates: number[][] };
+  route_description?: string;
+}
 
 interface TrailMapFullScreenProps {
   navigation: any;
@@ -85,17 +102,9 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
     }
   }
 
-  const parseCoordinates = (coordString: string): [number, number] | null => {
-    if (!coordString) return null;
-    try {
-      const coords = coordString.split(',').map(coord => parseFloat(coord.trim()));
-      if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-        return [coords[0], coords[1]];
-      }
-    } catch (error) {
-      console.error('Error parsing coordinates:', error);
-    }
-    return null;
+  const parseCoordinates = (coord: { latitude: number; longitude: number } | null): [number, number] | null => {
+    if (!coord) return null;
+    return [coord.latitude, coord.longitude];
   };
 
   const handleRouteSelect = (route: TrailRouteDetails) => {
@@ -370,7 +379,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
               window.map = L.map('map').setView([${defaultLat}, ${defaultLng}], 13);
               
               L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                  attribution: '© OpenStreetMap contributors'
+                  attribution: 'OpenStreetMap contributors'
               }).addTo(window.map);
               
               window.currentPolyline = null;
@@ -611,45 +620,12 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
       
       {/* Full-screen Map */}
       <View style={styles.mapContainer}>
-        <WebView
-          ref={setWebViewRef}
-          source={{ html: generateMapHTML() }}
-          style={styles.webView}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          onMessage={handleWebViewMessage}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('TrailMapFullScreen: WebView Error:', nativeEvent);
-            setError('Map failed to load. Please check your internet connection and try again.');
-          }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('TrailMapFullScreen: WebView HTTP Error:', nativeEvent);
-            setError('Network error while loading map. Please try again.');
-          }}
-          onRenderProcessGone={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('TrailMapFullScreen: WebView Render Process Gone:', nativeEvent);
-            setError('Map rendering failed. Please restart the app.');
-          }}
-          onLoad={() => {
-            try {
-              if (selectedRoute) {
-                setTimeout(() => {
-                  try {
-                    handleRouteSelect(selectedRoute);
-                  } catch (routeSelectError) {
-                    console.error('TrailMapFullScreen: Error in delayed route selection:', routeSelectError);
-                  }
-                }, 1000);
-              }
-            } catch (onLoadError) {
-              console.error('TrailMapFullScreen: Error in WebView onLoad:', onLoadError);
-            }
-          }}
-        />
+        <LeafletTrailMap hikingSpotId={hiking_spot_id} />
+      </View>
+
+      {/* Trail Routes Section */}
+      <View style={styles.routesSection}>
+        <TrailRoutesSection hikingSpotId={hiking_spot_id} />
       </View>
 
       {/* Top Navigation Bar */}
@@ -672,10 +648,10 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
         <Text style={styles.routesTitle}>Available Routes</Text>
         {trailRoutes.map((route, index) => (
           <TouchableOpacity
-            key={route.id}
+            key={route.route_id}
             style={[
               styles.routeItem,
-              selectedRoute?.id === route.id && styles.selectedRouteItem
+              selectedRoute?.route_id === route.route_id && styles.selectedRouteItem
             ]}
             onPress={() => handleRouteSelect(route)}
           >

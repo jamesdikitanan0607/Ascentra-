@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ImageCarousel } from '../../my-app/components/ImageCarousel';
 import { useTrail, normalizeTrailRoute } from '../../my-app/contexts/TrailContext';
 import { supabaseService } from '../../services/supabaseService';
+import LeafletTrailMap from '../../my-app/components/LeafletTrailMap';
+import TrailRoutesSection from '../../my-app/components/TrailRoutesSection';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -265,10 +267,8 @@ const HikingSpotTemplate: React.FC<HikingSpotTemplateProps> = ({ navigation, spo
       {/* Trail Map Section */}
       <View style={styles.mapSection}>
         <Text style={styles.sectionTitle}>Trail Map</Text>
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={48} color="#757575" />
-          <Text style={styles.mapPlaceholderText}>Interactive trail map coming soon</Text>
-        </View>
+        <LeafletTrailMap spotId={spotData.id} />
+        <TrailRoutesSection spotId={spotData.id} />
       </View>
 
       {/* Trail Routes Section */}
