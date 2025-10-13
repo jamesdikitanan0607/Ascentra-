@@ -23,13 +23,13 @@ import WeatherWidget from '../../components/WeatherWidget';
 import ReviewSystem from '../../components/ReviewSystem';
 import { HikingSpotHeader } from './components/HikingSpotHeader';
 import { TrailMapSection } from './components/TrailMapSection';
-import { TrailRoutesSection } from './components/TrailRoutesSection';
 import { AvailableTrailsSection } from './components/AvailableTrailsSection';
 import { TrailInfoSection } from './components/TrailInfoSection';
 import { FavoriteButton } from './components/FavoriteButton';
 import { useHikingSpotData } from './hooks/useHikingSpotData';
 import { TrailRoute } from '../../types';
 import LeafletTrailMap from '../../components/LeafletTrailMap';
+import TrailRoutesSlider from '../../components/TrailRoutesSlider';
 
 // Define a consistent color palette
 export const COLORS = {
@@ -64,6 +64,55 @@ interface HikingSpotLandingPageProps {
     };
   };
 }
+
+// Utility function to convert TrailRouteDetails to TrailRoute
+const toTrailRoute = (details: TrailRouteDetails): TrailRoute => ({
+  id: details.route_id,
+  route_name: details.route_name || 'Unnamed Route',
+  difficulty: details.difficulty_level === 'Easy' ? 'Easy' : 
+             details.difficulty_level === 'Moderate' ? 'Moderate' :
+             details.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
+  distance: details.distance_km || 0,
+  elevation_gain: details.elevation_gain_m || 0,
+  estimated_duration: Math.round((details.estimated_duration_hr || 0) * 60),
+  route_description: details.route_description || '',
+  highlights: details.highlights || '',
+  route_color: details.route_color || '#388E3C',
+  start_coordinates: details.start_coordinates || { latitude: 0, longitude: 0 },
+  end_coordinates: details.end_coordinates || { latitude: 0, longitude: 0 },
+  coordinates: details.geojson_path?.coordinates || [],
+  waypoints: details.waypoints || '',
+  created_at: details.created_at,
+  updated_at: details.updated_at
+});
+
+const toTrailRouteDetails = (route: TrailRoute): TrailRouteDetails => ({
+  route_id: route.id,
+  route_name: route.route_name,
+  difficulty_level: route.difficulty,
+  distance_km: route.distance,
+  elevation_gain_m: route.elevation_gain,
+  estimated_duration_hr: route.estimated_duration / 60,
+  route_description: route.route_description,
+  highlights: route.highlights,
+  route_color: route.route_color,
+  start_coordinates: route.start_coordinates,
+  end_coordinates: route.end_coordinates,
+  geojson_path: { coordinates: route.coordinates },
+  waypoints: route.waypoints,
+  created_at: route.created_at,
+  updated_at: route.updated_at,
+  hiking_spot_id: '', // Will be populated from context
+  is_featured: false,
+  is_public: true,
+  created_by: '',
+  updated_by: ''
+});
+
+const findTrailRouteDetails = (routes: TrailRouteDetails[], id: string): TrailRouteDetails | null => {
+  const found = routes.find(r => r.route_id === id);
+  return found || null;
+};
 
 export default function HikingSpotLandingPage({ navigation, route }: HikingSpotLandingPageProps) {
   // Add null checks for route.params
@@ -109,27 +158,25 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   } = useHikingSpotData(hiking_spot_id);
   
   // Transform DB routes (TrailRouteDetails) into UI routes (types.TrailRoute) for UI components
-  const uiRoutes: TrailRoute[] = Array.isArray(trailRoutes)
-    ? trailRoutes.map((r) => ({
-        id: r.route_id,
-        route_name: r.route_name || 'Unnamed Route',
-        difficulty: (r.difficulty || r.difficulty_level || 'Moderate') as TrailRoute['difficulty'],
-        distance: r.distance_km || 0,
-        elevation_gain: r.elevation_gain_m || 0,
-        estimated_duration: Math.round((r.estimated_duration_hr || 0) * 60),
-        route_description: r.route_description || '',
-        highlights: r.highlights || '',
-        route_color: r.route_color || '#388E3C',
-        start_coordinates: r.start_coordinates || { latitude: 0, longitude: 0 },
-        end_coordinates: r.end_coordinates || { latitude: 0, longitude: 0 },
-        coordinates: Array.isArray(r.route_coordinates)
-          ? r.route_coordinates.map((c: { longitude: number; latitude: number }) => [c.longitude, c.latitude] as [number, number])
-          : [],
-        waypoints: r.waypoints || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-      }))
-    : [];
+  const uiRoutes: TrailRoute[] = trailRoutes ? trailRoutes.map(r => ({
+    id: r.route_id,
+    route_name: r.route_name || 'Unnamed Route',
+    difficulty: r.difficulty_level === 'Easy' ? 'Easy' : 
+               r.difficulty_level === 'Moderate' ? 'Moderate' :
+               r.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
+    distance: r.distance_km || 0,
+    elevation_gain: r.elevation_gain_m || 0,
+    estimated_duration: Math.round((r.estimated_duration_hr || 0) * 60),
+    route_description: r.route_description || '',
+    highlights: r.highlights || '',
+    route_color: r.route_color || '#388E3C',
+    start_coordinates: r.start_coordinates || { latitude: 0, longitude: 0 },
+    end_coordinates: r.end_coordinates || { latitude: 0, longitude: 0 },
+    coordinates: r.geojson_path?.coordinates || [],
+    waypoints: r.waypoints || '',
+    created_at: r.created_at,
+    updated_at: r.updated_at
+  })) : [];
 
   // Set initial selected route when routes or selectedTrail changes
   useEffect(() => {
@@ -328,12 +375,14 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               />
             )}
             
-            {/* Trail Routes Section */}
-            <TrailRoutesSection 
-              trailRoutes={uiRoutes}
-              onTrailSelect={handleTrailSelect}
-              selectedTrailId={selectedRoute?.id || null}
-            />
+            {/* Trail Routes Slider */}
+            {trailRoutes && (
+              <TrailRoutesSlider 
+                routes={trailRoutes} 
+                selectedRoute={selectedRoute ? findTrailRouteDetails(trailRoutes, selectedRoute.id) : null}
+                onRouteSelect={(route: TrailRouteDetails) => handleTrailSelect(route.route_id)}
+              />
+            )}
 
             {/* Trail Information Section */}
             <TrailInfoSection 

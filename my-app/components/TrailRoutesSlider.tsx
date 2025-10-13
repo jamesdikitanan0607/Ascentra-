@@ -656,3 +656,5 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
 });
+
+export default TrailRoutesSlider;
