@@ -51,6 +51,11 @@ const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
 // Mapping function to convert spot IDs to individual screen names
 const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
   const screenMap: Record<string, string> = {
+    '78': 'MountKalbasaanScreen',   // Fixed: now opens correct landing page
+    '81': 'MountHambubuyogScreen',  // Fixed: no longer lands to Spartan Trail
+    '83': 'CasinoPeakScreen',       // Fixed: no longer lands to Osmena Peak
+    '85': 'SpartanTrailScreen',     // Confirmed correct
+    // Keep other mappings for backward compatibility
     '71': 'MountBabag',
     '72': 'MountKanirag', 
     '73': 'MountNaupa',
@@ -60,11 +65,8 @@ const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
     '77': 'MountLantoy',
     '79': 'MountMauyog',
     '80': 'MountLanaya',
-    '81': 'MountHambubuyog',
     '82': 'OsmenaPeak',
-    '83': 'CasinoPeak',
-    '84': 'BudlaanFalls',
-    '85': 'SpartanTrail'
+    '84': 'BudlaanFalls'
   };
   return (screenMap[spotId] || 'HikingSpotDetails') as keyof RootStackParamList;
 };

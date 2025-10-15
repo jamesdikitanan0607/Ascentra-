@@ -244,37 +244,38 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     ],
     imageSource: require('../assets/images/mount latoy/thumbnail.webp')
   },
-  // {
-  //   id: '78',
-  //   name: 'Mount Kalbasaan',
-  //   description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
-  //   difficulty: 'Moderate',
-  //   elevation: 640,
-  //   trail_length: 5.0,
-  //   estimated_duration: '2-3 hours',
-  //   latitude: 10.2789,
-  //   longitude: 123.8456,
-  //   rating: 4.0,
-  //   review_count: 43,
-  //   image_url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&h=600&fit=crop',
-  //   amenities: ['Quiet trails', 'Natural viewpoints', 'Pristine environment'],
-  //   best_season: ['Dry season', 'November to May'],
-  //   highlights: [
-  //     'Peaceful and quiet environment',
-  //     'Pristine natural beauty',
-  //     'Less crowded trails',
-  //     'Authentic hiking experience',
-  //     'Perfect for meditation'
-  //   ],
-  //   tips: [
-  //     'Ideal for solitude seekers',
-  //     'Inform others of your plans',
-  //     'Bring all necessary supplies',
-  //     'Respect the pristine environment',
-  //     'Leave no trace behind'
-  //   ],
-  //   imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
-  // }, // Removed - Mount Kalbasaan
+  {
+    id: '78',
+    hikingSpotId: '78',
+    name: 'Mount Kalbasaan',
+    description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
+    difficulty: 'Moderate',
+    elevation: 640,
+    trail_length: 5.0,
+    estimated_duration: '2-3 hours',
+    latitude: 10.2789,
+    longitude: 123.8456,
+    rating: 4.0,
+    review_count: 43,
+    image_url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&h=600&fit=crop',
+    amenities: ['Quiet trails', 'Natural viewpoints', 'Pristine environment'],
+    best_season: ['Dry season', 'November to May'],
+    highlights: [
+      'Peaceful and quiet environment',
+      'Pristine natural beauty',
+      'Less crowded trails',
+      'Authentic hiking experience',
+      'Perfect for meditation'
+    ],
+    tips: [
+      'Ideal for solitude seekers',
+      'Inform others of your plans',
+      'Bring all necessary supplies',
+      'Respect the pristine environment',
+      'Leave no trace behind'
+    ],
+    imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
+  },
   {
     id: '79',
     hikingSpotId: '79',
