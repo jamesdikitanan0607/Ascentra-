@@ -49,32 +49,48 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
 
 // Mapping function to convert spot IDs to individual screen names
-const getSpotScreenName = (spotId: string): keyof RootStackParamList => {
-  const screenMap: Record<string, string> = {
-    '78': 'MountKalbasaanScreen',   // Fixed: now opens correct landing page
-    '81': 'MountHambubuyogScreen',  // Fixed: no longer lands to Spartan Trail
-    '83': 'CasinoPeakScreen',       // Fixed: no longer lands to Osmena Peak
-    '85': 'SpartanTrailScreen',     // Confirmed correct
+const getSpotScreenName = (spotId: number): keyof RootStackParamList => {
+  switch (spotId) {
+    case 78:
+      return 'MountKalbasaanScreen';
+    case 81:
+      return 'MountHambubuyogScreen';
+    case 83:
+      return 'CasinoPeakScreen';
+    case 85:
+      return 'SpartanTrailScreen';
     // Keep other mappings for backward compatibility
-    '71': 'MountBabag',
-    '72': 'MountKanirag', 
-    '73': 'MountNaupa',
-    '74': 'MountManunggal',
-    '75': 'MountMago',
-    '76': 'MountKapayas',
-    '77': 'MountLantoy',
-    '79': 'MountMauyog',
-    '80': 'MountLanaya',
-    '82': 'OsmenaPeak',
-    '84': 'BudlaanFalls'
-  };
-  return (screenMap[spotId] || 'HikingSpotDetails') as keyof RootStackParamList;
+    case 71:
+      return 'MountBabag';
+    case 72:
+      return 'MountKanirag';
+    case 73:
+      return 'MountNaupa';
+    case 74:
+      return 'MountManunggal';
+    case 75:
+      return 'MountMago';
+    case 76:
+      return 'MountKapayas';
+    case 77:
+      return 'MountLantoy';
+    case 79:
+      return 'MountMauyog';
+    case 80:
+      return 'MountLanaya';
+    case 82:
+      return 'OsmenaPeak';
+    case 84:
+      return 'BudlaanFalls';
+    default:
+      return 'HikingSpotDetails';
+  }
 };
 
 // Top Rated Card Component
 const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
-    const screenName = getSpotScreenName(spot.id.toString());
+    const screenName = getSpotScreenName(parseInt(spot.id));
     if (screenName === 'HikingSpotDetails') {
       // Pass the spot object for the generic details screen
       navigation.navigate(screenName, { spot });
@@ -108,7 +124,7 @@ const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navig
 // Hiking Spot Grid Card Component
 const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
   const handlePress = useCallback(() => {
-    const screenName = getSpotScreenName(spot.id.toString());
+    const screenName = getSpotScreenName(parseInt(spot.id));
     if (screenName === 'HikingSpotDetails') {
       // Pass the spot object for the generic details screen
       navigation.navigate(screenName, { spot });
