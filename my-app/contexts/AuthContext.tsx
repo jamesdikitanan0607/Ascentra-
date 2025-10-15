@@ -49,14 +49,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData,
-      },
-    });
-    return { error };
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: userData,
+          emailRedirectTo: 'app.ascentra://login-callback', // Deep link for mobile or use your website URL
+        },
+      });
+
+      // Log the full response for debugging
+      console.log('Signup response:', { data, error });
+
+      if (error) {
+        console.error('Signup error:', error);
+        return { error };
+      }
+
+      // Check if email confirmation is required
+      if (data.user && !data.user.email_confirmed_at) {
+        console.log('Email confirmation required');
+        return { 
+          data,
+          error: null, 
+          requiresConfirmation: true
+        };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Unexpected error during signup:', error);
+      return { 
+        error: error instanceof Error ? error : new Error('An unexpected error occurred') 
+      };
+    }
   };
 
   const signOut = async () => {

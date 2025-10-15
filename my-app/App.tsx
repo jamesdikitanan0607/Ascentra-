@@ -47,11 +47,12 @@ export type RootStackParamList = {
   MountLantoy: undefined;
   MountMauyog: undefined;
   MountLanaya: undefined;
-  MountHambubuyog: undefined;
+  MountHambubuyogScreen: undefined;  // Updated to match getSpotScreenName
+  MountKalbasaanScreen: undefined;   // Updated to match getSpotScreenName
   OsmenaPeak: undefined;
-  CasinoPeak: undefined;
+  CasinoPeakScreen: undefined;       // Updated to match getSpotScreenName
   BudlaanFalls: undefined;
-  SpartanTrail: undefined;
+  SpartanTrailScreen: undefined;     // Updated to match getSpotScreenName
 };
 
 // Import screens
@@ -97,6 +98,7 @@ const MountHambubuyogScreen = createLazyComponent(() => import('./screens/spots/
 const OsmenaPeakScreen = createLazyComponent(() => import('./screens/spots/OsmenaPeakScreen'));
 const CasinoPeakScreen = createLazyComponent(() => import('./screens/spots/CasinoPeakScreen'));
 const BudlaanFallsScreen = createLazyComponent(() => import('./screens/spots/BudlaanFallsScreen'));
+const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen'));
 const SpartanTrailScreen = createLazyComponent(() => import('./screens/spots/SpartanTrailScreen'));
 
 import HikingSpotLandingPage from './screens/spots/HikingSpotLandingPage';
@@ -248,11 +250,12 @@ function AppContent(): JSX.Element {
             <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountHambubuyog" component={MountHambubuyogScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountHambubuyogScreen" component={MountHambubuyogScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountKalbasaanScreen" component={MountKalbasaanScreen} options={{ headerShown: false }} />
             <Stack.Screen name="OsmenaPeak" component={OsmenaPeakScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="CasinoPeak" component={CasinoPeakScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CasinoPeakScreen" component={CasinoPeakScreen} options={{ headerShown: false }} />
             <Stack.Screen name="BudlaanFalls" component={BudlaanFallsScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="SpartanTrail" component={SpartanTrailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="SpartanTrailScreen" component={SpartanTrailScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
