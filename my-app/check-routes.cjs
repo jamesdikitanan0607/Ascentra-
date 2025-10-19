@@ -29,7 +29,7 @@ async function checkTrailRoutes() {
       52: 'Mount Lanaya (Alegria, Cebu)',
       53: 'Mount Lantoy (Argao, Cebu)', 
       54: 'Mount Kapayas (Catmon, Cebu)',
-      55: 'Mount Hambubuyog (Ginatilan, Cebu)',
+      55: 'Lugsangan Peak (Ginatilan, Cebu)',
       56: 'Mount Mauyog (Balamban, Cebu)'
     };
     

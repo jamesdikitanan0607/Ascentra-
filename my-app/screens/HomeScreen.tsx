@@ -51,15 +51,17 @@ const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
 // Mapping function to convert spot IDs to individual screen names
 const getSpotScreenName = (spotId: number): keyof RootStackParamList => {
   switch (spotId) {
+    // Explicit mappings used by current home data set
     case 78:
       return 'MountKalbasaanScreen';
     case 81:
-      return 'MountHambubuyogScreen';
+      return 'LugsanganPeakScreen';
     case 83:
       return 'CasinoPeakScreen';
     case 85:
       return 'SpartanTrailScreen';
-    // Keep other mappings for backward compatibility
+
+    // Core canonical IDs used elsewhere
     case 71:
       return 'MountBabag';
     case 72:
@@ -81,7 +83,9 @@ const getSpotScreenName = (spotId: number): keyof RootStackParamList => {
     case 82:
       return 'OsmenaPeak';
     case 84:
-      return 'BudlaanFalls';
+      return 'MountTagaytayScreen';
+    case 94:
+      return 'LugsanganPeakScreen';
     default:
       return 'HikingSpotDetails';
   }

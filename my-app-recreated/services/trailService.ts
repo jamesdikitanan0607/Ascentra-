@@ -157,7 +157,7 @@ const MOCK_TRAIL_DATA: TrailWithSpot[] = [
     duration_hr: 0.21,
     highlights: "Short steady climb to viewpoint tower, city skyline views."
   },
-  // Mount Kan-irag / Sirao Peak trails
+  // Mount Kan-irag trails
   {
     id: 1003,
     route_id: 1003,

@@ -91,6 +91,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   const [selectedUiRoute, setSelectedUiRoute] = useState<TrailRoute | null>(null);
   const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
   const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
+  const [effectiveSpotId, setEffectiveSpotId] = useState<string>((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id);
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
@@ -109,14 +110,32 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     setTrailRoutesLoading(true);
     setTrailRoutesError(null);
     try {
-      const response = await getTrailRoutesBySpotId(spotData.id.toString());
+      const initialId = ((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id).toString();
+      const response = await getTrailRoutesBySpotId(initialId);
       console.log('API Response:', JSON.stringify(response, null, 2));
       
-      const routes = (response.data || []) as TrailRouteDetails[];
+      let routes = (response.data || []) as TrailRouteDetails[];
       console.log('Fetched routes:', routes);
       
-      setTrailRoutes(routes);
-      if (routes.length > 0) {
+      if (!routes || routes.length === 0) {
+        try {
+          const { data: spotLookup, error: spotErr } = await supabase
+            .from('hiking_spots')
+            .select('hiking_spot_id,name')
+            .ilike('name', `%${spotData.name}%`)
+            .limit(1);
+          if (!spotErr && Array.isArray(spotLookup) && spotLookup.length > 0 && spotLookup[0]?.hiking_spot_id) {
+            const resolvedId = String(spotLookup[0].hiking_spot_id);
+            setEffectiveSpotId(resolvedId);
+            const retry = await getTrailRoutesBySpotId(resolvedId);
+            routes = (retry.data || []) as TrailRouteDetails[];
+          }
+        } catch (e) {
+        }
+      }
+
+      setTrailRoutes(routes || []);
+      if (routes && routes.length > 0) {
         console.log('Setting selected route to first route:', routes[0]);
         setSelectedRoute(routes[0]);
       } else {
@@ -436,22 +455,15 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                   </TouchableOpacity>
                 </View>
               ) : trailRoutes.length > 0 ? (
-                <TrailMap
-                  routes={trailRoutes}
-                  selectedRoute={selectedRoute}
-                  onRouteSelect={setSelectedRoute}
+                <LeafletTrailMap
+                  selectedHikingSpotId={effectiveSpotId}
+                  selectedTrailId={selectedRoute?.route_id?.toString()}
                   onTrailSelect={(trailId) => {
-                    const route = trailRoutes.find(r => r.route_id === Number(trailId));
+                    const route = trailRoutes.find(r => r.route_id === trailId);
                     if (route) {
                       setSelectedRoute(route);
                     }
                   }}
-                  centerCoordinates={{
-                    latitude: spotData.latitude,
-                    longitude: spotData.longitude,
-                  }}
-                  hikingSpotId={spotData.hiking_spot_id || spotData.id}
-                  selectedTrailId={selectedRoute?.route_id?.toString()}
                   showFullscreenButton={true}
                 />
               ) : (
@@ -511,9 +523,6 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
 
           {/* Trail Routes Section (slider) */}
           <View style={styles.section}>
-            <Text style={{color: 'red', marginBottom: 10}}>
-              Debug: {uiRoutes.length} routes, selected: {selectedUiRoute?.id || 'none'}
-            </Text>
             {trailRoutesLoading ? (
               <View style={{padding: 20, alignItems: 'center'}}>
                 <ActivityIndicator size="large" color={COLORS.primary} />

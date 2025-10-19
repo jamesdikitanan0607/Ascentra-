@@ -102,11 +102,7 @@ const toTrailRouteDetails = (route: TrailRoute): TrailRouteDetails => ({
   waypoints: route.waypoints,
   created_at: route.created_at,
   updated_at: route.updated_at,
-  hiking_spot_id: '', // Will be populated from context
-  is_featured: false,
-  is_public: true,
-  created_by: '',
-  updated_by: ''
+  hiking_spot_id: '' // Will be populated from context if needed elsewhere
 });
 
 const findTrailRouteDetails = (routes: TrailRouteDetails[], id: string): TrailRouteDetails | null => {
@@ -356,7 +352,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           <View style={styles.contentContainer}>
             {/* Available Trails Section */}
             <AvailableTrailsSection
-              trailRoutes={trailRoutes}
+              trailRoutes={uiRoutes}
               selectedTrailId={selectedTrail?.id}
               onSelectTrail={(trail) => {
                 handleTrailSelect(trail.id);
@@ -369,7 +365,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               <TrailMapSection
                 hikingSpotId={hiking_spot_id}
                 selectedTrailId={selectedTrail?.id}
-                trailRoutes={trailRoutes}
+                trailRoutes={uiRoutes}
                 onTrailSelect={handleTrailSelect}
                 onFullscreenPress={handleFullscreenMap}
               />

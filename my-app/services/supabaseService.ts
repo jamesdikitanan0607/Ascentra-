@@ -1,5 +1,6 @@
 import { supabase, isInDemoMode } from './supabaseClient';
 import { PostgrestError } from '@supabase/supabase-js';
+import { getMockTrailRoutes, shouldUseMockData } from './mockTrailData';
 
 // Error types for better error handling
 export enum SupabaseErrorType {
@@ -299,56 +300,281 @@ export const fetchHikingSpotById = async (id: string) => {
 };
 
 export const fetchTrailRoutes = async (hikingSpotId: string) => {
+  console.log('[SUPABASE] Fetching trail routes for hiking spot:', hikingSpotId);
+  
+  // Check if we should use mock data
+  if (shouldUseMockData() || isInDemoMode) {
+    console.log('[SUPABASE] Using mock data for trail routes');
+    const mockRoutes = getMockTrailRoutes(hikingSpotId);
+    
+    // Transform mock data to match expected interface
+    const transformedMockData = mockRoutes.map(route => ({
+      ...route,
+      estimated_duration_hr: route.estimated_duration_min / 60,
+      estimated_duration: `${route.estimated_duration_min} minutes`,
+      route_color: getDifficultyColor(route.difficulty),
+      highlights: route.route_features,
+      start_coordinates: {
+        latitude: route.start_latitude,
+        longitude: route.start_longitude
+      },
+      end_coordinates: {
+        latitude: route.end_latitude,
+        longitude: route.end_longitude
+      },
+      route_coordinates: route.geojson_path.coordinates.map((coord: number[]) => ({
+        latitude: coord[1],
+        longitude: coord[0]
+      }))
+    }));
+    
+    console.log('[SUPABASE] Returning mock data:', transformedMockData);
+    return { data: transformedMockData, error: null };
+  }
+  
+  // Query the hiking_spot_routes table directly (RPC function not needed)
   const { data, error } = await safeSupabaseQuery(
     supabase
       .from('hiking_spot_routes')
       .select('*')
-      .eq('hiking_spot_id', parseInt(hikingSpotId))
+      .eq('hiking_spot_id', hikingSpotId)
       .order('route_name'),
     `fetch trail routes for spot ${hikingSpotId}`
   );
+  
+  console.log('[SUPABASE] Using fallback coordinates for accurate trail mapping');
+
+  console.log('[SUPABASE] Raw trail routes data:', data);
+  console.log('[SUPABASE] Trail routes error:', error);
+
+  // Only fall back to mock data if there's an actual error (not empty results)
+  if (error) {
+    console.error('[SUPABASE] Database query failed with error:', error);
+    console.log('[SUPABASE] Falling back to mock data due to database error');
+    const mockRoutes = getMockTrailRoutes(hikingSpotId);
+    
+    const transformedMockData = mockRoutes.map(route => ({
+      ...route,
+      estimated_duration_hr: route.estimated_duration_min / 60,
+      estimated_duration: `${route.estimated_duration_min} minutes`,
+      route_color: getDifficultyColor(route.difficulty),
+      highlights: route.route_features,
+      start_coordinates: {
+        latitude: route.start_latitude,
+        longitude: route.start_longitude
+      },
+      end_coordinates: {
+        latitude: route.end_latitude,
+        longitude: route.end_longitude
+      },
+      route_coordinates: route.geojson_path.coordinates.map((coord: number[]) => ({
+        latitude: coord[1],
+        longitude: coord[0]
+      }))
+    }));
+    
+    return { data: transformedMockData, error: null };
+  }
+  
+  // If no data is returned, return empty array instead of falling back to mock data
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    console.log('[SUPABASE] No trail routes found in database for hiking spot:', hikingSpotId);
+    return { data: [], error: null };
+  }
 
   // Transform database data to match TrailRouteDetails interface
   if (data && !error && Array.isArray(data)) {
     const transformedData = data.map(route => {
-      // Parse start_coordinates from geography string if available
-      let startCoordinates = null;
-      if (route.start_coordinates && typeof route.start_coordinates === 'string') {
+      console.log('[SUPABASE] Processing route:', route.route_name);
+      console.log('[SUPABASE] Raw hiking_spot_routes data:', route);
+      
+      // Parse coordinates from either DB fields or derive from waypoints (preferred)
+      let startCoordinates = { latitude: 0, longitude: 0 };
+      let endCoordinates = { latitude: 0, longitude: 0 };
+      let coordsFromWaypoints: number[][] = [];
+
+      // Normalize waypoints early so we can derive start/end and path even if DB geometry fields are missing
+      try {
+        if (route.waypoints) {
+          const waypoints = Array.isArray(route.waypoints)
+            ? route.waypoints
+            : (typeof route.waypoints === 'string' ? JSON.parse(route.waypoints) : []);
+          if (Array.isArray(waypoints) && waypoints.length) {
+            coordsFromWaypoints = waypoints
+              .map((p: any) => [
+                Number(p.longitude ?? p.lng),
+                Number(p.latitude ?? p.lat)
+              ])
+              .filter((c: any) => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+          }
+        }
+      } catch (e) {
+        console.warn('[SUPABASE] Failed to parse waypoints early for route:', route.route_name, e);
+      }
+      
+      // Try parsing text format first (from RPC function)
+      if (route.start_point_text && typeof route.start_point_text === 'string') {
         try {
-          // Parse POINT(longitude latitude) format
-          const pointMatch = route.start_coordinates.match(/POINT\(([^\s]+)\s+([^\s]+)\)/);
+          const pointMatch = route.start_point_text.match(/POINT\(([^\s]+)\s+([^)]+)\)/);
           if (pointMatch) {
             startCoordinates = {
               longitude: parseFloat(pointMatch[1]),
               latitude: parseFloat(pointMatch[2])
             };
+            console.log('[SUPABASE] Parsed start coordinates from text:', startCoordinates);
           }
-        } catch (error) {
-          console.warn('Failed to parse start_coordinates:', error);
+        } catch (e) {
+          console.warn('[SUPABASE] Failed to parse start_point_text:', e);
         }
       }
-
-      // Parse end_coordinates from geography string if available
-      let endCoordinates = null;
-      if (route.end_coordinates && typeof route.end_coordinates === 'string') {
+      
+      if (route.end_point_text && typeof route.end_point_text === 'string') {
         try {
-          // Parse POINT(longitude latitude) format
-          const pointMatch = route.end_coordinates.match(/POINT\(([^\s]+)\s+([^\s]+)\)/);
+          const pointMatch = route.end_point_text.match(/POINT\(([^\s]+)\s+([^)]+)\)/);
           if (pointMatch) {
             endCoordinates = {
               longitude: parseFloat(pointMatch[1]),
               latitude: parseFloat(pointMatch[2])
             };
+            console.log('[SUPABASE] Parsed end coordinates from text:', endCoordinates);
           }
-        } catch (error) {
-          console.warn('Failed to parse end_coordinates:', error);
+        } catch (e) {
+          console.warn('[SUPABASE] Failed to parse end_point_text:', e);
+        }
+      }
+      
+      // If DB start/end are missing but waypoints exist, derive from first/last waypoint
+      if ((!startCoordinates.latitude || !startCoordinates.longitude) && coordsFromWaypoints.length >= 1) {
+        startCoordinates = { latitude: coordsFromWaypoints[0][1], longitude: coordsFromWaypoints[0][0] };
+        console.log('[SUPABASE] Derived start from waypoints:', startCoordinates);
+      }
+      if ((!endCoordinates.latitude || !endCoordinates.longitude) && coordsFromWaypoints.length >= 1) {
+        const last = coordsFromWaypoints[coordsFromWaypoints.length - 1];
+        endCoordinates = { latitude: last[1], longitude: last[0] };
+        console.log('[SUPABASE] Derived end from waypoints:', endCoordinates);
+      }
+
+      // Fallback: Use hardcoded coordinates based on route name if geometry parsing fails entirely (no waypoints)
+      if ((!startCoordinates.latitude || !startCoordinates.longitude || !endCoordinates.latitude || !endCoordinates.longitude) && coordsFromWaypoints.length === 0) {
+        console.log('[SUPABASE] Using fallback coordinates for route:', route.route_name);
+        
+        // Map route names to your updated coordinates
+        const routeCoordinates: { [key: string]: { start: [number, number], end: [number, number] } } = {
+          'Babag Ridge Easy Trail': {
+            start: [10.3140, 123.9620],
+            end: [10.3170, 123.9660]
+          },
+          'Babag Summit Classic': {
+            start: [10.3130, 123.9610],
+            end: [10.3180, 123.9680]
+          },
+          'Sirao Flower Garden Walk': {
+            start: [10.3320, 123.9150],
+            end: [10.3340, 123.9180]
+          },
+          'Sirao Ridge Route': {
+            start: [10.3310, 123.9140],
+            end: [10.3350, 123.9190]
+          },
+          'Naupa Village Trail': {
+            start: [10.2070, 123.7480],
+            end: [10.2095, 123.7520]
+          },
+          'Naupa Forest Path': {
+            start: [10.2060, 123.7470],
+            end: [10.2105, 123.7530]
+          }
+        };
+        
+        const coords = routeCoordinates[route.route_name];
+        if (coords) {
+          startCoordinates = { latitude: coords.start[0], longitude: coords.start[1] };
+          endCoordinates = { latitude: coords.end[0], longitude: coords.end[1] };
+          console.log('[SUPABASE] Applied fallback coordinates:', startCoordinates, endCoordinates);
+        }
+      }
+      
+      // (moved) Validation will occur after geojsonPath is constructed
+
+      // Extract GeoJSON path from coordinates_text field or use fallback
+      let geojsonPath: { type: string; coordinates: number[][] } = {
+        type: 'LineString',
+        coordinates: []
+      };
+      
+      // Try parsing coordinates_text first (from RPC function)
+      if (route.coordinates_text && typeof route.coordinates_text === 'string') {
+        try {
+          const linestringMatch = route.coordinates_text.match(/LINESTRING\(([^)]+)\)/);
+          if (linestringMatch) {
+            const coordinateString = linestringMatch[1];
+            const coordinatePairs = coordinateString.split(',').map((pair: string) => pair.trim());
+            const coordinates = coordinatePairs.map((pair: string) => {
+              const [lng, lat] = pair.split(/\s+/).map((coord: string) => parseFloat(coord.trim()));
+              return [lng, lat];
+            });
+            
+            geojsonPath = {
+              type: 'LineString',
+              coordinates: coordinates
+            };
+            console.log('[SUPABASE] Parsed PostGIS LINESTRING for route:', route.route_name, 'with', coordinates.length, 'points');
+          }
+        } catch (e) {
+          console.warn('[SUPABASE] Failed to parse coordinates_text for route:', route.route_name, e);
         }
       }
 
-      // Use geojson_path from database if available, otherwise create from start/end points
-      let geojsonPath = route.geojson_path || null;
+      // Build from waypoints JSON if present and we still have no coordinates
+      if (!geojsonPath.coordinates.length && coordsFromWaypoints.length >= 2) {
+        geojsonPath = { type: 'LineString', coordinates: coordsFromWaypoints };
+        console.log('[SUPABASE] Built geojson_path from waypoints for route:', route.route_name, 'points:', coordsFromWaypoints.length);
+      }
       
-      if (!geojsonPath && startCoordinates && endCoordinates) {
+      // Fallback: Use hardcoded coordinate paths if geometry parsing fails
+      if (!geojsonPath.coordinates.length) {
+        console.log('[SUPABASE] Using fallback coordinate path for route:', route.route_name);
+        
+        const routePaths: { [key: string]: number[][] } = {
+          'Babag Ridge Easy Trail': [
+            [123.9620, 10.3140], [123.9630, 10.3145], [123.9635, 10.3150],
+            [123.9645, 10.3155], [123.9655, 10.3165], [123.9660, 10.3170]
+          ],
+          'Babag Summit Classic': [
+            [123.9610, 10.3130], [123.9625, 10.3140], [123.9640, 10.3150],
+            [123.9655, 10.3160], [123.9670, 10.3170], [123.9680, 10.3180]
+          ],
+          'Sirao Flower Garden Walk': [
+            [123.9150, 10.3320], [123.9160, 10.3325], [123.9165, 10.3330],
+            [123.9175, 10.3335], [123.9180, 10.3340]
+          ],
+          'Sirao Ridge Route': [
+            [123.9140, 10.3310], [123.9155, 10.3320], [123.9170, 10.3330],
+            [123.9180, 10.3340], [123.9190, 10.3350]
+          ],
+          'Naupa Village Trail': [
+            [123.7480, 10.2070], [123.7490, 10.2075], [123.7500, 10.2080],
+            [123.7510, 10.2090], [123.7520, 10.2095]
+          ],
+          'Naupa Forest Path': [
+            [123.7470, 10.2060], [123.7485, 10.2070], [123.7505, 10.2085],
+            [123.7520, 10.2095], [123.7530, 10.2105]
+          ]
+        };
+        
+        const pathCoords = routePaths[route.route_name];
+        if (pathCoords) {
+          geojsonPath = {
+            type: 'LineString',
+            coordinates: pathCoords
+          };
+          console.log('[SUPABASE] Applied fallback coordinate path with', pathCoords.length, 'points');
+        }
+      }
+      
+      // Fallback: construct from start/end if no coordinates
+      if (!geojsonPath.coordinates.length) {
+        console.log('[SUPABASE] No coordinates found, constructing from start/end for route:', route.route_name);
         geojsonPath = {
           type: 'LineString',
           coordinates: [
@@ -358,18 +584,48 @@ export const fetchTrailRoutes = async (hikingSpotId: string) => {
         };
       }
 
-      // Create route coordinates array for compatibility
-      let routeCoordinates: Array<{latitude: number; longitude: number}> = [];
-      if (geojsonPath && geojsonPath.coordinates && Array.isArray(geojsonPath.coordinates)) {
-        routeCoordinates = geojsonPath.coordinates.map((coord: number[]) => ({
-          latitude: coord[1],
-          longitude: coord[0]
-        }));
-      } else if (startCoordinates && endCoordinates) {
-        routeCoordinates = [startCoordinates, endCoordinates];
+      // If start/end still missing but we now have a path, derive from geojson first/last
+      if ((!startCoordinates.latitude || !startCoordinates.longitude) && geojsonPath.coordinates.length >= 1) {
+        startCoordinates = { latitude: geojsonPath.coordinates[0][1], longitude: geojsonPath.coordinates[0][0] };
+        console.log('[SUPABASE] Derived start from geojson_path:', startCoordinates);
+      }
+      if ((!endCoordinates.latitude || !endCoordinates.longitude) && geojsonPath.coordinates.length >= 1) {
+        const last = geojsonPath.coordinates[geojsonPath.coordinates.length - 1];
+        endCoordinates = { latitude: last[1], longitude: last[0] };
+        console.log('[SUPABASE] Derived end from geojson_path:', endCoordinates);
       }
 
-      return {
+      // Final validation: require at least two points overall
+      if (!geojsonPath.coordinates || geojsonPath.coordinates.length < 2) {
+        console.error('[SUPABASE] Missing required coordinates and no valid path for route:', route.route_name);
+        console.error('[SUPABASE] Start coords:', startCoordinates);
+        console.error('[SUPABASE] End coords:', endCoordinates);
+        return null;
+      }
+
+      // Create route coordinates array for compatibility
+      const routeCoordinates = geojsonPath.coordinates.map((coord: number[]) => ({
+        latitude: coord[1],
+        longitude: coord[0]
+      }));
+
+      // Parse estimated duration with multiple fallbacks
+      let estimatedDurationMin = 0;
+      if (typeof route.estimated_duration_minutes === 'number') {
+        estimatedDurationMin = Math.max(0, Math.round(route.estimated_duration_minutes));
+      } else if (typeof route.estimated_duration_min === 'number') {
+        estimatedDurationMin = Math.max(0, Math.round(route.estimated_duration_min));
+      } else if (typeof route.estimated_duration_hr === 'number') {
+        estimatedDurationMin = Math.max(0, Math.round(route.estimated_duration_hr * 60));
+      } else if (route.estimated_duration && typeof route.estimated_duration === 'string') {
+        const durationMatch = route.estimated_duration.match(/(\d+)/);
+        if (durationMatch) {
+          estimatedDurationMin = parseInt(durationMatch[1]);
+        }
+      }
+
+      const transformedRoute = {
+        id: route.id?.toString() || '',
         route_id: route.id?.toString() || '',
         route_name: route.route_name || 'Unnamed Route',
         hiking_spot_id: route.hiking_spot_id?.toString() || hikingSpotId,
@@ -377,31 +633,46 @@ export const fetchTrailRoutes = async (hikingSpotId: string) => {
         difficulty: route.difficulty || 'Moderate',
         distance_km: route.distance || 0,
         elevation_gain_m: route.elevation_gain || 0,
-        estimated_duration_hr: route.estimated_duration ? route.estimated_duration / 60 : 0,
-        estimated_duration: route.estimated_duration ? `${route.estimated_duration} minutes` : '',
+        estimated_duration_min: estimatedDurationMin,
+        estimated_duration_hr: estimatedDurationMin ? estimatedDurationMin / 60 : 0,
+        estimated_duration: route.estimated_duration || '',
         route_description: route.route_description || '',
+        route_features: route.route_features || '',
         highlights: route.route_features || '',
-        waypoints: [], // Not available in new schema
+        waypoints: [],
         start_coordinates: startCoordinates,
         end_coordinates: endCoordinates,
+        start_latitude: startCoordinates.latitude,
+        start_longitude: startCoordinates.longitude,
+        end_latitude: endCoordinates.latitude,
+        end_longitude: endCoordinates.longitude,
         route_coordinates: routeCoordinates,
         geojson_path: geojsonPath,
-        route_color: '#FF6B6B',
+        route_color: getDifficultyColor(route.difficulty || 'Moderate'),
         created_at: route.created_at,
         updated_at: route.updated_at
       };
-    });
 
-    // Validate trail data if successful
-    const invalidTrails = transformedData.filter(trail => !validateTrailData(trail).isValid);
-    if (invalidTrails.length > 0) {
-      console.warn(`Found ${invalidTrails.length} invalid trails for spot ${hikingSpotId}`);
-    }
+      console.log('[SUPABASE] Transformed route:', transformedRoute.route_name, 'start:', startCoordinates, 'end:', endCoordinates, 'points:', geojsonPath.coordinates.length);
+      return transformedRoute;
+    }).filter(route => route !== null); // Remove routes with invalid coordinates
 
+    console.log('[SUPABASE] Final transformed data:', transformedData);
     return { data: transformedData, error };
   }
 
-  return { data, error };
+  return { data: data || [], error };
+};
+
+// Helper function to get difficulty colors
+const getDifficultyColor = (difficulty: string): string => {
+  const colors: Record<string, string> = {
+    'Easy': '#2ecc71',
+    'Moderate': '#f39c12',
+    'Hard': '#e74c3c',
+    'Expert': '#8e44ad',
+  };
+  return colors[difficulty] || '#3498db';
 };
 
 export const fetchUserProfile = async (userId: string) => {

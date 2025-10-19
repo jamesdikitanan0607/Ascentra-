@@ -27,6 +27,8 @@ export type RootStackParamList = {
   Favorites: undefined;
   HikingSpotDetails: { spot: any };
   HikingSpotLandingPage: { hiking_spot_id: string };
+  HikingTrailDetails: { hikingSpot: any };
+  TestHikingTrailDetails: undefined;
   TrailMapFullScreen: { hiking_spot_id: string; spotName: string };
   ActivityDetails: { activity: any };
   Tracking: undefined;
@@ -47,12 +49,12 @@ export type RootStackParamList = {
   MountLantoy: undefined;
   MountMauyog: undefined;
   MountLanaya: undefined;
-  MountHambubuyogScreen: undefined;  // Updated to match getSpotScreenName
-  MountKalbasaanScreen: undefined;   // Updated to match getSpotScreenName
+  LugsanganPeakScreen: undefined;   // Renamed from MountHambubuyogScreen
+  MountKalbasaanScreen: undefined;
   OsmenaPeak: undefined;
-  CasinoPeakScreen: undefined;       // Updated to match getSpotScreenName
-  BudlaanFalls: undefined;
-  SpartanTrailScreen: undefined;     // Updated to match getSpotScreenName
+  CasinoPeakScreen: undefined;
+  MountTagaytayScreen: undefined;
+  SpartanTrailScreen: undefined;
 };
 
 // Import screens
@@ -67,6 +69,8 @@ import { createLazyComponent } from './utils/performanceOptimizer';
 // Lazy load heavy screens for better performance
 const HistoryScreen = createLazyComponent(() => import('./screens/HistoryScreen'));
 const HikingSpotDetailsScreen = createLazyComponent(() => import('./screens/HikingSpotDetailsScreen'));
+const HikingTrailDetailsScreen = createLazyComponent(() => import('./screens/HikingTrailDetailsScreen'));
+const TestHikingTrailDetailsScreen = createLazyComponent(() => import('./screens/TestHikingTrailDetailsScreen'));
 const ActivityDetailsScreen = createLazyComponent(() => import('./screens/ActivityDetailsScreen'));
 const TrackScreen = createLazyComponent(() => import('./screens/TrackScreen'));
 const TrackingScreen = createLazyComponent(() => import('./screens/TrackingScreen'));
@@ -94,11 +98,11 @@ const MountKapayasScreen = createLazyComponent(() => import('./screens/spots/Mou
 const MountLantoyScreen = createLazyComponent(() => import('./screens/spots/MountLantoyScreen'));
 const MountMauyogScreen = createLazyComponent(() => import('./screens/spots/MountMauyogScreen'));
 const MountLanayaScreen = createLazyComponent(() => import('./screens/spots/MountLanayaScreen'));
-const MountHambubuyogScreen = createLazyComponent(() => import('./screens/spots/MountHambubuyogScreen'));
+const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen'));
+const LugsanganPeakScreen = createLazyComponent(() => import('./screens/spots/LugsanganPeakScreen'));
 const OsmenaPeakScreen = createLazyComponent(() => import('./screens/spots/OsmenaPeakScreen'));
 const CasinoPeakScreen = createLazyComponent(() => import('./screens/spots/CasinoPeakScreen'));
-const BudlaanFallsScreen = createLazyComponent(() => import('./screens/spots/BudlaanFallsScreen'));
-const MountKalbasaanScreen = createLazyComponent(() => import('./screens/spots/MountKalbasaanScreen'));
+const MountTagaytayScreen = createLazyComponent(() => import('./screens/spots/MountTagaytayScreen'));
 const SpartanTrailScreen = createLazyComponent(() => import('./screens/spots/SpartanTrailScreen'));
 
 import HikingSpotLandingPage from './screens/spots/HikingSpotLandingPage';
@@ -209,6 +213,16 @@ function AppContent(): JSX.Element {
               options={{ headerShown: false }}
             />
             <Stack.Screen 
+              name="HikingTrailDetails" 
+              component={HikingTrailDetailsScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="TestHikingTrailDetails" 
+              component={TestHikingTrailDetailsScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
               name="TrailMapFullScreen" 
               component={TrailMapFullScreen} 
               options={{ headerShown: false }}
@@ -250,11 +264,11 @@ function AppContent(): JSX.Element {
             <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountHambubuyogScreen" component={MountHambubuyogScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="LugsanganPeakScreen" component={LugsanganPeakScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MountKalbasaanScreen" component={MountKalbasaanScreen} options={{ headerShown: false }} />
             <Stack.Screen name="OsmenaPeak" component={OsmenaPeakScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CasinoPeakScreen" component={CasinoPeakScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="BudlaanFalls" component={BudlaanFallsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MountTagaytayScreen" component={MountTagaytayScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SpartanTrailScreen" component={SpartanTrailScreen} options={{ headerShown: false }} />
           </>
         ) : (

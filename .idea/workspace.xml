@@ -5,67 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ceffd0b6-d6e6-41bf-a851-9896111fe254" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/my-app/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/FIX_REGISTRATION_NOW.md" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/FIX_REGISTRATION_NOW.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/QUICK_SETUP.md" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/QUICK_SETUP.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/REGISTRATION_ERROR_FIX.md" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/REGISTRATION_ERROR_FIX.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/SUPABASE_SETUP_GUIDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/SUPABASE_SETUP_GUIDE.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/app.json" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/app.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount Mago (Carmen, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount Manunggal (Balamban, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount Mauyog (Balamban, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount Naupa (Naga, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount New Bucao (Toledo City, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Mount Tagaytay (Toledo City, Cebu).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Sirao Peak (Cebu City).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Spartan Trail (Banawa to Pamutan, Cebu City).jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/assets/images/Starbuks.jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/components/HikeHistoryItem.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/components/HikeHistoryItem.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/components/HikeStats.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/components/HikeStats.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/database_schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/database_schema.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/deploy_schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/deploy_schema.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/eas.json" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/eas.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/hooks/useLocation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/hooks/useLocation.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/index.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/metro.config.cjs" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/metro.config.cjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/ActivityCommentsScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/ActivityCommentsScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/ActivityDetailsScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/ActivityDetailsScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/ChangePasswordScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/ChangePasswordScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/CommentsScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/CommentsScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/EditProfileScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/EditProfileScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/EmailConfirmationScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/EmailConfirmationScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/ForumPost.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/ForumPost.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/HikeDetailScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/HikeDetailScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/HikeHistoryScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/HikeHistoryScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/HikingSpotDetailsScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/HikingSpotDetailsScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/HistoryScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/HistoryScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/HomeScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/HomeScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/LoginScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/LoginScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/MediaViewerScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/MediaViewerScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/PostsScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/PostsScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/ProfileScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/ProfileScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/RegisterScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/RegisterScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/SaveActivityScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/SaveActivityScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/SaveConfirmationScreen.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/SaveConfirmationScreen.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/TrackScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/TrackScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/screens/TrackingScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/screens/TrackingScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/services/databaseService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/services/databaseService.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/services/hikeRecordService.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/services/hikeRecordService.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/services/mockHikeService.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/services/mockHikeService.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/services/supabaseClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/services/supabaseClient.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/services/userService.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/services/userService.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/tsconfig.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/auth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/formatters.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/formatters.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/helpers.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/helpers.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/linking.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/linking.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/mapHelpers.js" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/mapHelpers.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/networkTest.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/networkTest.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/validateSetup.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/validateSetup.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my-app/utils/validateSupabaseConfig.ts" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/utils/validateSupabaseConfig.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/my-app/contexts/AuthContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/my-app/contexts/AuthContext.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,12 +24,12 @@
     &quot;assignee&quot;: &quot;jamesdikitanan0607&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/KboyVillahermosa/Hiking-Mobile-App-Ascentra.git&quot;,
-    &quot;accountId&quot;: &quot;408a8b16-d5c7-4d09-a926-71ab7d119665&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/jamesdikitanan0607/Ascentra-.git",
+    "accountId": "408a8b16-d5c7-4d09-a926-71ab7d119665"
   }
-}</component>
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
 }</component>
@@ -98,20 +38,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
-    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
-    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;fix/changes&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/James/Hiking-Mobile-App-Ascentra-1&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "fix/trailmap-debug",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/James/Hiking-Mobile-App-Ascentra-1"
   }
-}</component>
+}]]></component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="ceffd0b6-d6e6-41bf-a851-9896111fe254" name="Changes" comment="" />

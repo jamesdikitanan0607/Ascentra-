@@ -1,0 +1,85 @@
+{
+  "routes": [
+    {
+      "hiking_spot_name": "Mount Babag",
+      "mountain": "Mount Babag",
+      "trail_name": "Main Trail",
+      "route_name_format": "Mount Babag — Main Trail",
+      "difficulty": "Moderate",
+      "estimated_duration_minutes": 210,
+      "gpx_file": "mt-babag-main.gpx",
+      "sources": [
+        { "name": "AllTrails", "url": "https://www.alltrails.com/trail/philippines/cebu/mount-babag-via-malubog" },
+        { "name": "Pinoy Mountaineer (background)", "url": "http://www.pinoymountaineer.com/2011/01/mt-babag-752-in-cebu-city.html" }
+      ],
+      "notes": "Standard Malubog/Busay approach to RCPI/Babag ridge."
+    },
+    {
+      "hiking_spot_name": "Mount Kan-irag",
+      "mountain": "Mount Kan-irag / Sirao Peak",
+      "trail_name": "Main Trail",
+      "route_name_format": "Mount Kan-irag — Main Trail",
+      "difficulty": "Hard",
+      "estimated_duration_minutes": 220,
+      "gpx_file": "sirao-peak-main.gpx",
+      "sources": [
+        { "name": "AllTrails", "url": "https://www.alltrails.com/trail/philippines/cebu/mount-sirao-peak-trail" },
+        { "name": "AllTrails (POI)", "url": "https://www.alltrails.com/poi/philippines/cebu/cebu-city/sirao-peak" }
+      ],
+      "notes": "Also known as Mt. Kan-irag; verify start via Budlaan or alternative trailheads."
+    },
+    {
+      "hiking_spot_name": "Mount Naupa",
+      "mountain": "Mount Naupa",
+      "trail_name": "Village Trail",
+      "route_name_format": "Mount Naupa — Village Trail",
+      "difficulty": "Easy",
+      "estimated_duration_minutes": 90,
+      "gpx_file": "mount-naupa-village.gpx",
+      "sources": [
+        { "name": "AllTrails", "url": "https://www.alltrails.com/trail/philippines/cebu/mount-naupa" },
+        { "name": "Local blog (context)", "url": "https://wanderingsoulscamper.wordpress.com/2016/01/01/mt-naupa-2/" }
+      ],
+      "notes": "Trailhead usually at Brgy. Cogon chapel area; cross-verify." 
+    },
+    {
+      "hiking_spot_name": "Mount Manunggal",
+      "mountain": "Mount Manunggal",
+      "trail_name": "Classic Route",
+      "route_name_format": "Mount Manunggal — Classic Route",
+      "difficulty": "Moderate",
+      "estimated_duration_minutes": 160,
+      "gpx_file": "manunggal-classic.gpx",
+      "sources": [
+        { "name": "AllTrails", "url": "https://www.alltrails.com/trail/philippines/cebu/mount-manunggal-campsite" }
+      ],
+      "notes": "Route to the memorial/campsite; verify elevation profile."
+    },
+    {
+      "hiking_spot_name": "Mount Mago",
+      "mountain": "Mount Mago",
+      "trail_name": "Forest Route",
+      "route_name_format": "Mount Mago — Forest Route",
+      "difficulty": "Moderate",
+      "estimated_duration_minutes": 150,
+      "gpx_file": "mount-mago-forest.gpx",
+      "sources": [
+        { "name": "Cebu Highlands Trail (context)", "url": "https://www.wikiloc.com/hiking-trails/segment-vi-cebu-highlands-trail-project-12428335" }
+      ],
+      "notes": "Boundary area Carmen/Danao; confirm coordinates fall within Cebu bounds."
+    },
+    {
+      "hiking_spot_name": "Mount Kapayas",
+      "mountain": "Mount Kapayas",
+      "trail_name": "Summit Route",
+      "route_name_format": "Mount Kapayas — Summit Route",
+      "difficulty": "Hard",
+      "estimated_duration_minutes": 300,
+      "gpx_file": "kapayas-summit.gpx",
+      "sources": [
+        { "name": "AllTrails", "url": "https://www.alltrails.com/trail/philippines/cebu/mt-kapayas-in-catmon" }
+      ],
+      "notes": "Also known as Lantawan/Torre; expect scrambling sections."
+    }
+  ]
+}

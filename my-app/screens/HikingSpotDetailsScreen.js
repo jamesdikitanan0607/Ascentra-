@@ -1,40 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   StyleSheet, 
   View, 
   Text, 
-  ScrollView, 
-  Image, 
   TouchableOpacity, 
   TextInput, 
   ActivityIndicator,
   Alert,
   Linking,
   Platform,
-  StatusBar
+  StatusBar,
+  Animated
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../services/supabaseClient'
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useProfile } from '../contexts/ProfileContext'
 import TrailMapComponent from '../components/TrailMapComponent'
 import WeatherWidget from '../components/WeatherWidget'
 import { formatDistance, formatElevation } from '../utils/formatters'
 
-// Define a consistent color palette
+// Ascentra UI color palette
 const COLORS = {
-  primary: '#388E3C',       // Dark green for primary elements
-  secondary: '#388E3C',     // Same green for secondary elements
-  text: '#212121',          // Almost black for text
-  textLight: '#616161',     // Medium gray for secondary text
-  textMuted: '#9E9E9E',     // Light gray for tertiary text
-  background: '#FFFFFF',    // White background
-  card: '#F9F9F9',          // Very light gray for cards
-  separator: '#EEEEEE',     // Very light gray for separators
-  star: '#388E3C',          // Green for star ratings
-  error: '#F44336',         // Red for errors
-  success: '#4CAF50',       // Green for success
-  mapPlaceholder: '#F5F5F5' // Light gray for map placeholder
+  primary: '#2E7D32',       // Main Green
+  secondary: '#2E7D32',     // Secondary uses primary green
+  accent: '#F39C12',        // Accent Orange
+  white: '#FFFFFF',
+  text: '#1F2933',          // Primary Text
+  textLight: '#546E7A',     // Secondary Text
+  textMuted: '#90A4AE',     // Muted Text
+  background: '#F5F7FA',    // App background
+  card: '#FFFFFF',          // Card surfaces
+  separator: '#EEEEEE',     // Dividers
+  star: '#F39C12',          // Amber stars
+  error: '#F44336',         // Error
+  success: '#4CAF50',       // Success
+  overlay: 'rgba(255, 255, 255, 0.9)',
+  mapPlaceholder: '#F5F5F5'
 }
 
 export default function HikingSpotDetailsScreen({ route, navigation }) {
@@ -42,7 +45,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   if (!route.params || (!route.params.spot && !route.params.spotId)) {
     console.error('HikingSpotDetailsScreen: Missing spot parameter or spotId');
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: Missing hiking spot information</Text>
           <TouchableOpacity 
@@ -74,6 +77,24 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   );
   const [userEmails, setUserEmails] = useState({});
   const [commentsError, setCommentsError] = useState(null);
+  
+  // Animated values for parallax and header fade
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 120, 200],
+    outputRange: [0, 0.3, 1],
+    extrapolate: 'clamp',
+  });
+  const imageTranslateY = scrollY.interpolate({
+    inputRange: [-150, 0, 150],
+    outputRange: [-30, 0, 30],
+    extrapolate: 'clamp',
+  });
+  const imageScale = scrollY.interpolate({
+    inputRange: [-150, 0],
+    outputRange: [1.1, 1],
+    extrapolateRight: 'clamp',
+  });
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
@@ -280,14 +301,30 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     switch (difficulty?.toLowerCase()) {
       case 'easy':
         return '#4CAF50';
+      case 'easy-moderate':
+        return '#8BC34A';
       case 'moderate':
         return '#FF9800';
       case 'hard':
       case 'difficult':
         return '#F44336';
+      case 'advanced':
+        return '#9C27B0';
       default:
         return COLORS.primary;
     }
+  };
+
+  // Static rating stars for display in hero
+  const renderStaticStars = (rating = 0, size = 14) => {
+    const rounded = Math.round(rating);
+    return (
+      <View style={styles.starsRow}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <FontAwesome key={i} name={i <= rounded ? 'star' : 'star-o'} size={size} color={COLORS.accent} />
+        ))}
+      </View>
+    );
   };
 
   function RatingStars({ rating, onRatingChange, disabled = false, size = 24 }) {
@@ -340,28 +377,66 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
       </SafeAreaView>
     )
   }
-      
-      <View style={styles.contentContainer}>
-        <Text style={styles.title}>{spot.name}</Text>
-        
-        <View style={styles.ratingRow}>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingText}>
-              {spot.average_rating ? spot.average_rating.toFixed(1) : 'N/A'} 
-            </Text>
-            <FontAwesome name="star" size={18} color={COLORS.star} />
-            <Text style={styles.ratingCount}>
-              ({spot.rating_count || 0} {spot.rating_count === 1 ? 'rating' : 'ratings'})
-            </Text>
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <Animated.ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+      >
+        {/* Hero Section */}
+        <View style={styles.imageContainer}>
+          <Animated.Image 
+            source={getImageSource(spot.image_url || spot.cover_image_url)} 
+            style={[
+              styles.heroImage,
+              { transform: [{ translateY: imageTranslateY }, { scale: imageScale }] }
+            ]}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={[ 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)' ]}
+            style={styles.gradientOverlay}
+          />
+          <View style={styles.overlayContent}>
+            <Text style={[styles.heroTitle, styles.textShadow]} numberOfLines={2}>{spot.name}</Text>
+            <View style={styles.heroMetaRow}>
+              <MaterialIcons name="location-on" size={18} color={COLORS.white} />
+              <Text style={[styles.heroSubText, styles.textShadow]} numberOfLines={1}>{spot.location}</Text>
+            </View>
+            <View style={styles.heroRatingRow}>
+              <Text style={[styles.heroRatingText, styles.textShadow]}>
+                {spot.average_rating ? spot.average_rating.toFixed(1) : 'N/A'}
+              </Text>
+              {renderStaticStars(spot.average_rating || 0, 14)}
+              <Text style={[styles.heroRatingCount, styles.textShadow]}>
+                ({spot.rating_count || 0})
+              </Text>
+            </View>
+            {!!spot.description && (
+              <Text style={[styles.heroDescription, styles.textShadow]} numberOfLines={3}>
+                {spot.description}
+              </Text>
+            )}
           </View>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
         </View>
+
+        <View style={styles.contentContainer}>
         
-        <View style={styles.locationContainer}>
-          <MaterialIcons name="location-on" size={18} color={COLORS.textLight} />
-          <Text style={styles.location}>{spot.location}</Text>
-        </View>
-        
-        {/* Stats Row */}
+        {/* Trail Details */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
@@ -475,7 +550,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               </View>
             </View>
             <View style={styles.infoItem}>
-              <Ionicons name="warning-outline" size={20} color={COLORS.accent} />
+              <Ionicons name="warning-outline" size={20} color={COLORS.error} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>Safety Tips</Text>
                 <Text style={styles.infoText}>Bring plenty of water, wear proper hiking shoes, and inform someone of your hiking plans</Text>
@@ -556,12 +631,184 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           )}
         </View>
         
+        {/* Add Review Form */}
+        {user && (
+          <View style={styles.section}>
+            <View style={styles.reviewCard}>
+              <Text style={styles.sectionTitle}>Leave a Review</Text>
+              
+              <Text style={styles.ratingLabel}>Your Rating</Text>
+              <RatingStars 
+                rating={userRating} 
+                onRatingChange={setUserRating}
+                size={28}
+              />
+              
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Share your hiking experience..."
+                placeholderTextColor={COLORS.textMuted}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                textAlignVertical="top"
+              />
+              
+              <TouchableOpacity 
+                style={[
+                  styles.submitButton,
+                  (submitting || !userRating || !commentText.trim()) && styles.submitButtonDisabled
+                ]}
+                onPress={submitComment}
+                disabled={submitting || !userRating || !commentText.trim()}
+              >
+                <View style={styles.submitButtonContent}>
+                  {submitting && <ActivityIndicator size="small" color="white" />}
+                  <Text style={styles.submitButtonText}>
+                    {submitting ? 'Submitting...' : 'Submit Review'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        
         {/* Add bottom spacing */}
-        <View style={{ height: 30 }} />
+        <View style={styles.bottomSpacer} />
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
+    {/* Fading header title */}
+    <Animated.View style={[styles.headerOverlay, { opacity: headerOpacity }]}>
+      <Text style={styles.headerTitle} numberOfLines={1}>{spot.name}</Text>
+    </Animated.View>
   </SafeAreaView>
-)
+  )
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textLight,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  imageContainer: {
+    height: 340,
+    position: 'relative',
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 160,
+  },
+  overlayContent: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 20,
+  },
+  heroTitle: {
+    color: COLORS.white,
+    fontSize: 26,
+    fontWeight: '700',
+    marginBottom: 6,
+    letterSpacing: -0.3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  heroSubText: {
+    color: COLORS.white,
+    fontSize: 16,
+  },
+  heroRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  heroRatingText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  heroRatingCount: {
+    color: COLORS.white,
+    fontSize: 14,
+    opacity: 0.9,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroDescription: {
+    color: COLORS.white,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.95,
+  },
+  textShadow: {
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  goBackButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  goBackButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  difficultyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  difficultyText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
   backButton: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 40 : 35,
@@ -572,54 +819,11 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     zIndex: 10,
   },
   contentContainer: {
-    padding: 24,
+    padding: 20,
     backgroundColor: COLORS.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -24,
+    marginTop: -16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 12,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-    letterSpacing: -0.5,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginRight: 5,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  },
-  ratingCount: {
-    color: COLORS.textLight,
-    marginLeft: 5,
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  location: {
-    fontSize: 16,
-    color: COLORS.textLight,
-    marginLeft: 5,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+  // removed separate title/rating/location; integrated into hero overlay
   divider: {
     height: 1,
     backgroundColor: COLORS.separator,
@@ -815,6 +1019,22 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   },
   favoriteButtonTextActive: {
     color: '#FF6B6B',
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 16,
+    left: 64,
+    right: 16,
+    height: 28,
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  bottomSpacer: {
+    height: 30,
   },
   emptyReviewsContainer: {
     backgroundColor: COLORS.card,

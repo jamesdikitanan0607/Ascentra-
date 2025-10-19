@@ -14,7 +14,7 @@ export const hikingSpots = [
   },
   { 
     id: '72',
-    name: "Mount Kan-irag / Sirao Peak", 
+    name: "Mount Kan-Irag", 
     slug: "mt kan-irag", 
     thumbnail: require("../assets/images/mt kan-irag/thumbnail.jpg"),
     latitude: 10.3970, 
@@ -131,6 +131,19 @@ export const hikingSpots = [
   },
   { 
     id: '81',
+    name: "Lugsangan Peak", 
+    slug: "lugsangan peak", 
+    thumbnail: require("../assets/images/Lugsangan Peak/1.jpg"),
+    latitude: 9.6072, 
+    longitude: 123.3312, 
+    average_rating: 4.3, 
+    rating_count: 45,
+    difficulty: 'Moderate',
+    distance_km: 4.2,
+    elevation_gain_m: 620
+  },
+  { 
+    id: '82',
     name: "Osmeña Peak", 
     slug: "osmena peak", 
     thumbnail: require("../assets/images/osmena peak/thumbnail.jpg"),
@@ -143,7 +156,7 @@ export const hikingSpots = [
     elevation_gain_m: 180
   },
   { 
-    id: '82',
+    id: '83',
     name: "Casino Peak", 
     slug: "casino peak", 
     thumbnail: require("../assets/images/casino peak/thumbnail.jpg"),
@@ -156,20 +169,20 @@ export const hikingSpots = [
     elevation_gain_m: 420
   },
   { 
-    id: '83',
-    name: "Budlaan Falls", 
-    slug: "budlaanfalls", 
-    thumbnail: require("../assets/images/budlaanfalls/thumbnail.jpg"),
-    latitude: 10.3500, 
-    longitude: 123.9800, 
-    average_rating: 4.6, 
-    rating_count: 167,
-    difficulty: 'Easy',
-    distance_km: 2.2,
-    elevation_gain_m: 150
+    id: '84',
+    name: "Mount Tagaytay", 
+    slug: "mount tagaytay", 
+    thumbnail: require("../assets/images/Mount Tagaytay/5.jpg"),
+    latitude: 10.3650, 
+    longitude: 123.7300, 
+    average_rating: 4.2, 
+    rating_count: 0,
+    difficulty: 'Moderate',
+    distance_km: 3.5,
+    elevation_gain_m: 420
   },
   { 
-    id: '84',
+    id: '85',
     name: "Spartan Trail", 
     slug: "spartantrail", 
     thumbnail: require("../assets/images/spartantrail/thumbnail.jpg"),
@@ -180,19 +193,6 @@ export const hikingSpots = [
     difficulty: 'Hard',
     distance_km: 7.2,
     elevation_gain_m: 890
-  },
-  { 
-    id: '85',
-    name: "Mount Hambubuyog", 
-    slug: "mount-hambubuyog", 
-    thumbnail: require("../assets/images/mount hambubuyog/thumbnail.jpg"),
-    latitude: 9.6072, 
-    longitude: 123.3312, 
-    average_rating: 4.3, 
-    rating_count: 45,
-    difficulty: 'Moderate',
-    distance_km: 4.2,
-    elevation_gain_m: 620
   }
 ];
 
