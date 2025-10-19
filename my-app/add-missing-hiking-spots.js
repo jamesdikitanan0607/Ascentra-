@@ -239,9 +239,9 @@ const hikingSpots = [
     is_verified: true
   },
   {
-    hiking_spot_id: 84, // Mount Hambubuyog (new)
-    name: 'Mount Hambubuyog',
-    description: 'A scenic mountain offering beautiful views and challenging hiking trails.',
+    hiking_spot_id: 84, // Lugsangan Peak (new)
+    name: 'Lugsangan Peak',
+    description: 'A scenic elevated area offering beautiful views and challenging hiking trails.',
     difficulty: 'Moderate',
     location_text: 'Ginatilan, Cebu',
     cover_image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',

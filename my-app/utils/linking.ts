@@ -37,11 +37,11 @@ export const linking: LinkingOptions<any> = {
   MountLantoy: 'spots/mount-lantoy',
   // MountKalbasaan: 'spots/mount-kalbasaan', // Removed - Mount Kalbasaan
   MountMauyog: 'spots/mount-mauyog',
-      MountLanaya: 'spots/mount-lanaya',
-      MountHambubuyog: 'spots/mount-hambubuyog',
-      OsmenaPeak: 'spots/osmena-peak',
-      CasinoPeak: 'spots/casino-peak',
-      BudlaanFalls: 'spots/budlaan-falls',
+  MountLanaya: 'spots/mount-lanaya',
+  LugsanganPeak: 'spots/lugsangan-peak',
+  OsmenaPeak: 'spots/osmena-peak',
+  CasinoPeak: 'spots/casino-peak',
+  BudlaanFalls: 'spots/budlaan-falls',
       SpartanTrail: 'spots/spartan-trail',
 
       HikingSpotLandingPage: 'spots/landing/:hiking_spot_id',

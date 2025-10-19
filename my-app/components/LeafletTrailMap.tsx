@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -51,6 +51,7 @@ interface LeafletTrailMapProps {
   onTrailSelect?: (trailId: string) => void;
   style?: StyleProp<ViewStyle>;
   showFullscreenButton?: boolean;
+  includeCarouselBelowMap?: boolean;
   navigation?: any;
 }
 
@@ -80,6 +81,7 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
+    minHeight: 320,
   },
   webview: {
     flex: 1,
@@ -111,6 +113,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   fullscreenSafeArea: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
   },
   fullscreenHeader: {
@@ -139,13 +142,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
     borderRadius: 12,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    minWidth: 44,
     minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   fullscreenMapContainer: {
     flex: 1,
@@ -154,6 +162,8 @@ const styles = StyleSheet.create({
   },
   fullscreenMap: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   routesSection: {
     paddingTop: 16,
@@ -284,6 +294,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 2,
   },
+  
 });
 
 const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
@@ -292,191 +303,152 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   onTrailSelect = () => {},
   style = {},
   showFullscreenButton = false,
+  includeCarouselBelowMap = false,
   navigation,
 }: LeafletTrailMapProps) => {
-  // Component state
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoadingRoutes, setIsLoadingRoutes] = useState<boolean>(false);
   const [databaseRoutes, setDatabaseRoutes] = useState<TrailRoute[]>([]);
-  const [selectedTrail, setSelectedTrail] = useState<TrailRoute | null>(null);
-  const [currentSpotId, setCurrentSpotId] = useState<string | undefined>(selectedHikingSpotId);
   const [routeError, setRouteError] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
 
-  // Message handler for WebView
   const handleWebViewMessage = useCallback((event: { nativeEvent: { data: string } }) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data) as { type: string; [key: string]: any };
-      
-      if (!data || typeof data.type !== 'string') {
-        console.warn('Invalid WebView message format');
-        return;
-      }
-      
-      switch (data.type) {
-        case 'mapReady':
-          setIsMapReady(true);
-          break;
-        
-        case 'trailSelected':
-          if (data.trailId && typeof data.trailId === 'string' && onTrailSelect) {
-            onTrailSelect(data.trailId);
-          }
-          break;
-        
-        default:
-          console.log('Unhandled WebView message type:', data.type);
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'mapReady') {
+        setIsMapReady(true);
+        console.log('[LEAFLET_MAP] Map is ready');
       }
     } catch (error) {
-      console.error('Error handling WebView message:', error);
+      console.error('[LEAFLET_MAP] Error handling WebView message:', error);
     }
-  }, [onTrailSelect]);
+  }, []);
 
-  // Select trail on map via WebView
   const selectTrailOnMap = useCallback((trailId: string) => {
     if (webViewRef.current && isMapReady) {
       const message = JSON.stringify({
-        type: 'selectTrail',
-        trailId
+        type: 'selectRoute',
+        routeId: trailId
       });
       webViewRef.current.postMessage(message);
-      
-      if (DEBUG_MAP) {
-        console.log('[MAP] Selected route changed:', trailId);
-      }
+      console.log('[LEAFLET_MAP] Selected route on map:', trailId);
     }
   }, [isMapReady]);
 
-  // Trail selection handler
   const handleTrailSelect = useCallback((trailId: string) => {
+    console.log('[LEAFLET_MAP] Trail selected:', trailId);
     if (onTrailSelect) onTrailSelect(trailId);
     selectTrailOnMap(trailId);
   }, [onTrailSelect, selectTrailOnMap]);
 
-  // Difficulty color mapping
-  const getDifficultyColor = (difficulty: string): string => {
-    if (!difficulty) return '#9E9E9E';
-    const difficultyLower = difficulty.toLowerCase().trim();
-    switch (true) {
-      case difficultyLower.includes('easy'): return '#2ecc71';
-      case difficultyLower.includes('moderate'): return '#f39c12';
-      case difficultyLower.includes('hard'): return '#e74c3c';
-      default: return '#9E9E9E';
+  useEffect(() => {
+    if (selectedTrailId && isMapReady) {
+      selectTrailOnMap(selectedTrailId);
     }
-  };
+  }, [selectedTrailId, isMapReady, selectTrailOnMap]);
 
-  // Update the data processing with proper array type checking
   const preparedRoutes = useMemo<TrailRoute[]>(() => {
     if (!Array.isArray(databaseRoutes)) return [];
-    
-    // Create a typed copy of the routes array
+
     const routes: TrailRoute[] = [...databaseRoutes];
-    
-    // Sort routes by difficulty
-    routes.sort((a, b) => {
-      const aDifficulty = a.difficulty || '';
-      const bDifficulty = b.difficulty || '';
-      return (DIFFICULTY_ORDER[aDifficulty] || 0) - (DIFFICULTY_ORDER[bDifficulty] || 0);
-    });
-    
-    if (DEBUG_MAP) {
-      console.log('[MAP] Routes loaded:', routes.length);
-      console.log('[MAP] Route IDs:', routes.map(r => r.id));
-      console.log('[MAP] Route difficulties:', routes.map(r => r.difficulty));
-    }
-    
-    return routes.map(route => ({
-      ...route,
-      color: DIFFICULTY_COLORS[route.difficulty] || '#2ecc71'
-    }));
+
+    routes.sort((a, b) => (DIFFICULTY_ORDER[a.difficulty] || 0) - (DIFFICULTY_ORDER[b.difficulty] || 0));
+
+    console.log('[LEAFLET_MAP] Routes prepared:', routes.length);
+
+    return routes.map(route => ({ ...route, color: DIFFICULTY_COLORS[route.difficulty] || '#2ecc71' }));
   }, [databaseRoutes]);
 
-  // Update the data fetching to handle array types properly
+  const selectedRoute = useMemo(() => {
+    return preparedRoutes.find(route => route.id === selectedTrailId) || null;
+  }, [preparedRoutes, selectedTrailId]);
+
+  useEffect(() => {
+    if (preparedRoutes.length > 0 && !selectedTrailId) {
+      console.log('[LEAFLET_MAP] Auto-selecting first route:', preparedRoutes[0].id);
+      onTrailSelect(preparedRoutes[0].id);
+    }
+  }, [preparedRoutes, selectedTrailId, onTrailSelect]);
+
   useEffect(() => {
     const fetchTrailRoutes = async () => {
       if (!selectedHikingSpotId) return;
-      
+
       setIsLoadingRoutes(true);
       setRouteError(null);
-      
+
       try {
-        console.log('[MAP] Fetching routes for spot:', selectedHikingSpotId);
+        console.log('[LEAFLET_MAP] Fetching routes for spot:', selectedHikingSpotId);
         const { data: routes, error } = await getTrailRoutesBySpotId(selectedHikingSpotId);
-        
+
         if (error) {
-          console.error('[MAP] Error fetching routes:', error);
+          console.error('[LEAFLET_MAP] Error fetching routes:', error);
           setRouteError('Failed to load trail routes');
           return;
         }
-        
-        console.log('[MAP] Routes fetched:', Array.isArray(routes) ? routes.length : 0);
-        
-        // Ensure we have an array before processing
+
         const routesArray: TrailRoute[] = Array.isArray(routes) ? routes : [];
-        
+
         const validatedRoutes = routesArray.map(route => {
-          // Process geojson_path with proper type checking
           let geojsonPath: GeoJSONPath = { type: 'LineString', coordinates: [] };
           
+          console.log('[TRAIL_MAP] Processing route:', route.route_name);
+          console.log('[TRAIL_MAP] Raw geojson_path:', route.geojson_path);
+          
           if (route.geojson_path) {
-            if (typeof route.geojson_path === 'string') {
-              try {
-                geojsonPath = JSON.parse(route.geojson_path) as GeoJSONPath;
+            if (typeof (route as any).geojson_path === 'string') {
+              try { 
+                geojsonPath = JSON.parse((route as any).geojson_path) as GeoJSONPath; 
+                console.log('[TRAIL_MAP] Parsed string geojson_path:', geojsonPath);
               } catch (e) {
-                console.warn('[MAP] Invalid GeoJSON format for route:', route.route_id);
+                console.error('[TRAIL_MAP] Failed to parse geojson_path string:', e);
               }
-            } else if (Array.isArray(route.geojson_path.coordinates)) {
+            } else if (route.geojson_path.coordinates && Array.isArray(route.geojson_path.coordinates)) {
               geojsonPath = route.geojson_path;
+              console.log('[TRAIL_MAP] Using object geojson_path:', geojsonPath);
             }
           }
           
-          // Fallback for empty routes
-          if (!geojsonPath.coordinates.length) {
-            console.warn('[MAP] Empty coordinates for route:', route.route_id);
-            geojsonPath.coordinates = [[10.274, 123.896], [10.278, 123.902], [10.282, 123.909]];
+          // Validate coordinates
+          if (!geojsonPath.coordinates || geojsonPath.coordinates.length < 2) {
+            console.error('[TRAIL_MAP] Missing or invalid coordinates for route:', route.route_name, 'coords:', geojsonPath.coordinates?.length || 0);
+            return null; // Skip invalid routes
           }
+          
+          console.log('[TRAIL_MAP] Valid route:', route.route_name, 'with', geojsonPath.coordinates.length, 'coordinate points');
+          console.log('[TRAIL_MAP] First coord:', geojsonPath.coordinates[0], 'Last coord:', geojsonPath.coordinates[geojsonPath.coordinates.length - 1]);
           
           return {
             ...route,
-            id: route.route_id,
+            id: route.route_id || route.id,
             geojson_path: geojsonPath,
             color: DIFFICULTY_COLORS[route.difficulty] || '#FFC107',
-            isFallback: !route.geojson_path?.coordinates?.length
+            isFallback: false
           } as TrailRoute;
-        });
-        
+        }).filter(route => route !== null); // Remove invalid routes
+
         setDatabaseRoutes(validatedRoutes);
-        
-        // Auto-select first route if none selected
-        if (validatedRoutes.length > 0 && !selectedTrailId) {
-          onTrailSelect(validatedRoutes[0].id);
-        }
-        
-      } catch (err) {
-        console.error('[MAP] Unexpected error:', err);
-        setRouteError('Failed to process trail data');
+      } catch (error) {
+        console.error('[LEAFLET_MAP] Error fetching routes:', error);
+        setRouteError('Failed to load trail routes');
       } finally {
         setIsLoadingRoutes(false);
       }
     };
-    
-    fetchTrailRoutes();
-  }, [selectedHikingSpotId, onTrailSelect, selectedTrailId]);
 
-  // Update the render function with proper type checking
+    fetchTrailRoutes();
+  }, [selectedHikingSpotId]);
+
   const renderMap = (customStyle?: StyleProp<ViewStyle>): JSX.Element => {
-    // Show loading state
     if (isLoadingRoutes) {
       return (
         <View style={[styles.loadingContainer, customStyle]}>
           <ActivityIndicator size="large" color="#388E3C" />
-          <Text style={styles.loadingText}>Fetching trail data...</Text>
+          <Text style={styles.loadingText}>Loading trail map...</Text>
         </View>
       );
     }
-    
-    // Show error state
     if (routeError) {
       return (
         <View style={[styles.errorContainer, customStyle]}>
@@ -488,8 +460,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
         </View>
       );
     }
-    
-    // Generate HTML for the map
+
     const mapHTML = `
       <!DOCTYPE html>
       <html>
@@ -501,95 +472,149 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
         <style>
           body, html { margin: 0; padding: 0; height: 100%; }
           #map { height: 100%; width: 100%; }
+          .custom-marker {
+            background-color: #22C55E;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          .end-marker {
+            background-color: #EF4444 !important;
+          }
         </style>
       </head>
       <body>
         <div id="map"></div>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
-          // Initialize map
+          // Initialize map - will be recentered to actual trail coordinates
           const map = L.map('map').setView([10.3157, 123.8854], 13);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: 'OpenStreetMap contributors'
+          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
           }).addTo(map);
           
-          // Route layers
-          let routeLayers = {};
-          let selectedLayer = null;
+          // Prepared routes injected from React Native
+          const routes = ${JSON.stringify(preparedRoutes)};
+          let selectedRouteId = null;
+          let currentPolyline = null;
           
-          // Handle messages from React Native
-          window.handleMessage = function(data) {
-            try {
-              if (data.type === 'drawRoutes') {
-                // Clear existing layers
-                Object.values(routeLayers).forEach(layer => {
-                  if (layer) map.removeLayer(layer);
-                });
-                routeLayers = {};
-                
-                // Draw new routes
-                data.routes.forEach(route => {
-                  if (route.geojson_path && Array.isArray(route.geojson_path.coordinates)) {
-                    const coords = route.geojson_path.coordinates;
-                    const layer = L.polyline(coords, {
-                      color: route.color || '#2ecc71',
-                      weight: 4,
-                      opacity: 0.8,
-                      smoothFactor: 1.0,
-                      noClip: true
-                    }).addTo(map);
-                    
-                    // Add start/end markers with custom icons
-                    if (route.start_coordinates) {
-                      L.marker([route.start_coordinates.latitude, route.start_coordinates.longitude], {
-                        icon: L.divIcon({
-                          className: 'start-marker',
-                          html: '&#x1F7E2;',
-                          iconSize: [20, 20]
-                        })
-                      }).addTo(map).bindPopup('Start: ' + route.route_name);
-                    }
-                    
-                    if (route.end_coordinates) {
-                      L.marker([route.end_coordinates.latitude, route.end_coordinates.longitude], {
-                        icon: L.divIcon({
-                          className: 'end-marker',
-                          html: '&#x1F534;',
-                          iconSize: [20, 20]
-                        })
-                      }).addTo(map).bindPopup('End: ' + route.route_name);
-                    }
-                    
-                    routeLayers[route.id] = layer;
-                  }
-                });
-                
-                // Fit bounds to all routes
-                const bounds = Object.values(routeLayers)
-                  .filter(layer => !!layer)
-                  .map(layer => layer.getBounds());
-                if (bounds.length > 0) {
-                  map.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
-                }
-              } else if (data.type === 'selectRoute' && typeof data.routeId === 'string') {
-                // Highlight selected route
-                if (selectedLayer) {
-                  selectedLayer.setStyle({ weight: 4 });
-                }
-                
-                selectedLayer = routeLayers[data.routeId];
-                if (selectedLayer) {
-                  selectedLayer.setStyle({ weight: 8 });
-                  selectedLayer.bringToFront();
-                  map.fitBounds(selectedLayer.getBounds(), { padding: [50, 50] });
-                }
-              }
-            } catch (error) {
-              console.error('Error handling message:', error);
+          console.log('[TRAIL_MAP] Map initialized, routes available:', routes.length);
+          
+          // Log each route for debugging
+          routes.forEach(function(route, index) {
+            const count = route && route.geojson_path && route.geojson_path.coordinates ? route.geojson_path.coordinates.length : 0;
+            console.log('[TRAIL_MAP] Route ' + (index + 1) + ':', route.route_name);
+            console.log('[TRAIL_MAP] Coordinates:', count, 'points');
+            if (count > 0) {
+              console.log('[TRAIL_MAP] First point:', route.geojson_path.coordinates[0]);
+              console.log('[TRAIL_MAP] Last point:', route.geojson_path.coordinates[count - 1]);
             }
+          });
+          
+          // Create custom icons
+          const createIcon = (html, className) => {
+            return L.divIcon({
+              html: html,
+              className: className,
+              iconSize: [24, 24],
+              iconAnchor: [12, 12]
+            });
           };
           
-          // Post map ready message
+          const startIcon = createIcon('S', 'custom-marker');
+          const endIcon = createIcon('E', 'custom-marker end-marker');
+
+          const getColorByDifficulty = function(difficulty) {
+            if (difficulty === 'Easy') return '#22C55E';
+            if (difficulty === 'Moderate') return '#F59E0B';
+            if (difficulty === 'Hard') return '#EF4444';
+            return '#22C55E';
+          };
+          
+          function drawRoute(route) {
+            const raw = route && route.geojson_path && route.geojson_path.coordinates ? route.geojson_path.coordinates : [];
+            if (!raw || raw.length < 3) {
+              console.error('[TRAIL_MAP] Missing or invalid coordinates for route', route && route.id, 'count:', raw ? raw.length : 0);
+              return;
+            }
+            
+            // Convert [lng, lat] to [lat, lng] for Leaflet
+            const coordinates = raw.map(function(coord){ return [coord[1], coord[0]]; });
+            const color = getColorByDifficulty(route.difficulty);
+            console.log('[TRAIL_MAP] Redrawing polyline + markers');
+            console.log('[TRAIL_MAP] Coordinate count:', coordinates.length);
+            console.log('[TRAIL_MAP] Example point:', coordinates[0]);
+            
+            currentPolyline = L.polyline(coordinates, {
+              color: color,
+              weight: 5,
+              opacity: 0.9,
+              smoothFactor: 1.5,
+              lineCap: 'round',
+              lineJoin: 'round'
+            }).addTo(map);
+            
+            // Add start marker at first coordinate
+            L.marker(coordinates[0], { icon: startIcon }).addTo(map).bindPopup('Start');
+            console.log('[TRAIL_MAP] Added Start marker at', coordinates[0]);
+            
+            // Add end marker at last coordinate
+            L.marker(coordinates[coordinates.length - 1], { icon: endIcon }).addTo(map).bindPopup('End');
+            console.log('[TRAIL_MAP] Added End marker at', coordinates[coordinates.length - 1]);
+            
+            // Fit bounds to the polyline
+            map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
+            console.log('[TRAIL_MAP] Fit bounds applied');
+          }
+          
+          function selectRoute(routeId) {
+            selectedRouteId = routeId;
+            console.log('[TRAIL_MAP] Selected trail changed →', routeId);
+            
+            // Clear previous non-tile layers (preserve tile layer)
+            map.eachLayer(function(layer){
+              // tile layers have _url
+              if (!layer._url) {
+                map.removeLayer(layer);
+              }
+            });
+            currentPolyline = null;
+            
+            // Find the selected route and draw it
+            const route = routes.find(function(r){ return r.id === routeId; });
+            if (route) {
+              drawRoute(route);
+            }
+          }
+          
+          // Auto-select first route
+          if (routes.length > 0) {
+            const firstRouteId = ${selectedTrailId ? `'${selectedTrailId}'` : 'routes[0].id'};
+            selectRoute(firstRouteId);
+          }
+          
+          
+          // Handle messages from React Native
+          window.addEventListener('message', function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'selectRoute' && data.routeId) {
+                selectRoute(data.routeId);
+              }
+            } catch (e) {
+              // Ignore parsing errors
+            }
+          });
+          
+          // Notify React Native that map is ready
           setTimeout(() => {
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'mapReady'
@@ -601,129 +626,82 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
     `;
 
     return (
-      <WebView
-        ref={webViewRef}
-        source={{ html: mapHTML }}
-        style={[styles.webview, customStyle]}
-        onLoadEnd={() => {
-          setIsMapReady(true);
-          // Draw routes when map is ready
-          if (preparedRoutes.length > 0) {
-            const message = JSON.stringify({
-              type: 'drawRoutes',
-              routes: preparedRoutes
-            });
-            webViewRef.current?.postMessage(message);
-          }
-        }}
-        onMessage={handleWebViewMessage}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        startInLoadingState={true}
-      />
+      <View style={[styles.mapContainer, customStyle]}>
+        <WebView
+          ref={webViewRef}
+          source={{ html: mapHTML }}
+          style={styles.webview}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={false}
+          onLoadEnd={() => {
+            console.log('[LEAFLET_MAP] WebView loaded');
+          }}
+        />
+      </View>
     );
   };
 
-  // Fullscreen toggle handler
   const toggleFullscreen = useCallback(() => {
-    const newValue = !isFullscreen;
-    setIsFullscreen(newValue);
-    
-    if (DEBUG_MAP) {
-      console.log('[MAP] Fullscreen toggled:', newValue);
-    }
-    
-    // Redraw routes when exiting fullscreen to ensure proper sizing
-    if (!newValue && isMapReady && preparedRoutes.length > 0) {
-      setTimeout(() => {
-        const message = JSON.stringify({
-          type: 'drawRoutes',
-          routes: preparedRoutes
-        });
-        webViewRef.current?.postMessage(message);
-      }, 300);
-    }
-  }, [isFullscreen, isMapReady, preparedRoutes]);
+    setIsFullscreen(!isFullscreen);
+    console.log('[LEAFLET_MAP] Fullscreen toggled:', !isFullscreen);
+  }, [isFullscreen]);
 
   return (
     <View style={[styles.container, style]}>
       <View style={styles.mapContainer}>
         {renderMap()}
       </View>
-      
-      <View style={styles.routesSection}>
-        <TrailRoutesSection 
-          routes={preparedRoutes}
-          onRoutePress={handleTrailSelect}
-        />
-      </View>
-      
+
+      {includeCarouselBelowMap && (
+        <View style={styles.routesSection}>
+          <TrailRoutesSection 
+            routes={preparedRoutes}
+            onRoutePress={handleTrailSelect}
+          />
+        </View>
+      )}
+
       {showFullscreenButton && (
-        <TouchableOpacity 
-          style={styles.fullscreenButton}
-          onPress={toggleFullscreen}
-        >
+        <TouchableOpacity style={styles.fullscreenButton} onPress={toggleFullscreen}>
           <MaterialIcons name="fullscreen" size={24} color="#388E3C" />
         </TouchableOpacity>
       )}
 
-      <Modal
-        visible={isFullscreen}
-        animationType="slide"
-        onRequestClose={toggleFullscreen}
-      >
+      <Modal visible={isFullscreen} animationType="slide" onRequestClose={toggleFullscreen}>
         <View style={styles.fullscreenContainer}>
           <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
           <SafeAreaView style={styles.fullscreenSafeArea}>
             <View style={styles.fullscreenHeader}>
-              <TouchableOpacity 
-                onPress={toggleFullscreen}
-                style={styles.backButton}
-              >
+              <TouchableOpacity onPress={toggleFullscreen} style={styles.backButton}>
                 <MaterialIcons name="arrow-back" size={24} color="#333" />
+                <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
-              <Text style={styles.fullscreenTitle}>Trail Map</Text>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={toggleFullscreen}
-              >
+              <Text style={styles.fullscreenTitle}>Trail Map - Full Screen</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={toggleFullscreen}>
                 <MaterialIcons name="close" size={24} color="#212121" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.fullscreenMapContainer}>
               {renderMap(styles.fullscreenMap)}
             </View>
-            
+
             {!isLoadingRoutes && preparedRoutes.length > 0 && (
               <View style={styles.trailListContainer}>
                 <Text style={styles.trailListTitle}>Available Trails</Text>
-                <ScrollView style={styles.trailList}>
+                <ScrollView style={styles.trailList} horizontal contentContainerStyle={styles.trailListContent}>
                   {preparedRoutes.map((trail) => (
                     <TouchableOpacity
                       key={trail.id}
-                      style={[
-                        styles.trailItem,
-                        selectedTrailId === trail.id && styles.selectedTrailItem
-                      ]}
-                      onPress={() => {
-                        if (onTrailSelect) {
-                          onTrailSelect(trail.id);
-                        }
-                        handleTrailSelect(trail.id);
-                      }}
+                      style={[styles.trailItem, selectedTrailId === trail.id && styles.selectedTrailItem]}
+                      onPress={() => handleTrailSelect(trail.id)}
                     >
                       <View style={styles.trailHeader}>
-                        <Text style={styles.trailName} numberOfLines={1}>
-                          {trail.route_name}
-                        </Text>
-                        <View style={[
-                          styles.difficultyBadge,
-                          { backgroundColor: trail.color }
-                        ]}>
-                          <Text style={styles.difficultyText}>
-                            {trail.difficulty}
-                          </Text>
+                        <Text style={styles.trailName} numberOfLines={1}>{trail.route_name}</Text>
+                        <View style={[styles.difficultyBadge, { backgroundColor: trail.color }]}>
+                          <Text style={styles.difficultyText}>{trail.difficulty}</Text>
                         </View>
                       </View>
                       <View style={styles.trailStats}>

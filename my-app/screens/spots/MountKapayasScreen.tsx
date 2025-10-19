@@ -9,7 +9,7 @@ export function MountKapayasScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '76' } }}
+      route={{ params: { hiking_spot_id: '79' } }}
     />
   );
 }

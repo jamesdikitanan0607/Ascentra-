@@ -1,0 +1,60 @@
+name: Hiking-Mobile-App-Ascentra-1-Debug
+description: >
+  Full Windsurf AI workflow to diagnose missing UI updates in TrailMap and TrailRoutes
+  for the Ascentra Hiking App. Automatically lints, compiles, checks component rendering,
+  inspects API data flow, and summarizes the root cause.
+
+settings:
+  ai_agent: gpt-4o
+  allow_terminal: true
+  project_root: .
+  auto_commit_changes: false
+  output_summary: true
+
+tasks:
+  - name: Prepare Environment
+    run: |
+      echo "í³¦ Installing dependencies..."
+      npm install --save-dev typescript eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin react-refresh || true
+
+  - name: Lint Source Files
+    run: |
+      echo "í´ Running ESLint scan..."
+      npx eslint . --ext .js,.jsx,.ts,.tsx -f table > eslint_report.txt || echo "âš ï¸ ESLint completed with issues."
+      echo "âœ… ESLint scan complete."
+
+  - name: TypeScript Validation
+    run: |
+      echo "í·© Running TypeScript compiler check..."
+      npx tsc --noEmit > tsc_report.txt 2>&1 || echo "âš ï¸ TypeScript errors logged to tsc_report.txt"
+
+  - name: Find TrailMap and TrailRoutes Components
+    run: |
+      echo "í·ºï¸ Searching for TrailMap and TrailRoutes components..."
+      grep -r "TrailMap" ./src ./app ./screens ./components 2>/dev/null > component_refs.txt || echo "âš ï¸ No TrailMap component references found."
+      grep -r "TrailRoutes" ./src ./app ./screens ./components 2>/dev/null >> component_refs.txt || echo "âš ï¸ No TrailRoutes component references found."
+
+  - name: Analyze UI Rendering
+    run: |
+      echo "í·  Checking if TrailMap UI updates are triggered..."
+      grep -r "useEffect" ./src ./app ./screens ./components | grep "Trail" > useeffect_log.txt || echo "âš ï¸ No Trail-related useEffect detected."
+      echo "í³Š Writing analysis summary..."
+      {
+        echo "- Check if API response sets trailRoutes state correctly."
+        echo "- Verify dependencies of useEffect hooks include trailId or mapData."
+        echo "- Ensure TrailMap or TrailRoutes components re-render when state updates."
+        echo "- Confirm backend returns non-empty routes for the selected trailId."
+      } >> debug_summary.md
+
+  - name: Summarize Results
+    run: |
+      echo "# Hiking-Mobile-App-Ascentra-1 Debug Summary" > debug_summary.md
+      echo "## ESLint Results" >> debug_summary.md
+      cat eslint_report.txt >> debug_summary.md
+      echo "\n## TypeScript Results" >> debug_summary.md
+      cat tsc_report.txt >> debug_summary.md
+      echo "\n## Component References" >> debug_summary.md
+      cat component_refs.txt >> debug_summary.md
+      echo "\n## UI Analysis" >> debug_summary.md
+      cat useeffect_log.txt >> debug_summary.md
+      echo "\nâœ… Workflow complete. Review debug_summary.md for findings." >> debug_summary.md

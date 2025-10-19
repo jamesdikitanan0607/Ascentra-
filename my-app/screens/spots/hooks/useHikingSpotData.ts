@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { fetchHikingSpotById, getTrailRoutesBySpotId } from '../../../services/supabaseService';
 import { HikingSpot } from '../../../types/database';
-import { TrailRoute } from '../../../types';
+import { TrailRouteDetails } from '../../../services/supabaseService';
 import { normalizeTrailRoute } from '../../../contexts/TrailContext';
 
 export const useHikingSpotData = (hikingSpotId: string) => {
   const [hikingSpot, setHikingSpot] = useState<HikingSpot | null>(null);
-  const [trailRoutes, setTrailRoutes] = useState<TrailRoute[]>([]);
+  const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +91,11 @@ export const useHikingSpotData = (hikingSpotId: string) => {
       setLoading(false);
     }
   }, [hikingSpotId]);
+
+  // Auto-fetch when hikingSpotId changes
+  useEffect(() => {
+    fetchHikingSpotData();
+  }, [fetchHikingSpotData]);
 
   return {
     hikingSpot,

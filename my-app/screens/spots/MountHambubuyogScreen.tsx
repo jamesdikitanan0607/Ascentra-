@@ -5,7 +5,7 @@ interface NavigationProps {
   navigation: any;
 }
 
-export function MountHambubuyogScreen({ navigation }: NavigationProps) {
+export function LugsanganPeakScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper 
       navigation={navigation}
@@ -14,4 +14,4 @@ export function MountHambubuyogScreen({ navigation }: NavigationProps) {
   );
 }
 
-export default MountHambubuyogScreen;
+export default LugsanganPeakScreen;

@@ -9,9 +9,9 @@ INSERT INTO hiking_spots (name, coordinates, description, cover_image_url, avera
     127
 ),
 (
-    'Mount Kan-irag / Sirao Peak',
+    'Mount Kan-irag',
     POINT(123.8854, 10.4117),
-    'Famous for its flower gardens and cool climate, this peak offers breathtaking views of Cebu City and the surrounding mountains. A favorite among nature lovers.',
+    'Famous for its flower gardens and cool climate, this peak offers breathtaking views of Cebu City and the surrounding mountains. Also known as Sirao Peak. A favorite among nature lovers.',
     'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800',
     4.7,
     89
@@ -81,9 +81,9 @@ INSERT INTO hiking_spots (name, coordinates, description, cover_image_url, avera
     34
 ),
 (
-    'Mount Hambubuyog',
+    'Lugsangan Peak',
     POINT(123.3102, 9.5583),
-    'Located in Ginatilan, this mountain provides challenging trails with rewarding summit views. Known for its unique rock formations.',
+    'Located in Ginatilan, this peak provides challenging trails with rewarding summit views. Known for its unique rock formations and scenic beauty.',
     'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800',
     4.2,
     27

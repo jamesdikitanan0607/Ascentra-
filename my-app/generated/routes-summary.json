@@ -1,0 +1,702 @@
+[
+  {
+    "hiking_spot_id": 73,
+    "hiking_spot_name": "Casino Peak",
+    "route_name": "Lugsangan Peak",
+    "difficulty": "Moderate",
+    "distance_km": 7.97,
+    "elevation_gain_m": 705,
+    "estimated_duration_minutes": 96,
+    "waypoints_count": 107,
+    "start": {
+      "lat": 9.81116,
+      "lon": 123.4611
+    },
+    "end": {
+      "lat": 9.81116,
+      "lon": 123.4611
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Casino Peak\\Lugsangan Peak.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 73,
+    "hiking_spot_name": "Casino Peak",
+    "route_name": "Mount Labalasan",
+    "difficulty": "Moderate",
+    "distance_km": 13.01,
+    "elevation_gain_m": 980,
+    "estimated_duration_minutes": 156,
+    "waypoints_count": 116,
+    "start": {
+      "lat": 9.79578,
+      "lon": 123.4088
+    },
+    "end": {
+      "lat": 9.79578,
+      "lon": 123.4088
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Casino Peak\\Mount Labalasan.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 94,
+    "hiking_spot_name": "Lugsangan Peak",
+    "route_name": "Lugsangan Peak",
+    "difficulty": "Moderate",
+    "distance_km": 7.97,
+    "elevation_gain_m": 705,
+    "estimated_duration_minutes": 96,
+    "waypoints_count": 107,
+    "start": {
+      "lat": 9.81116,
+      "lon": 123.4611
+    },
+    "end": {
+      "lat": 9.81116,
+      "lon": 123.4611
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Lugsangan Peak\\Lugsangan Peak.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 94,
+    "hiking_spot_name": "Lugsangan Peak",
+    "route_name": "Mount Labalasan",
+    "difficulty": "Moderate",
+    "distance_km": 13.01,
+    "elevation_gain_m": 980,
+    "estimated_duration_minutes": 156,
+    "waypoints_count": 116,
+    "start": {
+      "lat": 9.79578,
+      "lon": 123.4088
+    },
+    "end": {
+      "lat": 9.79578,
+      "lon": 123.4088
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Lugsangan Peak\\Mount Labalasan.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 71,
+    "hiking_spot_name": "Mount Babag",
+    "route_name": "Babag Ridge Trail via Babag",
+    "difficulty": "Moderate",
+    "distance_km": 14.32,
+    "elevation_gain_m": 802,
+    "estimated_duration_minutes": 172,
+    "waypoints_count": 114,
+    "start": {
+      "lat": 10.36519,
+      "lon": 123.85973
+    },
+    "end": {
+      "lat": 10.36519,
+      "lon": 123.85973
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Babag\\Babag Ridge Trail via Babag.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 71,
+    "hiking_spot_name": "Mount Babag",
+    "route_name": "babag-1-bonbon-sudlon-1-bitlang-sinsin-campo-6-campo-4-talis",
+    "difficulty": "Moderate",
+    "distance_km": 26.36,
+    "elevation_gain_m": 892,
+    "estimated_duration_minutes": 316,
+    "waypoints_count": 110,
+    "start": {
+      "lat": 10.365503,
+      "lon": 123.860365
+    },
+    "end": {
+      "lat": 10.305396,
+      "lon": 123.81508
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Babag\\babag-1-bonbon-sudlon-1-bitlang-sinsin-campo-6-campo-4-talis.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 71,
+    "hiking_spot_name": "Mount Babag",
+    "route_name": "Mount Babag via Malubog",
+    "difficulty": "Moderate",
+    "distance_km": 8.98,
+    "elevation_gain_m": 608,
+    "estimated_duration_minutes": 108,
+    "waypoints_count": 118,
+    "start": {
+      "lat": 10.37931,
+      "lon": 123.86867
+    },
+    "end": {
+      "lat": 10.37931,
+      "lon": 123.86867
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Babag\\Mount Babag via Malubog.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 81,
+    "hiking_spot_name": "Mount Kalbasaan",
+    "route_name": "kalbasaan-both-ends-soloista",
+    "difficulty": "Moderate",
+    "distance_km": 18.65,
+    "elevation_gain_m": 819,
+    "estimated_duration_minutes": 224,
+    "waypoints_count": 75,
+    "start": {
+      "lat": 10.249644,
+      "lon": 123.794988
+    },
+    "end": {
+      "lat": 10.255563,
+      "lon": 123.811555
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kalbasaan\\kalbasaan-both-ends-soloista.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 81,
+    "hiking_spot_name": "Mount Kalbasaan",
+    "route_name": "kalbasaan-naupa",
+    "difficulty": "Moderate",
+    "distance_km": 5.22,
+    "elevation_gain_m": 268,
+    "estimated_duration_minutes": 63,
+    "waypoints_count": 71,
+    "start": {
+      "lat": 10.302493,
+      "lon": 123.768752
+    },
+    "end": {
+      "lat": 10.288238,
+      "lon": 123.735394
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kalbasaan\\kalbasaan-naupa.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 81,
+    "hiking_spot_name": "Mount Kalbasaan",
+    "route_name": "Kalibasan Peak",
+    "difficulty": "Moderate",
+    "distance_km": 8.44,
+    "elevation_gain_m": 390,
+    "estimated_duration_minutes": 101,
+    "waypoints_count": 123,
+    "start": {
+      "lat": 10.32223,
+      "lon": 123.77449
+    },
+    "end": {
+      "lat": 10.32223,
+      "lon": 123.77449
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kalbasaan\\Kalibasan Peak.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 75,
+    "hiking_spot_name": "Mount Kan-irag / Sirao Peak",
+    "route_name": "budlaan-sirao-malubog-babag-napo-guadalupe-church",
+    "difficulty": "Moderate",
+    "distance_km": 20.32,
+    "elevation_gain_m": 1098,
+    "estimated_duration_minutes": 244,
+    "waypoints_count": 118,
+    "start": {
+      "lat": 10.384113,
+      "lon": 123.887046
+    },
+    "end": {
+      "lat": 10.330658,
+      "lon": 123.879985
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kan-irag\\budlaan-sirao-malubog-babag-napo-guadalupe-church.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 75,
+    "hiking_spot_name": "Mount Kan-irag / Sirao Peak",
+    "route_name": "budlaan-sirao",
+    "difficulty": "Moderate",
+    "distance_km": 6.51,
+    "elevation_gain_m": 644,
+    "estimated_duration_minutes": 78,
+    "waypoints_count": 73,
+    "start": {
+      "lat": 10.38409,
+      "lon": 123.886991
+    },
+    "end": {
+      "lat": 10.395722,
+      "lon": 123.859416
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kan-irag\\budlaan-sirao.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 75,
+    "hiking_spot_name": "Mount Kan-irag / Sirao Peak",
+    "route_name": "talamban-budlaan-kan-irag",
+    "difficulty": "Moderate",
+    "distance_km": 10.77,
+    "elevation_gain_m": 667,
+    "estimated_duration_minutes": 129,
+    "waypoints_count": 110,
+    "start": {
+      "lat": 10.366667,
+      "lon": 123.912105
+    },
+    "end": {
+      "lat": 10.398852,
+      "lon": 123.862699
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kan-irag\\talamban-budlaan-kan-irag.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 79,
+    "hiking_spot_name": "Mount Kapayas",
+    "route_name": "Mt. Kapayas in Catmon",
+    "difficulty": "Moderate",
+    "distance_km": 15.4,
+    "elevation_gain_m": 1328,
+    "estimated_duration_minutes": 185,
+    "waypoints_count": 124,
+    "start": {
+      "lat": 10.67101,
+      "lon": 123.96226
+    },
+    "end": {
+      "lat": 10.67101,
+      "lon": 123.96226
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Kapayas\\Mt. Kapayas in Catmon.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 83,
+    "hiking_spot_name": "Mount Lanaya",
+    "route_name": "Mount Lanaya via Legaspi",
+    "difficulty": "Moderate",
+    "distance_km": 7.49,
+    "elevation_gain_m": 911,
+    "estimated_duration_minutes": 90,
+    "waypoints_count": 106,
+    "start": {
+      "lat": 9.71011,
+      "lon": 123.33708
+    },
+    "end": {
+      "lat": 9.71011,
+      "lon": 123.33708
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Lanaya\\Mount Lanaya via Legaspi.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 83,
+    "hiking_spot_name": "Mount Lanaya",
+    "route_name": "Mount Lanaya",
+    "difficulty": "Moderate",
+    "distance_km": 9.18,
+    "elevation_gain_m": 1068,
+    "estimated_duration_minutes": 110,
+    "waypoints_count": 113,
+    "start": {
+      "lat": 9.70653,
+      "lon": 123.36331
+    },
+    "end": {
+      "lat": 9.70653,
+      "lon": 123.36331
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Lanaya\\Mount Lanaya.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 80,
+    "hiking_spot_name": "Mount Lantoy",
+    "route_name": "lantoy",
+    "difficulty": "Moderate",
+    "distance_km": 11.76,
+    "elevation_gain_m": 833,
+    "estimated_duration_minutes": 141,
+    "waypoints_count": 114,
+    "start": {
+      "lat": 9.890422,
+      "lon": 123.543229
+    },
+    "end": {
+      "lat": 9.904362,
+      "lon": 123.560512
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Lantoy\\lantoy.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 78,
+    "hiking_spot_name": "Mount Mago",
+    "route_name": "Mago Peak",
+    "difficulty": "Moderate",
+    "distance_km": 18.02,
+    "elevation_gain_m": 1238,
+    "estimated_duration_minutes": 216,
+    "waypoints_count": 111,
+    "start": {
+      "lat": 10.61766,
+      "lon": 123.94163
+    },
+    "end": {
+      "lat": 10.61766,
+      "lon": 123.94163
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Mago\\Mago Peak.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 78,
+    "hiking_spot_name": "Mount Mago",
+    "route_name": "Mount Mago",
+    "difficulty": "Moderate",
+    "distance_km": 6.7,
+    "elevation_gain_m": 484,
+    "estimated_duration_minutes": 80,
+    "waypoints_count": 121,
+    "start": {
+      "lat": 10.57715,
+      "lon": 123.92538
+    },
+    "end": {
+      "lat": 10.57715,
+      "lon": 123.92538
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Mago\\Mount Mago.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 77,
+    "hiking_spot_name": "Mount Manunggal",
+    "route_name": "7th-annual-balamban-race-to-mt-manunggal-march-21-2010",
+    "difficulty": "Moderate",
+    "distance_km": 32.94,
+    "elevation_gain_m": 1618,
+    "estimated_duration_minutes": 395,
+    "waypoints_count": 101,
+    "start": {
+      "lat": 10.503307,
+      "lon": 123.721827
+    },
+    "end": {
+      "lat": 10.505008,
+      "lon": 123.71446
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Manunggal\\7th-annual-balamban-race-to-mt-manunggal-march-21-2010.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 77,
+    "hiking_spot_name": "Mount Manunggal",
+    "route_name": "Mount Manunggal Campsite",
+    "difficulty": "Moderate",
+    "distance_km": 2.44,
+    "elevation_gain_m": 209,
+    "estimated_duration_minutes": 29,
+    "waypoints_count": 103,
+    "start": {
+      "lat": 10.45319,
+      "lon": 123.81423
+    },
+    "end": {
+      "lat": 10.45319,
+      "lon": 123.81423
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Manunggal\\Mount Manunggal Campsite.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 77,
+    "hiking_spot_name": "Mount Manunggal",
+    "route_name": "segment-iv-a-cebu-highlands-trail-project",
+    "difficulty": "Moderate",
+    "distance_km": 38.69,
+    "elevation_gain_m": 3195,
+    "estimated_duration_minutes": 464,
+    "waypoints_count": 100,
+    "start": {
+      "lat": 10.454811,
+      "lon": 123.786135
+    },
+    "end": {
+      "lat": 10.559678,
+      "lon": 123.856108
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Manunggal\\segment-iv-a-cebu-highlands-trail-project.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 82,
+    "hiking_spot_name": "Mount Mauyog",
+    "route_name": "Mount Mauyog via Tagbao",
+    "difficulty": "Moderate",
+    "distance_km": 10.9,
+    "elevation_gain_m": 923,
+    "estimated_duration_minutes": 131,
+    "waypoints_count": 105,
+    "start": {
+      "lat": 10.44306,
+      "lon": 123.84078
+    },
+    "end": {
+      "lat": 10.44306,
+      "lon": 123.84078
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Mauyog\\Mount Mauyog via Tagbao.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 82,
+    "hiking_spot_name": "Mount Mauyog",
+    "route_name": "Mount Mauyog",
+    "difficulty": "Moderate",
+    "distance_km": 4.47,
+    "elevation_gain_m": 428,
+    "estimated_duration_minutes": 54,
+    "waypoints_count": 109,
+    "start": {
+      "lat": 10.45436,
+      "lon": 123.81599
+    },
+    "end": {
+      "lat": 10.45436,
+      "lon": 123.81599
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Mauyog\\Mount Mauyog.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 76,
+    "hiking_spot_name": "Mount Naupa",
+    "route_name": "budlaan-sirao-malubog-babag-napo-guadalupe-church",
+    "difficulty": "Moderate",
+    "distance_km": 20.32,
+    "elevation_gain_m": 1098,
+    "estimated_duration_minutes": 244,
+    "waypoints_count": 118,
+    "start": {
+      "lat": 10.384113,
+      "lon": 123.887046
+    },
+    "end": {
+      "lat": 10.330658,
+      "lon": 123.879985
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Naupa\\budlaan-sirao-malubog-babag-napo-guadalupe-church.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 76,
+    "hiking_spot_name": "Mount Naupa",
+    "route_name": "Guindaruhan - Naupa Trail",
+    "difficulty": "Moderate",
+    "distance_km": 6.93,
+    "elevation_gain_m": 427,
+    "estimated_duration_minutes": 83,
+    "waypoints_count": 116,
+    "start": {
+      "lat": 10.26723,
+      "lon": 123.75685
+    },
+    "end": {
+      "lat": 10.26723,
+      "lon": 123.75685
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Naupa\\Guindaruhan - Naupa Trail.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 76,
+    "hiking_spot_name": "Mount Naupa",
+    "route_name": "Mount Naupa",
+    "difficulty": "Moderate",
+    "distance_km": 4.17,
+    "elevation_gain_m": 316,
+    "estimated_duration_minutes": 50,
+    "waypoints_count": 112,
+    "start": {
+      "lat": 10.26948,
+      "lon": 123.74222
+    },
+    "end": {
+      "lat": 10.26948,
+      "lon": 123.74222
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Naupa\\Mount Naupa.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 85,
+    "hiking_spot_name": "Mount Tagaytay",
+    "route_name": "Malubog Lake Loop",
+    "difficulty": "Moderate",
+    "distance_km": 8.61,
+    "elevation_gain_m": 335,
+    "estimated_duration_minutes": 103,
+    "waypoints_count": 115,
+    "start": {
+      "lat": 10.37287,
+      "lon": 123.71571
+    },
+    "end": {
+      "lat": 10.37287,
+      "lon": 123.71571
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Tagaytay\\Malubog Lake Loop.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 85,
+    "hiking_spot_name": "Mount Tagaytay",
+    "route_name": "Malubog Lake",
+    "difficulty": "Moderate",
+    "distance_km": 21.1,
+    "elevation_gain_m": 757,
+    "estimated_duration_minutes": 253,
+    "waypoints_count": 108,
+    "start": {
+      "lat": 10.35202,
+      "lon": 123.66633
+    },
+    "end": {
+      "lat": 10.35202,
+      "lon": 123.66633
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Mount Tagaytay\\Malubog Lake.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 72,
+    "hiking_spot_name": "Osmena Peak",
+    "route_name": "mantalongon-osmena-peak-kawasan-falls",
+    "difficulty": "Moderate",
+    "distance_km": 17.41,
+    "elevation_gain_m": 708,
+    "estimated_duration_minutes": 209,
+    "waypoints_count": 122,
+    "start": {
+      "lat": 9.807521,
+      "lon": 123.464923
+    },
+    "end": {
+      "lat": 9.809969,
+      "lon": 123.366611
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Osmena Peak\\mantalongon-osmena-peak-kawasan-falls.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 72,
+    "hiking_spot_name": "Osmena Peak",
+    "route_name": "osmena-peak-from-badian",
+    "difficulty": "Moderate",
+    "distance_km": 11.44,
+    "elevation_gain_m": 873,
+    "estimated_duration_minutes": 137,
+    "waypoints_count": 91,
+    "start": {
+      "lat": 9.838641,
+      "lon": 123.414892
+    },
+    "end": {
+      "lat": 9.838638,
+      "lon": 123.414856
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Osmena Peak\\osmena-peak-from-badian.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 72,
+    "hiking_spot_name": "Osmena Peak",
+    "route_name": "osmenas-peak-hiking-route-from-mantalongon-to-peak",
+    "difficulty": "Moderate",
+    "distance_km": 4.27,
+    "elevation_gain_m": 383,
+    "estimated_duration_minutes": 51,
+    "waypoints_count": 111,
+    "start": {
+      "lat": 9.80764,
+      "lon": 123.464632
+    },
+    "end": {
+      "lat": 9.820599,
+      "lon": 123.443283
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Osmena Peak\\osmenas-peak-hiking-route-from-mantalongon-to-peak.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 74,
+    "hiking_spot_name": "Spartan Trail",
+    "route_name": "cebu-tch-passing-tagbao-river",
+    "difficulty": "Moderate",
+    "distance_km": 48,
+    "elevation_gain_m": 2897,
+    "estimated_duration_minutes": 576,
+    "waypoints_count": 102,
+    "start": {
+      "lat": 10.316347,
+      "lon": 123.913815
+    },
+    "end": {
+      "lat": 10.410516,
+      "lon": 123.805884
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Spartan Trail\\cebu-tch-passing-tagbao-river.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 74,
+    "hiking_spot_name": "Spartan Trail",
+    "route_name": "Spartan Trail",
+    "difficulty": "Moderate",
+    "distance_km": 5.59,
+    "elevation_gain_m": 784,
+    "estimated_duration_minutes": 67,
+    "waypoints_count": 122,
+    "start": {
+      "lat": 10.31347,
+      "lon": 123.86753
+    },
+    "end": {
+      "lat": 10.33406,
+      "lon": 123.84194
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Spartan Trail\\Spartan Trail.gpx",
+    "status": "updated"
+  },
+  {
+    "hiking_spot_id": 74,
+    "hiking_spot_name": "Spartan Trail",
+    "route_name": "spartan-trail-with-detour-paseo-to-pamutan",
+    "difficulty": "Moderate",
+    "distance_km": 8.89,
+    "elevation_gain_m": 711,
+    "estimated_duration_minutes": 107,
+    "waypoints_count": 95,
+    "start": {
+      "lat": 10.309197,
+      "lon": 123.874316
+    },
+    "end": {
+      "lat": 10.334127,
+      "lon": 123.841797
+    },
+    "file": "C:\\Users\\James\\Hiking-Mobile-App-Ascentra-1\\my-app\\gpx\\Spartan Trail\\spartan-trail-with-detour-paseo-to-pamutan.gpx",
+    "status": "updated"
+  }
+]

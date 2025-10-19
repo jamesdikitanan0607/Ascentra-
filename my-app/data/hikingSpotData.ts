@@ -53,9 +53,9 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt manunggal/thumbnail.jpg') // Fallback - no mount babag folder
   },
   {
-    id: '72',
-    hikingSpotId: '72',
-    name: 'Mount Kan-irag (Sirao Peak)',
+    id: '75',
+    hikingSpotId: '75',
+    name: 'Mount Kan-Irag',
     description: 'The highest peak in Cebu City offering challenging trails and spectacular panoramic views. Known for its cool climate and diverse flora.',
     difficulty: 'Hard',
     elevation: 1200,
@@ -82,11 +82,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Inform someone of your hiking plans',
       'Check weather conditions carefully'
     ],
-    imageSource: require('../assets/images/mt naupa/thumbnail.jpg')
+    imageSource: require('../assets/images/mt kan-irag/thumbnail.jpg')
   },
   {
-    id: '73',
-    hikingSpotId: '73',
+    id: '76',
+    hikingSpotId: '76',
     name: 'Mount Naupa',
     description: 'A moderate hiking destination known for its lush forest trails and beautiful mountain views. Popular among local hikers.',
     difficulty: 'Moderate',
@@ -117,8 +117,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt naupa/thumbnail.jpg')
   },
   {
-    id: '74',
-    hikingSpotId: '74',
+    id: '77',
+    hikingSpotId: '77',
     name: 'Mount Manunggal',
     description: 'A historically significant mountain where President Ramon Magsaysay crashed. Offers challenging trails and historical monuments.',
     difficulty: 'Hard',
@@ -149,8 +149,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt manunggal/thumbnail.jpg')
   },
   {
-    id: '75',
-    hikingSpotId: '75',
+    id: '78',
+    hikingSpotId: '78',
     name: 'Mount Mago',
     description: 'A scenic mountain offering moderate trails with beautiful views of the surrounding valleys and nearby peaks.',
     difficulty: 'Moderate',
@@ -181,8 +181,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt mago/thumbnail.jpg')
   },
   {
-    id: '76',
-    hikingSpotId: '76',
+    id: '79',
+    hikingSpotId: '79',
     name: 'Mount Kapayas',
     description: 'A challenging peak known for its steep trails and rewarding summit views. Popular among experienced hikers.',
     difficulty: 'Hard',
@@ -213,8 +213,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt kapayas/thumbnail.webp')
   },
   {
-    id: '77',
-    hikingSpotId: '77',
+    id: '80',
+    hikingSpotId: '80',
     name: 'Mount Lantoy',
     description: 'A moderate mountain hike offering forest trails and scenic viewpoints. Great for nature lovers and bird watching.',
     difficulty: 'Moderate',
@@ -245,8 +245,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mount latoy/thumbnail.webp')
   },
   {
-    id: '78',
-    hikingSpotId: '78',
+    id: '81',
+    hikingSpotId: '81',
     name: 'Mount Kalbasaan',
     description: 'A lesser-known hiking spot offering solitude and pristine natural beauty. Perfect for those seeking peaceful mountain experience.',
     difficulty: 'Moderate',
@@ -277,8 +277,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
   },
   {
-    id: '79',
-    hikingSpotId: '79',
+    id: '82',
+    hikingSpotId: '82',
     name: 'Mount Mauyog',
     description: 'A scenic mountain offering diverse trails and beautiful panoramic views. Known for its varied terrain and natural beauty.',
     difficulty: 'Moderate',
@@ -309,8 +309,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt mauyog/thumbnail.jpg')
   },
   {
-    id: '80',
-    hikingSpotId: '80',
+    id: '83',
+    hikingSpotId: '83',
     name: 'Mount Lanaya',
     description: 'A challenging mountain hike known for its rugged terrain and spectacular summit views. Popular among serious hikers.',
     difficulty: 'Hard',
@@ -341,9 +341,9 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/mt lanaya/thumbnail.jpg')
   },
   {
-    id: '81',
-    hikingSpotId: '81',
-    name: 'Mount Hambubuyog',
+    id: '94',
+    hikingSpotId: '94',
+    name: 'Lugsangan Peak',
     description: 'A moderate hiking destination offering forest trails and scenic mountain views. Great for nature enthusiasts.',
     difficulty: 'Moderate',
     elevation: 690,
@@ -370,11 +370,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Stay on designated trails',
       'Enjoy the peaceful environment'
     ],
-    imageSource: require('../assets/images/mount hambubuyog/thumbnail.jpg')
+    imageSource: require('../assets/images/Lugsangan Peak/1.jpg')
   },
   {
-    id: '82',
-    hikingSpotId: '82',
+    id: '72',
+    hikingSpotId: '72',
     name: 'Osmeña Peak',
     description: 'The highest peak in Cebu province offering breathtaking 360-degree views and rolling hills landscape. A must-visit destination.',
     difficulty: 'Easy',
@@ -405,8 +405,8 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/osmena peak/thumbnail.jpg')
   },
   {
-    id: '83',
-    hikingSpotId: '83',
+    id: '73',
+    hikingSpotId: '73',
     name: 'Casino Peak',
     description: 'A scenic peak near Osmeña offering beautiful views and easier hiking trails. Perfect complement to Osmeña Peak visit.',
     difficulty: 'Easy',
@@ -437,40 +437,36 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
     imageSource: require('../assets/images/casino peak/thumbnail.jpg')
   },
   {
-    id: '84',
-    hikingSpotId: '84',
-    name: 'Budlaan Falls',
-    description: 'A beautiful waterfall destination combining hiking with swimming opportunities. Features pristine natural pools and lush surroundings.',
-    difficulty: 'Moderate',
-    elevation: 200,
-    trail_length: 3.5,
-    estimated_duration: '2-3 hours',
-    latitude: 10.3740,
-    longitude: 123.8610,
-    rating: 4.6,
-    review_count: 156,
-    image_url: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=800&h=600&fit=crop',
-    amenities: ['Swimming areas', 'Natural pools', 'Changing areas', 'Picnic spots'],
-    best_season: ['Dry season', 'March to May'],
-    highlights: [
-      'Beautiful waterfall cascade',
-      'Natural swimming pools',
-      'Lush tropical environment',
-      'Perfect for cooling off',
-      'Great for photography'
-    ],
-    tips: [
-      'Bring swimwear and towels',
-      'Wear water-appropriate footwear',
-      'Be careful on wet rocks',
-      'Respect the natural environment',
-      'Perfect for hot weather relief'
-    ],
-    imageSource: require('../assets/images/budlaanfalls/thumbnail.jpg')
-  },
-  {
     id: '85',
     hikingSpotId: '85',
+    name: 'Mount Tagaytay',
+    description: 'Mount Tagaytay is a scenic ridge overlooking Malubog Lake, known for its panoramic views, cool mountain breeze, and peaceful atmosphere. The trail offers a mix of forest paths, open ridges, and lakeside scenery, making it an ideal destination for both casual hikers and seasoned trekkers seeking a quick nature escape from the city.',
+    difficulty: 'Moderate',
+    elevation: 700,
+    trail_length: 3.5,
+    estimated_duration: '2-3 hours',
+    latitude: 10.3650,
+    longitude: 123.7300,
+    rating: 4.2,
+    review_count: 0,
+    image_url: '',
+    amenities: ['Ridge views', 'Lakeside scenery', 'Forest paths'],
+    best_season: ['Dry season', 'November to April'],
+    highlights: [
+      'Panoramic views of Malubog Lake',
+      'Cool mountain breeze',
+      'Peaceful ridge and forest sections'
+    ],
+    tips: [
+      'Start early for cooler conditions',
+      'Bring water and sun protection',
+      'Respect local communities and trails'
+    ],
+    imageSource: require('../assets/images/Mount Tagaytay/5.jpg')
+  },
+  {
+    id: '74',
+    hikingSpotId: '74',
     name: 'Spartan Trail',
     description: 'A challenging urban trail through the city offering great workout and scenic views. Perfect for fitness enthusiasts and adventure seekers.',
     difficulty: 'Hard',

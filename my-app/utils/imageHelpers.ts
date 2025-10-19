@@ -103,14 +103,14 @@ const HIKING_SPOT_IMAGES = {
       require('../assets/images/mt lanaya/5.jpg'),
     ]
   },
-  'mount hambubuyog': {
-    thumbnail: require('../assets/images/mount hambubuyog/thumbnail.jpg'),
+  'lugsangan peak': {
+    thumbnail: require('../assets/images/Lugsangan Peak/1.jpg'),
     images: [
-      require('../assets/images/mount hambubuyog/thumbnail.jpg'),
-      require('../assets/images/mount hambubuyog/2.jpg'),
-      require('../assets/images/mount hambubuyog/3.jpg'),
-      require('../assets/images/mount hambubuyog/4.jpg'),
-      require('../assets/images/mount hambubuyog/5.jpg'),
+      require('../assets/images/Lugsangan Peak/1.jpg'),
+      require('../assets/images/Lugsangan Peak/2.webp'),
+      require('../assets/images/Lugsangan Peak/3.jpg'),
+      require('../assets/images/Lugsangan Peak/4.jpg'),
+      require('../assets/images/Lugsangan Peak/5.jpg'),
     ]
   },
   'osmena peak': {
@@ -133,16 +133,6 @@ const HIKING_SPOT_IMAGES = {
       require('../assets/images/casino peak/5.webp'),
     ],
   },
-  'budlaanfalls': {
-    thumbnail: require('../assets/images/budlaanfalls/thumbnail.jpg'),
-    images: [
-      require('../assets/images/budlaanfalls/thumbnail.jpg'),
-      require('../assets/images/budlaanfalls/2.jpg'),
-      require('../assets/images/budlaanfalls/3.jpg'),
-      require('../assets/images/budlaanfalls/4.jpg'),
-      require('../assets/images/budlaanfalls/5.jpg'),
-    ]
-  },
   'spartantrail': {
     thumbnail: require('../assets/images/spartantrail/thumbnail.jpg'),
     images: [
@@ -154,28 +144,40 @@ const HIKING_SPOT_IMAGES = {
     ]
   },
 
+  // Mount Tagaytay - use local requires; image #5 as thumbnail
+  'mount tagaytay': {
+    thumbnail: require('../assets/images/Mount Tagaytay/5.jpg'),
+    images: [
+      require('../assets/images/Mount Tagaytay/1.webp'),
+      require('../assets/images/Mount Tagaytay/2.webp'),
+      require('../assets/images/Mount Tagaytay/3.webp'),
+      require('../assets/images/Mount Tagaytay/4.jpg'),
+      require('../assets/images/Mount Tagaytay/5.jpg')
+    ]
+  },
+
 };
 
 // Map hiking spot names to folder keys
 const SPOT_NAME_TO_FOLDER: { [key: string]: string } = {
   'Mount Babag': 'mount babag',
-  'Mount Kan-irag (Sirao Peak)': 'mt kan-irag',
+  'Lugsangan Peak': 'lugsangan peak',
   'Mount Naupa': 'mt naupa',
   'Mount Manunggal': 'mt manunggal',
   'Mount Mago': 'mt mago',
   'Mount Kapayas': 'mt kapayas',
-  'Mount Lantoy': 'mount latoy', // Corrected to actual folder name
-  'Mount Kalbasaan': 'mt kalbasan', // Corrected to actual folder name
+  'Mount Kan-Irag': 'mt kan-irag',
+  'Mount Lantoy': 'mount latoy',
+  'Mount Kalbasaan': 'mt kalbasan',
   'Mount Mauyog': 'mt mauyog',
   'Mount Lanaya': 'mt lanaya',
-  'Mount Hambubuyog': 'mount hambubuyog',
   'Osmeña Peak': 'osmena peak',
   'Casino Peak': 'casino peak',
-  'Budlaan Falls': 'budlaanfalls',
   'Spartan Trail': 'spartantrail',
-  'Kandungaw Peak': 'mount babag', // Fallback to mount babag images
-  'Mantalongon Peak': 'mt mago', // Fallback to mt mago images
-  'Sirao Flower Garden': 'mt kan-irag', // Fallback to mt kan-irag images
+  'Mount Tagaytay': 'mount tagaytay',
+  'Kandungaw Peak': 'mount babag',
+  'Mantalongon Peak': 'mt mago',
+  'Sirao Flower Garden': 'lugsangan peak',
 
 
 };
@@ -195,7 +197,6 @@ const DEFAULT_IMAGES: { [key: string]: string } = {
   'mount hambubuyog': 'mount hambubuyog/thumbnail.jpg',
   'casino peak': 'casino peak/thumbnail.jpg',
   'osmena peak': 'osmena peak/thumbnail.jpg',
-  'budlaanfalls': 'budlaanfalls/thumbnail.jpg',
   'spartantrail': 'spartantrail/thumbnail.jpg', // Updated to HEIC format
   'mount-kapayas': 'mt kapayas/thumbnail.webp', // Updated to webp format
   'osmena-peak': 'osmena peak/thumbnail.jpg'
