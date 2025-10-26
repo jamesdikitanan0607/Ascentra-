@@ -216,6 +216,7 @@ const FriendsComponent: React.FC<FriendsComponentProps> = ({
         data={friends}
         renderItem={renderFriend}
         keyExtractor={(item) => item.id}
+        nestedScrollEnabled={true}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

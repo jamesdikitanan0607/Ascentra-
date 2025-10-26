@@ -165,8 +165,9 @@ export default function EditProfileScreen({ navigation }) {
       }
 
       // Launch image picker
+      const MT = ImagePicker.MediaType;
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: MT ? (MT.IMAGE || MT.Images) : 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,

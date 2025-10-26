@@ -43,6 +43,7 @@ export const linking: LinkingOptions<any> = {
   CasinoPeak: 'spots/casino-peak',
   BudlaanFalls: 'spots/budlaan-falls',
       SpartanTrail: 'spots/spartan-trail',
+      SpartanTrailScreen: 'spots/spartan-trail',
 
       HikingSpotLandingPage: 'spots/landing/:hiking_spot_id',
     },

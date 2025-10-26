@@ -78,7 +78,7 @@ export default function FavoritesComponent({
     setShowAddModal(false);
   }
 
-  async function removeFavoriteSpot(spotId: string) {
+  async function removeFavoriteSpot(spotId: number) {
     Alert.alert(
       'Remove Favorite',
       'Are you sure you want to remove this favorite spot?',
@@ -126,7 +126,7 @@ export default function FavoritesComponent({
             <Text style={styles.spotName}>{spot.name}</Text>
             <TouchableOpacity
               style={styles.removeButton}
-              onPress={() => removeFavoriteSpot(spot.id.toString())}
+              onPress={() => removeFavoriteSpot(spot.id)}
             >
               <Ionicons name='heart' size={20} color='#FF3B30' />
             </TouchableOpacity>

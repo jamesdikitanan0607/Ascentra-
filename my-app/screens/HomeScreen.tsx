@@ -47,6 +47,8 @@ interface HomeScreenProps {
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
+const LOGO_ASPECT = 3; // width:height ratio for the logo
+const LOGO_TARGET_WIDTH = Math.min(width * 0.7, 360); // responsive logo width with an upper bound
 
 // Mapping function to convert spot IDs to individual screen names
 const getSpotScreenName = (spotId: number): keyof RootStackParamList => {
@@ -288,7 +290,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
           <View style={styles.logoContainer}>
             <Image 
               source={require('../assets/images/ascentra.png')} 
-              style={styles.logo}
+              style={[styles.logo, { width: LOGO_TARGET_WIDTH, height: LOGO_TARGET_WIDTH / LOGO_ASPECT }]}
               resizeMode="contain"
             />
           </View>
@@ -395,12 +397,11 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
     marginTop: 8,
   },
   logo: {
-    width: 180,
-    height: 60,
+    
   },
   searchContainer: {
     flexDirection: 'row',
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   searchIcon: {
     marginRight: 12,

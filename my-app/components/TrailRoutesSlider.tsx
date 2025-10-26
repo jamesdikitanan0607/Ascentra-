@@ -160,18 +160,17 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
     if (routes.length > 0 && !selectedRoute) {
       onRouteSelect(routes[0]);
     }
-  }, [routes, selectedRoute, onRouteSelect]);
+  }, [routes, selectedRoute]);
 
-  // Handle viewable items change
-  const onViewableItemsChanged = useRef(({ viewableItems: vItems }: { viewableItems: ViewToken[] }) => {
+  // Handle viewable items change (keep deps in sync to avoid stale closures)
+  const onViewableItemsChanged = React.useCallback(({ viewableItems: vItems }: { viewableItems: ViewToken[] }) => {
     if (vItems.length > 0) {
       setViewableItems(vItems);
-      // Auto-select the first viewable item if none is selected
-      if (!selectedRoute || !vItems.some(vi => vi.item.route_id === selectedRoute?.route_id)) {
+      if (!selectedRoute || !vItems.some(vi => vi.item.route_id === selectedRoute.route_id)) {
         onRouteSelect(vItems[0].item);
       }
     }
-  }).current;
+  }, [selectedRoute, onRouteSelect]);
 
   // Set up viewability config
   const viewabilityConfig = useRef<ViewabilityConfig>({

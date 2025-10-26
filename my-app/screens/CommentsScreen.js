@@ -19,6 +19,7 @@ import { logInfo, logError, logApiCall } from '../utils/logger';
 
 export default function CommentsScreen({ route, navigation }) {
   const { postId } = route.params;
+
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,12 +48,38 @@ export default function CommentsScreen({ route, navigation }) {
       logInfo(`Fetching post with ID: ${postId}`);
       
       const { data: postData, error: postError } = await supabase
-        .from('posts')
+        .from('forum_posts')
         .select('*')
         .eq('id', postId)
         .single();
 
-      if (postError) {
+      if (postError && postError.code === 'PGRST205') {
+        // Fallback to activities if forum_posts table does not exist
+        const { data: activityData, error: activityError } = await supabase
+          .from('activities')
+          .select('id, content, title, created_at, user_id')
+          .eq('id', postId)
+          .single();
+
+        if (activityError) {
+          logError('Error fetching activity as fallback:', activityError);
+          setPostLoading(false);
+          return;
+        }
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', activityData.user_id)
+          .single();
+
+        setPost({
+          ...activityData,
+          profiles: profileData || { username: 'User', avatar_url: null },
+        });
+        setPostLoading(false);
+        return;
+      } else if (postError) {
         logError('Error fetching post:', postError);
         
         // Handle the "no rows" error more gracefully
@@ -91,9 +118,9 @@ export default function CommentsScreen({ route, navigation }) {
     try {
       // Get all comments for this post
       const { data: commentData, error: commentError } = await supabase
-        .from('comments')
+        .from('forum_comments')
         .select('*')
-        .eq('post_id', postId)
+        .eq('forum_post_id', postId)
         .order('created_at', { ascending: true });
 
       if (commentError) {
@@ -103,7 +130,7 @@ export default function CommentsScreen({ route, navigation }) {
       }
 
       // For each comment, get the user profile separately
-      const enrichedComments = await Promise.all(commentData.map(async (comment) => {
+      const enrichedComments = await Promise.all((commentData || []).map(async (comment) => {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('username, avatar_url')
@@ -134,15 +161,13 @@ export default function CommentsScreen({ route, navigation }) {
     setPosting(true);
     try {
       const { data, error } = await supabase
-        .from('comments')
+        .from('forum_comments')
         .insert([{
-          post_id: postId,
+          forum_post_id: postId,
           user_id: user.id,
-          content: newComment.trim()
+          comment_text: newComment.trim()
         }])
-        .select(`
-          *
-        `);
+        .select(`*`);
       
       if (error) {
         logError('Error adding comment:', error);
@@ -163,8 +188,6 @@ export default function CommentsScreen({ route, navigation }) {
         setComments([...comments, commentWithProfile]);
         setNewComment('');
       }
-
-
     } catch (err) {
       logError('Unexpected error in addComment:', err);
     } finally {
@@ -184,7 +207,7 @@ export default function CommentsScreen({ route, navigation }) {
           onPress: async () => {
             try {
               const { error } = await supabase
-                .from('comments')
+                .from('forum_comments')
                 .delete()
                 .eq('id', commentId);
 
@@ -209,11 +232,18 @@ export default function CommentsScreen({ route, navigation }) {
       
       // Get all posts to see what's in the database
       const { data: allPosts, error: postsError } = await supabase
-        .from('posts')
+        .from('forum_posts')
         .select('id, content')
         .limit(5);
       
-      if (postsError) {
+      if (postsError && postsError.code === 'PGRST205') {
+        // Fallback check on activities
+        const { data: allActivities } = await supabase
+          .from('activities')
+          .select('id, content')
+          .limit(5);
+        logInfo('Available activities (fallback):', allActivities);
+      } else if (postsError) {
         logError('Error fetching posts list:', postsError);
       } else {
         logInfo('Available posts in database:', allPosts);
@@ -246,7 +276,7 @@ export default function CommentsScreen({ route, navigation }) {
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
           </View>
-          <Text style={styles.commentText}>{item.content}</Text>
+          <Text style={styles.commentText}>{item.comment_text}</Text>
         </View>
         
         {isOwnComment && (

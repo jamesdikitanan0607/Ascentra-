@@ -34,7 +34,7 @@ const RETRY_CONFIG = {
 export const checkNetworkConnectivity = async (): Promise<boolean> => {
   try {
     // Simple connectivity test using a lightweight Supabase query
-    const { error } = await supabase.from('hiking_spots').select('id').limit(1);
+    const { error } = await supabase.from('hiking_spots').select('name').limit(1);
     return !error;
   } catch (error) {
     return false;
@@ -272,14 +272,33 @@ export const fetchHikingSpots = async () => {
 };
 
 export const fetchHikingSpotById = async (id: string) => {
-  const { data, error } = await safeSupabaseQuery(
+  // Try common schemas: first 'hiking_spot_id' (legacy), then fallback to 'id'
+  let { data, error } = await safeSupabaseQuery(
     supabase
       .from('hiking_spots')
       .select('*')
-      .eq('id', id)
+      .eq('hiking_spot_id', id)
       .single(),
-    `fetch hiking spot ${id}`
+    `fetch hiking spot by spot_id ${id}`
   );
+
+  // Fallback if column doesn't exist or no row matched
+  if (error || !data) {
+    const byAltKey = await safeSupabaseQuery(
+      supabase
+        .from('hiking_spots')
+        .select('*')
+        .eq('id', id)
+        .single(),
+      `fetch hiking spot (alt id) ${id}`
+    );
+    if (byAltKey.data) {
+      data = byAltKey.data;
+      error = null;
+    } else if (byAltKey.error && !error) {
+      error = byAltKey.error;
+    }
+  }
   
   // Additional validation for hiking spot data
   if (data && !error) {
@@ -702,10 +721,10 @@ export const performHealthCheck = async (): Promise<{
       errors.push('Network connectivity failed');
     }
     
-    // Check hiking_spots table access
+    // Check hiking_spots table access (use a safe column present across schemas)
     const { error: hikingSpotsError } = await supabase
       .from('hiking_spots')
-      .select('id')
+      .select('name')
       .limit(1);
     checks.hikingSpots = !hikingSpotsError;
     if (hikingSpotsError) {

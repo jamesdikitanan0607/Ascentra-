@@ -29,7 +29,7 @@ const CARD_HEIGHT = height * 0.7; // TikTok-like full screen cards
 interface FavoriteSpotCardProps {
   spot: HikingSpot;
   onPress: () => void;
-  onRemoveFavorite: (spotId: string) => void;
+  onRemoveFavorite: (spotId: number) => void;
 }
 
 const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
@@ -49,7 +49,7 @@ const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
             onPress: async () => {
               setIsRemoving(true);
               try {
-                await onRemoveFavorite(spot.id.toString());
+                await onRemoveFavorite(spot.id);
               } catch (error) {
                 logErrorContext('FavoriteSpotCard.handleRemoveFavorite', error);
               } finally {
@@ -183,7 +183,7 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
     setRefreshing(false);
   }, [loadFavorites]);
 
-  const handleRemoveFavorite = useCallback(async (spotId: string) => {
+  const handleRemoveFavorite = useCallback(async (spotId: number) => {
     try {
       const success = await removeFromFavorites(spotId);
       if (!success) {
@@ -196,7 +196,7 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
 
   const handleSpotPress = useCallback(
     (spot: HikingSpot) => {
-      navigation.navigate('HikingSpotDetails', { spot: spot });
+      navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: String(spot.id) });
     },
     [navigation],
   );

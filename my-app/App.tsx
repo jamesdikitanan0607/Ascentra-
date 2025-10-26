@@ -34,7 +34,7 @@ export type RootStackParamList = {
   Tracking: undefined;
   HikeHistory: { userId?: string | null };
   SaveActivity: { routeCoordinates: any[]; stats: any };
-  MediaViewer: { mediaItems: any[]; initialIndex: number };
+  MediaViewer: { mediaItems: any[]; initialIndex: number; post?: any };
   HikeDetail: { hikeId: string };
   ActivityComments: { activityId: string };
   SaveConfirmation: { hikeId: string };
@@ -54,7 +54,7 @@ export type RootStackParamList = {
   OsmenaPeak: undefined;
   CasinoPeakScreen: undefined;
   MountTagaytayScreen: undefined;
-  SpartanTrailScreen: undefined;
+  SpartanTrailScreen: { spotId?: string } | undefined;
 };
 
 // Import screens
@@ -71,7 +71,6 @@ const HistoryScreen = createLazyComponent(() => import('./screens/HistoryScreen'
 const HikingSpotDetailsScreen = createLazyComponent(() => import('./screens/HikingSpotDetailsScreen'));
 const HikingTrailDetailsScreen = createLazyComponent(() => import('./screens/HikingTrailDetailsScreen'));
 const TestHikingTrailDetailsScreen = createLazyComponent(() => import('./screens/TestHikingTrailDetailsScreen'));
-const ActivityDetailsScreen = createLazyComponent(() => import('./screens/ActivityDetailsScreen'));
 const TrackScreen = createLazyComponent(() => import('./screens/TrackScreen'));
 const TrackingScreen = createLazyComponent(() => import('./screens/TrackingScreen'));
 const HikeHistoryScreen = createLazyComponent(() => import('./screens/HikeHistoryScreen'));
@@ -226,11 +225,6 @@ function AppContent(): JSX.Element {
               name="TrailMapFullScreen" 
               component={TrailMapFullScreen} 
               options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="ActivityDetails" 
-              component={ActivityDetailsScreen} 
-              options={{ headerShown: false }} 
             />
             <Stack.Screen name="Tracking" component={TrackingScreen} options={{ headerShown: false }} />
             <Stack.Screen 

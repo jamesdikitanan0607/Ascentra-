@@ -64,19 +64,31 @@ const ActivityFeedComponent: React.FC<ActivityFeedComponentProps> = ({
         return;
       }
 
-      // Fetch usernames separately
+      // Fetch usernames separately and normalize fields for UI
       const activitiesWithProfiles = await Promise.all(
-        (data || []).map(async (activity) => {
+        (data || []).map(async (activity: any) => {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('username, full_name, avatar_url')
             .eq('id', activity.user_id)
             .single();
-          
-          return {
+
+          // Normalize to match UI expectations
+          const normalized = {
             ...activity,
-            profiles: profileData || { username: 'Unknown User', full_name: '', avatar_url: null }
-          };
+            description:
+              (activity as any).description ?? (activity as any).content ?? undefined,
+            activity_type: (activity as any).activity_type ?? 'post',
+          } as Activity & { content?: string };
+
+          return {
+            ...normalized,
+            profiles: profileData || {
+              username: 'Unknown User',
+              full_name: '',
+              avatar_url: null,
+            },
+          } as Activity;
         })
       );
 
@@ -160,6 +172,7 @@ const ActivityFeedComponent: React.FC<ActivityFeedComponentProps> = ({
         data={activities}
         renderItem={renderActivityItem}
         keyExtractor={(item) => item.id}
+        nestedScrollEnabled={true}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

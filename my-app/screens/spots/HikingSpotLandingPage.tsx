@@ -229,9 +229,9 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     if (favoritesLoading || !hikingSpot) return;
     
     try {
-      const isCurrentlyFavorited = isSpotFavorited(hikingSpot.id.toString());
+      const isCurrentlyFavorited = isSpotFavorited(hikingSpot.id);
       if (isCurrentlyFavorited) {
-        await removeFromFavorites(hikingSpot.id.toString());
+        await removeFromFavorites(hikingSpot.id);
       } else {
         await addToFavorites(hikingSpot);
       }

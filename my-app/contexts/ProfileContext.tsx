@@ -22,8 +22,8 @@ interface ProfileContextType {
   refreshProfile: () => Promise<void>;
   forceRefreshProfile: () => Promise<void>;
   addToFavorites: (spot: HikingSpot) => Promise<boolean>;
-  removeFromFavorites: (spotId: string) => Promise<boolean>;
-  isSpotFavorited: (spotId: string) => boolean;
+  removeFromFavorites: (spotId: number) => Promise<boolean>;
+  isSpotFavorited: (spotId: number) => boolean;
   refreshFavorites: () => Promise<void>;
   forceRefresh: () => Promise<void>;
 }
@@ -403,12 +403,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeFromFavorites = useCallback(
-    async (spotId: string): Promise<boolean> => {
+    async (spotId: number): Promise<boolean> => {
       if (!user) return false;
 
       try {
         // Optimistically update local state
-        const updatedFavorites = favorites.filter((fav) => fav.id !== parseInt(spotId));
+        const updatedFavorites = favorites.filter((fav) => fav.id !== spotId);
         setFavorites(updatedFavorites);
         await saveFavoritesToCache(updatedFavorites);
 
@@ -437,8 +437,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   );
 
   const isSpotFavorited = useCallback(
-    (spotId: string): boolean => {
-      return favorites.some((fav) => fav.id === parseInt(spotId));
+    (spotId: number): boolean => {
+      return favorites.some((fav) => fav.id === spotId);
     },
     [favorites],
   );

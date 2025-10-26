@@ -24,17 +24,39 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Video } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import uuid from 'react-native-uuid';
-import { decode } from 'base-64';
+import { decode } from 'base64-arraybuffer';
 import { logger } from '../utils/logger';
+import MentionSpotDropdown from '../components/MentionSpotDropdown';
+import { insertMentionAtCursor, computeMentionQuery } from '../utils/mentions';
+import { SUPABASE_BUCKET } from '../config/storage';
+import {
+  handleDatabaseError,
+  insertForumPostMediaWithErrorHandling,
+  checkMediaInsertionPermission
+} from '../utils/databaseErrorHandler';
+import {
+  uploadMediaFilesWithTransaction,
+  validateMediaFiles
+} from '../services/mediaUploadService';
+import {
+  uploadMediaWithFixedTypes,
+  validateMediaForUpload
+} from '../services/fixedMediaUploadService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Supabase Storage bucket imported from centralized config
 
 export default function ForumPost() {
   const [posts, setPosts] = useState([]);
   const [newPostText, setNewPostText] = useState('');
+  const [titleText, setTitleText] = useState('');
+  const [titleSelection, setTitleSelection] = useState({ start: 0, end: 0 });
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [taggedSpots, setTaggedSpots] = useState([]); // array of ids
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,11 +121,9 @@ export default function ForumPost() {
           content,
           title,
           created_at,
-          user_id,
-          visibility
+          user_id
         `,
         )
-        .eq('visibility', 'public')
         .order('created_at', { ascending: false });
 
       if (postsError) {
@@ -293,10 +313,10 @@ export default function ForumPost() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         // Check if we already have maximum media files
-        if (mediaFiles.length >= 5) {
+        if (mediaFiles.length >= 20) {
           Alert.alert(
             'Limit Reached',
-            'You can only attach up to 5 media files per post.',
+            'You can only attach up to 20 media files per post.',
           );
           return;
         }
@@ -334,10 +354,10 @@ export default function ForumPost() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         // Check if we already have maximum media files
-        if (mediaFiles.length >= 5) {
+        if (mediaFiles.length >= 20) {
           Alert.alert(
             'Limit Reached',
-            'You can only attach up to 5 media files per post.',
+            'You can only attach up to 20 media files per post.',
           );
           return;
         }
@@ -388,7 +408,7 @@ export default function ForumPost() {
         const randomId = Math.random().toString(36).substring(2, 10);
         const fileExt = media.uri.split('.').pop();
         const fileName = `${timestamp}_${randomId}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const filePath = `posts/${user.id}/${fileName}`;
 
         let fileToUpload = media.uri;
         const contentType = media.type === 'image' ? 'image/jpeg' : 'video/mp4';
@@ -411,13 +431,13 @@ export default function ForumPost() {
 
         // Read file as base64
         const base64 = await FileSystem.readAsStringAsync(fileToUpload, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
 
         // Upload the file to Supabase Storage
 
         const { data, error } = await supabase.storage
-          .from('forum')
+          .from(SUPABASE_BUCKET)
           .upload(filePath, decode(base64), {
             contentType: contentType,
             upsert: true,
@@ -429,7 +449,7 @@ export default function ForumPost() {
 
         // Get the public URL
         const { data: urlData } = supabase.storage
-          .from('forum')
+          .from(SUPABASE_BUCKET)
           .getPublicUrl(filePath);
 
         const mediaUrl = urlData?.publicUrl;
@@ -440,7 +460,7 @@ export default function ForumPost() {
           const thumbTimestamp = Date.now();
           const thumbId = Math.random().toString(36).substring(2, 10);
           const thumbnailName = `thumb_${thumbTimestamp}_${thumbId}.jpg`;
-          const thumbnailPath = `${user.id}/${thumbnailName}`;
+          const thumbnailPath = `posts/${user.id}/${thumbnailName}`;
 
           // Copy thumbnail to known location
           const thumbNewPath =
@@ -452,12 +472,12 @@ export default function ForumPost() {
 
           // Read thumbnail as base64
           const thumbBase64 = await FileSystem.readAsStringAsync(thumbNewPath, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
 
           // Upload thumbnail to Supabase Storage
           const { data: thumbData, error: thumbError } = await supabase.storage
-            .from('forum')
+            .from(SUPABASE_BUCKET)
             .upload(thumbnailPath, decode(thumbBase64), {
               contentType: 'image/jpeg',
               upsert: true,
@@ -469,7 +489,7 @@ export default function ForumPost() {
 
           // Get thumbnail public URL
           const { data: thumbUrlData } = supabase.storage
-            .from('forum')
+            .from(SUPABASE_BUCKET)
             .getPublicUrl(thumbnailPath);
 
           const thumbUrl = thumbUrlData?.publicUrl;
@@ -501,7 +521,7 @@ export default function ForumPost() {
 
   // Submit a new post to Supabase
   async function submitPost() {
-    if (!newPostText.trim() && mediaFiles.length === 0) {
+    if (!titleText.trim() && !newPostText.trim() && mediaFiles.length === 0) {
       Alert.alert('Error', 'Post cannot be empty. Please add text or media.');
       return;
     }
@@ -511,6 +531,15 @@ export default function ForumPost() {
       return;
     }
 
+    // Validate media files before proceeding
+    if (mediaFiles.length > 0) {
+      const validation = validateMediaForUpload(mediaFiles);
+      if (!validation.isValid) {
+        Alert.alert('Invalid Media', validation.errors.join('\n'));
+        return;
+      }
+    }
+
     try {
       setUploading(true);
 
@@ -518,36 +547,51 @@ export default function ForumPost() {
       const { data: postData, error: postError } = await supabase
         .from('forum_posts')
         .insert({
-          title: newPostText.trim().substring(0, 100) || 'Forum Post', // Use first 100 chars as title or default
+          title: (titleText || newPostText).trim().substring(0, 100) || 'Forum Post',
           content: newPostText.trim(),
           user_id: user.id,
-          visibility: postVisibility,
+          tags: taggedSpots,
         })
         .select('id')
         .single();
 
       if (postError) {
-        throw postError;
+        const processedError = handleDatabaseError(postError, 'forum post creation', {
+          userId: user.id,
+          title: titleText,
+          content: newPostText,
+        });
+        throw processedError;
       }
 
-      // Upload media files if any
+      logger.info(`Successfully created forum post: ${postData.id}`);
+
+      // Upload media files if any using the fixed service
       if (mediaFiles.length > 0) {
-        const uploadedMedia = await uploadMediaFiles(postData.id);
+        try {
+          await uploadMediaWithFixedTypes(
+            supabase,
+            mediaFiles,
+            postData.id,
+            user.id
+          );
 
-        // Insert media references to database
-        if (uploadedMedia.length > 0) {
-          const { error: mediaError } = await supabase
-            .from('forum_post_media')
-            .insert(uploadedMedia);
+          logger.info(`Successfully uploaded and attached ${mediaFiles.length} media files to post ${postData.id}`);
+        } catch (mediaError) {
+          // Media upload failed, but post was created successfully
+          logger.error('Media upload failed after post creation:', mediaError);
 
-          if (mediaError) {
-            console.error('Error inserting media references:', mediaError);
-          }
+          Alert.alert(
+            'Partial Success',
+            `Your post was created successfully, but there was an error uploading the media files.\n\nError: ${mediaError.message}\n\nYou can try editing the post to add media again.`
+          );
         }
       }
 
       // Clear input and media files
       setNewPostText('');
+      setTitleText('');
+      setTaggedSpots([]);
       setMediaFiles([]);
       setPostVisibility('public');
 
@@ -556,8 +600,13 @@ export default function ForumPost() {
 
       Alert.alert('Success', 'Your post has been published!');
     } catch (error) {
-      console.error('Error creating forum post:', error);
-      Alert.alert('Error', 'Failed to publish post. Please try again.');
+      logger.error('Error creating forum post:', error);
+
+      const processedError = handleDatabaseError(error, 'forum post creation');
+      Alert.alert(
+        'Error',
+        processedError.userMessage || 'Failed to publish post. Please try again.'
+      );
     } finally {
       setUploading(false);
     }
@@ -689,7 +738,7 @@ export default function ForumPost() {
                 style={[
                   styles.navButton,
                   currentMediaIndex === currentMediaList.length - 1 &&
-                    styles.navButtonDisabled,
+                  styles.navButtonDisabled,
                 ]}
               >
                 <Ionicons
@@ -1276,7 +1325,7 @@ export default function ForumPost() {
             style={[
               styles.commentSubmitButton,
               (!commentText.trim() || submittingComment) &&
-                styles.commentSubmitButtonDisabled,
+              styles.commentSubmitButtonDisabled,
             ]}
             onPress={submitComment}
             disabled={!commentText.trim() || submittingComment}
@@ -1434,6 +1483,37 @@ export default function ForumPost() {
 
       {/* Post input area */}
       <View style={styles.inputContainer}>
+        {/* Title with @-mention support */}
+        <View style={{ position: 'relative', marginBottom: 8 }}>
+          <TextInput
+            style={[styles.input, { fontWeight: '700' }]}
+            placeholder='Title your post… Use @ to tag a hiking spot'
+            placeholderTextColor='#9E9E9E'
+            value={titleText}
+            onSelectionChange={(e) => setTitleSelection(e.nativeEvent.selection)}
+            selection={titleSelection}
+            onChangeText={(text) => {
+              setTitleText(text);
+              const selStart = titleSelection?.start ?? text.length;
+              const { hasTrigger, query } = computeMentionQuery(text, selStart);
+              setMentionQuery(query);
+              setShowMentionDropdown(!!hasTrigger);
+            }}
+          />
+          <MentionSpotDropdown
+            visible={showMentionDropdown}
+            query={mentionQuery}
+            onSelect={(spot) => {
+              const selStart = titleSelection?.start ?? titleText.length;
+              const { newText, newPos } = insertMentionAtCursor(titleText, selStart, `@${spot.name} `);
+              setTitleText(newText);
+              setTitleSelection({ start: newPos, end: newPos });
+              if (!taggedSpots.includes(spot.id)) setTaggedSpots([...taggedSpots, spot.id]);
+              console.info('Inserted mention:', spot.id, spot.name);
+              setShowMentionDropdown(false);
+            }}
+          />
+        </View>
         <TextInput
           style={styles.input}
           placeholder='Share your hiking experiences, ask questions, or find trail buddies...'
@@ -1465,7 +1545,7 @@ export default function ForumPost() {
                 style={[
                   styles.visibilityButtonText,
                   postVisibility === 'public' &&
-                    styles.visibilityButtonTextActive,
+                  styles.visibilityButtonTextActive,
                 ]}
               >
                 Public
@@ -1487,7 +1567,7 @@ export default function ForumPost() {
                 style={[
                   styles.visibilityButtonText,
                   postVisibility === 'private' &&
-                    styles.visibilityButtonTextActive,
+                  styles.visibilityButtonTextActive,
                 ]}
               >
                 Private
@@ -1509,8 +1589,8 @@ export default function ForumPost() {
             style={[
               styles.postButton,
               !newPostText.trim() &&
-                mediaFiles.length === 0 &&
-                styles.postButtonDisabled,
+              mediaFiles.length === 0 &&
+              styles.postButtonDisabled,
             ]}
             onPress={submitPost}
             disabled={

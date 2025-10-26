@@ -80,8 +80,9 @@ export default function SaveActivityScreen({ navigation, route }) {
 
     try {
       // Launch image picker
+      const MT = ImagePicker.MediaType;
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow both photos and videos
+        mediaTypes: MT ? [MT.Images, MT.Videos] : undefined, // Allow both photos and videos
         allowsEditing: false,
         allowsMultipleSelection: true,
         aspect: [4, 3],

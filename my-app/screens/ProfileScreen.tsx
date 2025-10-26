@@ -16,8 +16,8 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ActivityFeedComponent from '../components/ActivityFeedComponent';
-import AchievementsComponent from '../components/AchievementsComponent';
+import ProfilePostsFeed from '../src/components/profile/ProfilePostsFeed';
+ 
 import FriendsComponent from '../components/FriendsComponent';
 import { getHikesForUser } from '../services/databaseService';
 import {
@@ -34,6 +34,7 @@ import { useProgression } from '../hooks/useProgression';
 import { useProfile } from '../contexts/ProfileContext';
 import { useAuth } from '../contexts/AuthContext';
 import { logInfo, logError, logApiCall } from '../utils/logger';
+import { Profile as ProfileType, Post as PostType, Hike as HikeType, MediaItem as MediaItemType } from '../types';
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -54,6 +55,7 @@ interface Profile {
   cover_photo_url?: string;
   skill_level?: string;
   total_km_traveled?: number;
+  location?: string;
 }
 
 interface Post {
@@ -235,7 +237,7 @@ export default function ProfileScreen({
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', id) // Use user_id to reference auth.users.id
+        .eq('id', id) // profiles.id references auth.users(id)
         .single();
 
       if (error) {
@@ -268,7 +270,48 @@ export default function ProfileScreen({
 
       const { data, error } = await query;
 
-      if (error) {
+      if (error && (error as any).code === 'PGRST205') {
+        // Fallback to activities when forum_posts is missing
+        let actsQuery = supabase
+          .from('activities')
+          .select('id, content, title, created_at, user_id, visibility')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false });
+
+        if (!isOwnProfile) {
+          actsQuery = actsQuery.eq('visibility', 'public');
+        }
+
+        const { data: acts, error: actsErr } = await actsQuery;
+
+        if (actsErr) {
+          logError('Error fetching activities as fallback:', actsErr);
+          setPosts([]);
+        } else {
+          const postsWithProfiles = await Promise.all(
+            (acts || []).map(async (post: any) => {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', post.user_id)
+                .single();
+
+              return {
+                id: post.id,
+                content: post.content,
+                created_at: post.created_at,
+                user_id: post.user_id,
+                visibility: 'public',
+                likeCount: 0,
+                commentCount: 0,
+                isLiked: false,
+                profiles: profileData || { username: 'Unknown User', avatar_url: null },
+              };
+            })
+          );
+          setPosts(postsWithProfiles);
+        }
+      } else if (error) {
         logError('Error fetching user posts:', error);
       } else {
         // Fetch usernames separately
@@ -287,9 +330,9 @@ export default function ProfileScreen({
               created_at: post.created_at,
               user_id: post.user_id,
               visibility: post.visibility,
-              likeCount: 0, // TODO: Implement likes for forum posts
-              commentCount: 0, // TODO: Implement comments count
-              isLiked: false, // TODO: Implement like status
+              likeCount: 0,
+              commentCount: 0,
+              isLiked: false,
               profiles: profileData || { username: 'Unknown User', avatar_url: null },
             };
           })
@@ -304,20 +347,14 @@ export default function ProfileScreen({
     }
   }
 
-  // Update fetchUserStats to use forum_posts data
+  // Update fetchUserStats to use activities data
   async function fetchUserStats(id: string): Promise<void> {
     try {
-      // Build query for post count based on profile visibility
+      // Build query for activity count by user
       let postsQuery = supabase
-        .from('forum_posts')
+        .from('activities')
         .select('id', { count: 'exact' })
         .eq('user_id', id);
-
-      // If viewing another user's profile, only count public posts
-      if (!isOwnProfile) {
-        postsQuery = postsQuery.eq('visibility', 'public');
-      }
-      // If viewing own profile, count all posts (public and private)
 
       const { data: postsData, error: postsError } = await postsQuery;
 
@@ -405,6 +442,44 @@ export default function ProfileScreen({
   function navigateToEditProfile(): void {
     closeSettingsModal();
     navigation.navigate('EditProfile');
+  }
+
+  async function resendVerificationEmail(): Promise<void> {
+    try {
+      const email = (currentUser as any)?.email;
+      if (!email) {
+        Alert.alert('Unavailable', 'No email found for current account.');
+        return;
+      }
+      const { error } = await (supabase.auth as any).resend({ type: 'signup', email });
+      if (error) throw error;
+      Alert.alert('Email Sent', 'Verification email has been resent.');
+    } catch (error) {
+      Alert.alert('Failed', error instanceof Error ? error.message : 'Could not resend verification email.');
+    }
+  }
+
+  function confirmDeleteAccount(): void {
+    Alert.alert(
+      'Delete Account',
+      'This action is irreversible. All your data may be removed. Do you want to proceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Client-side deletion of auth user is not allowed without elevated privileges.
+              // This is a placeholder to integrate with a secure backend function.
+              Alert.alert('Not Available', 'Please contact support to delete your account.');
+            } catch (e) {
+              Alert.alert('Failed', 'Unable to delete account at this time.');
+            }
+          },
+        },
+      ],
+    );
   }
 
   // Function to render a hike activity item
@@ -497,6 +572,7 @@ export default function ProfileScreen({
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          accessibilityLabel='Go back'
         >
           <Ionicons name='arrow-back' size={24} color='#333' />
         </TouchableOpacity>
@@ -509,6 +585,7 @@ export default function ProfileScreen({
           <TouchableOpacity
             style={styles.settingsButton}
             onPress={openSettingsModal}
+            accessibilityLabel='Open settings'
           >
             <Ionicons name='settings-outline' size={24} color='#333' />
           </TouchableOpacity>
@@ -536,6 +613,7 @@ export default function ProfileScreen({
               <TouchableOpacity
                 style={styles.settingsOption}
                 onPress={navigateToEditProfile}
+                accessibilityLabel='Edit profile'
               >
                 <Ionicons name='person-outline' size={22} color='#333' />
                 <Text style={styles.settingsOptionText}>Edit Profile</Text>
@@ -544,14 +622,29 @@ export default function ProfileScreen({
               <TouchableOpacity
                 style={styles.settingsOption}
                 onPress={navigateToChangePassword}
+                accessibilityLabel='Change password'
               >
                 <Ionicons name='key-outline' size={22} color='#333' />
                 <Text style={styles.settingsOptionText}>Change Password</Text>
               </TouchableOpacity>
 
+              {/* Email verification status and resend */}
+              <View style={styles.settingsOption} accessibilityLabel='Email verification status'>
+                <Ionicons name='mail-outline' size={22} color='#333' />
+                <Text style={styles.settingsOptionText}>
+                  {((currentUser as any)?.email_confirmed_at) ? 'Email Verified' : 'Email Not Verified'}
+                </Text>
+                {!(currentUser as any)?.email_confirmed_at && (
+                  <TouchableOpacity onPress={resendVerificationEmail} accessibilityLabel='Resend verification email'>
+                    <Text style={[styles.settingsOptionText, { color: '#2E7D32', marginLeft: 8 }]}>Resend</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <TouchableOpacity
                 style={[styles.settingsOption, styles.signOutOption]}
                 onPress={handleSignOut}
+                accessibilityLabel='Sign out'
               >
                 <Ionicons name='log-out-outline' size={22} color='#FF3B30' />
                 <Text style={[styles.settingsOptionText, styles.signOutText]}>
@@ -560,8 +653,18 @@ export default function ProfileScreen({
               </TouchableOpacity>
 
               <TouchableOpacity
+                style={[styles.settingsOption]}
+                onPress={confirmDeleteAccount}
+                accessibilityLabel='Delete account'
+              >
+                <Ionicons name='trash-outline' size={22} color='#FF3B30' />
+                <Text style={[styles.settingsOptionText, { color: '#FF3B30' }]}>Delete Account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={closeSettingsModal}
+                accessibilityLabel='Close settings'
               >
                 <Text style={styles.closeButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -571,25 +674,13 @@ export default function ProfileScreen({
       </Modal>
 
       <ScrollView
+        nestedScrollEnabled={true}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Enhanced Profile Header */}
+        {/* Profile Header */}
         <View style={styles.profileHeaderContainer}>
-          {/* Cover Photo */}
-          <View style={styles.coverPhotoContainer}>
-            <Image
-              source={{
-                uri:
-                  profile?.cover_photo_url ||
-                  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=300&fit=crop',
-              }}
-              style={styles.coverPhoto}
-            />
-            <View style={styles.coverPhotoOverlay} />
-          </View>
-
           {/* Profile Info */}
           <View style={styles.profileInfoContainer}>
             {/* Avatar with border */}
@@ -662,7 +753,10 @@ export default function ProfileScreen({
                 )}
             </View>
 
-            {/* Bio */}
+            {/* Location & Bio */}
+            {(profile as any)?.location && (
+              <Text style={styles.profileLocation}>🌍 {(profile as any).location}</Text>
+            )}
             {profile?.bio && (
               <Text style={styles.profileBio}>{profile.bio}</Text>
             )}
@@ -672,37 +766,39 @@ export default function ProfileScreen({
               <TouchableOpacity
                 style={styles.editProfileButton}
                 onPress={editProfile}
+                accessibilityLabel='Edit profile'
               >
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
             )}
 
-            {/* Stats Row */}
+            {/* Stats Row - pill style */}
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.postsCount}</Text>
-                <Text style={styles.statLabel}>Posts</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
+              <View style={styles.statPill}>
+                <Ionicons name='walk' size={16} color='#2F855A' style={styles.statIcon} />
+                <Text style={styles.statPillNumber}>
                   {isOwnProfile && progressionStats
                     ? progressionStats.totalHikes
                     : stats.hikesCount}
                 </Text>
-                <Text style={styles.statLabel}>Hikes</Text>
+                <Text style={styles.statPillLabel}>Hikes</Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
+              <View style={styles.statPill}>
+                <Ionicons name='speedometer' size={16} color='#2F855A' style={styles.statIcon} />
+                <Text style={styles.statPillNumber}>
                   {isOwnProfile && progressionStats
                     ? (progressionStats.totalDistance || 0).toFixed(1)
                     : (
                         profile?.total_km_traveled || stats.totalDistance || 0
-                      ).toFixed(1)}{' '}
-                  km
+                      ).toFixed(1)}
                 </Text>
-                <Text style={styles.statLabel}>Distance</Text>
+                <Text style={styles.statPillUnit}>km</Text>
+                <Text style={styles.statPillLabel}>Distance</Text>
+              </View>
+              <View style={styles.statPill}>
+                <Ionicons name='chatbubbles' size={16} color='#2F855A' style={styles.statIcon} />
+                <Text style={styles.statPillNumber}>{stats.postsCount}</Text>
+                <Text style={styles.statPillLabel}>Posts</Text>
               </View>
             </View>
           </View>
@@ -710,36 +806,37 @@ export default function ProfileScreen({
 
         {/* Tab Navigation */}
         <View style={styles.tabContainer}>
-          {['Posts', 'About', 'Friends', 'Favorites', 'Achievements'].map(
-            tab => (
-              <TouchableOpacity
-                key={tab}
-                style={[
-                  styles.tabButton,
-                  activeTab === tab && styles.activeTabButton,
-                ]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab && styles.activeTabText,
-                  ]}
-                >
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ),
-          )}
+          {[
+            { key: 'Posts', icon: 'newspaper' },
+            { key: 'About', icon: 'information-circle' },
+            { key: 'Friends', icon: 'people' },
+            { key: 'Favorites', icon: 'star' },
+          ].map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabButton, activeTab === tab.key && styles.activeTabButton]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Ionicons name={tab.icon as any} size={18} color={activeTab === tab.key ? '#2F855A' : '#666'} />
+              <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>{tab.key}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Tab Content */}
         {activeTab === 'Posts' && (
-          <ActivityFeedComponent
-            navigation={navigation}
-            userId={profile?.id}
-            showCreatePost={!!isOwnProfile}
-          />
+          <View style={styles.tabContentWrapper}>
+            <ProfilePostsFeed userId={profile?.id || null} isOwnProfile={!!isOwnProfile} navigation={navigation} />
+            {isOwnProfile && (
+              <TouchableOpacity
+                style={styles.fab}
+                onPress={() => navigation.navigate('Forum')}
+                accessibilityLabel='Create Post'
+              >
+                <Ionicons name='add' size={28} color='#FFFFFF' />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* About Tab */}
@@ -748,43 +845,20 @@ export default function ProfileScreen({
             <View style={styles.aboutSection}>
               <Text style={styles.sectionTitle}>About</Text>
               <View style={styles.aboutItem}>
-                <Ionicons name='person-outline' size={20} color='#666' />
-                <Text style={styles.aboutText}>
-                  Username: {profile?.username}
-                </Text>
+                <Ionicons name='compass-outline' size={20} color='#666' />
+                <Text style={styles.aboutText}>Experience Level: {profile?.skill_level ? SKILL_LEVELS[profile.skill_level as keyof typeof SKILL_LEVELS]?.name : '—'}</Text>
               </View>
-              {profile?.bio && (
-                <View style={styles.aboutItem}>
-                  <Ionicons
-                    name='information-circle-outline'
-                    size={20}
-                    color='#666'
-                  />
-                  <Text style={styles.aboutText}>Bio: {profile.bio}</Text>
-                </View>
-              )}
-              {profile?.skill_level && (
-                <View style={styles.aboutItem}>
-                  <Ionicons name='trophy-outline' size={20} color='#666' />
-                  <Text style={styles.aboutText}>
-                    Skill Level:{' '}
-                    {
-                      SKILL_LEVELS[
-                        profile.skill_level as keyof typeof SKILL_LEVELS
-                      ]?.name
-                    }
-                  </Text>
-                </View>
-              )}
+              <View style={styles.aboutItem}>
+                <Ionicons name='map-outline' size={20} color='#666' />
+                <Text style={styles.aboutText}>Favorite Trail Type: —</Text>
+              </View>
               <View style={styles.aboutItem}>
                 <Ionicons name='location-outline' size={20} color='#666' />
-                <Text style={styles.aboutText}>
-                  Total Distance:{' '}
-                  {(profile?.total_km_traveled || stats.totalDistance).toFixed(
-                    1,
-                  )}{' '}
-                  km
-                </Text>
+                <Text style={styles.aboutText}>Base Location: {(profile as any)?.location || '—'}</Text>
+              </View>
+              <View style={styles.aboutItem}>
+                <Ionicons name='calendar-outline' size={20} color='#666' />
+                <Text style={styles.aboutText}>Member Since: {currentUser?.created_at ? new Date(currentUser.created_at).toLocaleDateString() : '—'}</Text>
               </View>
             </View>
 
@@ -792,6 +866,7 @@ export default function ProfileScreen({
             <TouchableOpacity
               style={styles.favoritesButton}
               onPress={() => navigation.navigate('Favorites')}
+              accessibilityLabel='Open favorites'
             >
               <View style={styles.favoritesButtonContent}>
                 <Ionicons name='heart' size={24} color='#FF6B6B' />
@@ -830,12 +905,13 @@ export default function ProfileScreen({
                 numColumns={2}
                 columnWrapperStyle={styles.favoritesRow}
                 showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.favoriteCard}
                     onPress={() => {
-                      navigation.navigate('HikingSpotDetails', {
-                        spot: item,
+                      navigation.navigate('HikingSpotLandingPage', {
+                        hiking_spot_id: String(item.id),
                       });
                     }}
                   >
@@ -848,11 +924,12 @@ export default function ProfileScreen({
                     <TouchableOpacity
                       style={styles.favoriteHeartButton}
                       onPress={async () => {
-                        const success = await removeFromFavorites(item.id.toString());
+                        const success = await removeFromFavorites(item.id);
                         if (!success) {
                           Alert.alert('Error', 'Failed to remove from favorites');
                         }
                       }}
+                      accessibilityLabel='Remove from favorites'
                     >
                       <Ionicons name="heart" size={20} color="#FF6B6B" />
                     </TouchableOpacity>
@@ -893,10 +970,7 @@ export default function ProfileScreen({
           </View>
         )}
 
-        {/* Achievements Tab */}
-        {activeTab === 'Achievements' && (
-          <AchievementsComponent userId={profile?.id || ''} />
-        )}
+        
       </ScrollView>
     </SafeAreaView>
   );
@@ -1014,6 +1088,11 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
+  profileLocation: {
+    fontSize: 14,
+    color: '#1F2937',
+    marginTop: 4,
+  },
   profileBio: {
     fontSize: 16,
     color: '#666',
@@ -1036,12 +1115,38 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
     marginTop: 15,
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    paddingHorizontal: 16,
+  },
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  statIcon: {
+    marginRight: 6,
+  },
+  statPillNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  statPillUnit: {
+    fontSize: 12,
+    color: '#1F2937',
+    marginLeft: 4,
+    marginRight: 6,
+  },
+  statPillLabel: {
+    fontSize: 12,
+    color: '#2F855A',
+    marginLeft: 6,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -1054,11 +1159,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 15,
     alignItems: 'center',
+    flexDirection: 'column',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#007AFF',
+    borderBottomColor: '#2F855A',
   },
   tabText: {
     fontSize: 14,
@@ -1066,7 +1172,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   activeTabText: {
-    color: '#007AFF',
+    color: '#2F855A',
     fontWeight: '600',
   },
   tabContent: {
@@ -1345,6 +1451,26 @@ const styles = StyleSheet.create({
   favoritesTabContainer: {
     flex: 1,
     padding: 15,
+  },
+  tabContentWrapper: {
+    flex: 1,
+    paddingBottom: 80,
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2F855A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   loadingContainer: {
     flex: 1,

@@ -1,53 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, StatusBar, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, ScrollView, StatusBar, TouchableOpacity, Platform, Image, Dimensions, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
-import { getHikeRecords } from '../services/hikeRecordService';
-import { formatDate, formatDistance, formatDuration, formatPace } from '../utils/formatters';
+import { Video } from 'expo-av';
+import { supabase } from '../services/supabaseClient';
 
 export default function ActivityDetailsScreen({ route, navigation }) {
-  const { activityId } = route.params || {};
-  const [activity, setActivity] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { post, postId, activity, activityId } = route.params || {};
+  const initial = post || activity || null;
+  const [data, setData] = useState(initial); // { id, title, content, created_at, user_id, profiles?, media? }
+  const [loading, setLoading] = useState(!initial);
+  const [error, setError] = useState(null);
+  const mediaList = data?.media || [];
+  const flatRef = useRef(null);
+  const SCREEN_WIDTH = Dimensions.get('window').width;
 
   useEffect(() => {
-    const loadActivity = async () => {
+    if (initial) return; // already have full data
+    let cancelled = false;
+    async function fetchPost() {
       try {
         setLoading(true);
-        const hikes = await getHikeRecords();
-        const selectedHike = hikes.find(hike => hike.id === activityId);
-        
-        console.log('Loading activity:', activityId);
-        console.log('Found hike:', selectedHike);
-        
-        if (selectedHike) {
-          setActivity(selectedHike);
-        } else {
-          console.error('Hike not found with ID:', activityId);
+        setError(null);
+        const id = (route.params?.post?.id) || postId || (route.params?.activity?.id) || activityId;
+        if (!id) {
+          throw new Error('Missing activity id');
         }
-      } catch (error) {
-        console.error('Error loading activity details:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        console.info('Activity load start:', id);
+        // Try forum_posts then fallback to activities
+        const { data: postRow, error: postErr } = await supabase
+          .from('forum_posts')
+          .select('id, title, content, created_at, user_id')
+          .eq('id', id)
+          .single();
 
-    loadActivity();
-  }, [activityId]);
+        let postData = postRow;
+        if (postErr && postErr.code === 'PGRST205') {
+          // Fall back to activities
+          const { data: actRow, error: actErr } = await supabase
+            .from('activities')
+            .select('id, title, content, created_at, user_id')
+            .eq('id', id)
+            .single();
+          if (!actErr) postData = actRow;
+        }
+
+        if (!postData) {
+          throw new Error('Post not found');
+        }
+
+        // Profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', postData.user_id)
+          .single();
+
+        // Media (forum_posts only)
+        let media = [];
+        if (!postErr || postErr?.code !== 'PGRST205') {
+          const { data: mediaRows } = await supabase
+            .from('forum_post_media')
+            .select('id, media_url, media_type, thumbnail_url')
+            .eq('post_id', postData.id);
+          media = mediaRows || [];
+        }
+
+        if (!cancelled) {
+          console.info('Activity loaded:', postData.id);
+          setData({ ...postData, profiles: profile || null, media });
+        }
+      } catch (e) {
+        console.error('Activity load error:', e);
+        if (!cancelled) {
+          setError(e);
+          setData(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    const anyId = (route.params?.post?.id) || postId || (route.params?.activity?.id) || activityId;
+    if (anyId) fetchPost();
+    return () => {
+      cancelled = true;
+    };
+  }, [post, postId, activity, activityId]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loading...</Text>
+          <Text style={styles.headerTitle}>Loading…</Text>
           <View style={{ width: 24 }} />
         </View>
-        <View style={styles.content}>
-          <Text>Loading activity details...</Text>
+        <View style={[styles.content, { alignItems: 'center', paddingTop: 40 }] }>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading post…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Post</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Ionicons name="alert-circle-outline" size={60} color="#EF4444" />
+          <Text style={{ marginTop: 12, color: '#6B7280' }}>{String(error?.message || 'Failed to load post')}</Text>
+          <TouchableOpacity onPress={() => {
+            setError(null);
+            setLoading(true);
+            // trigger effect by updating a dummy state: rely on params dependency
+            setTimeout(() => setLoading(false), 0);
+          }} style={{ marginTop: 16, backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
+            <Text style={{ color: '#FFF', fontWeight: '700' }}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -55,110 +133,82 @@ export default function ActivityDetailsScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#FC4C02" />
-      
+      <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Activity Details</Text>
+        <Text style={styles.headerTitle}>Post</Text>
         <View style={{ width: 24 }} />
       </View>
-      
+      {/* Content */}
       <ScrollView contentContainerStyle={styles.content}>
-        {activity ? (
+        {data ? (
           <>
-            <View style={styles.dateContainer}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.dateText}>{formatDate(activity.date)}</Text>
+            {/* Media carousel (images/videos) */}
+            {mediaList.length > 0 && (
+              <FlatList
+                ref={flatRef}
+                data={mediaList}
+                keyExtractor={(m) => String(m.id || m.media_url)}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <View style={{ width: SCREEN_WIDTH, height: 300, backgroundColor: '#E5E7EB' }}>
+                    {item.media_type === 'video' ? (
+                      <Video
+                        source={{ uri: item.media_url }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="contain"
+                        useNativeControls
+                      />
+                    ) : (
+                      <Image source={{ uri: item.media_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    )}
+                  </View>
+                )}
+              />
+            )}
+
+            {/* Title and caption */}
+            {!!data.title && <Text style={styles.title}>{data.title}</Text>}
+            {!!data.content && <Text style={styles.caption}>{data.content}</Text>}
+
+            {/* User row */}
+            <View style={styles.userRow}>
+              <Image
+                source={{ uri: data.profiles?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp' }}
+                style={styles.avatar}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.username}>{data.profiles?.username || 'User'}</Text>
+                <Text style={styles.dateText}>{new Date(data.created_at).toLocaleString()}</Text>
+              </View>
             </View>
-            
-            <View style={styles.mapContainer}>
-              {activity.routeCoordinates && activity.routeCoordinates.length > 0 ? (
-                <WebView
-                  style={styles.map}
-                  source={{
-                    html: `
-                      <!DOCTYPE html>
-                      <html>
-                      <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                        <style>
-                          body { margin: 0; padding: 0; }
-                          #map { height: 100vh; width: 100vw; }
-                        </style>
-                      </head>
-                      <body>
-                        <div id="map"></div>
-                        <script>
-                          const routeCoords = ${JSON.stringify(activity.routeCoordinates.map(coord => [coord.latitude, coord.longitude]))};
-                          const map = L.map('map').setView(routeCoords[0], 15);
-                          
-                          // Use terrain tiles for better hiking visualization
-                          L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                            attribution: '© OpenTopoMap contributors'
-                          }).addTo(map);
-                          
-                          // Route polyline
-                          L.polyline(routeCoords, {
-                            color: '#FC4C02',
-                            weight: 4,
-                            opacity: 1
-                          }).addTo(map);
-                          
-                          // Fit map to route bounds
-                          const group = new L.featureGroup();
-                          routeCoords.forEach(coord => {
-                            L.marker(coord).addTo(group);
-                          });
-                          map.fitBounds(group.getBounds().pad(0.1));
-                        </script>
-                      </body>
-                      </html>
-                    `
-                  }}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                />
-              ) : (
-                <View style={styles.noMap}>
-                  <Text>No route data available</Text>
-                </View>
-              )}
-            </View>
-            
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Ionicons name="speedometer-outline" size={24} color="#FC4C02" />
-                <Text style={styles.statValue}>{formatDistance(activity.stats.distance)}</Text>
-                <Text style={styles.statLabel}>Distance</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Ionicons name="time-outline" size={24} color="#FC4C02" />
-                <Text style={styles.statValue}>{formatDuration(activity.stats.duration)}</Text>
-                <Text style={styles.statLabel}>Duration</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Ionicons name="footsteps-outline" size={24} color="#FC4C02" />
-                <Text style={styles.statValue}>{formatPace(activity.stats.pace)}</Text>
-                <Text style={styles.statLabel}>Pace</Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <Ionicons name="trending-up-outline" size={24} color="#FC4C02" />
-                <Text style={styles.statValue}>{activity.stats.elevation?.toFixed(0) || 0} m</Text>
-                <Text style={styles.statLabel}>Elevation</Text>
-              </View>
+
+            {/* Bottom actions */}
+            <View style={styles.actionsRow}>
+              <TouchableOpacity style={styles.actionBtn}>
+                <Ionicons name="heart-outline" size={22} color="#2563EB" />
+                <Text style={styles.actionText}>Like</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn}>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#2563EB" />
+                <Text style={styles.actionText}>Comment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn}>
+                <Ionicons name="share-social-outline" size={22} color="#2563EB" />
+                <Text style={styles.actionText}>Share</Text>
+              </TouchableOpacity>
             </View>
           </>
         ) : (
           <View style={styles.notFound}>
-            <Ionicons name="alert-circle-outline" size={60} color="#FC4C02" />
-            <Text style={styles.notFoundText}>Activity not found</Text>
+            <Ionicons name="alert-circle-outline" size={60} color="#2563EB" />
+            <Text style={styles.notFoundText}>Post not found</Text>
           </View>
         )}
       </ScrollView>
@@ -167,88 +217,47 @@ export default function ActivityDetailsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FC4C02',
+    backgroundColor: '#2563EB',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 50 : 10,
     paddingBottom: 16,
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  content: {
-    padding: 16,
-  },
-  dateContainer: {
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  content: { paddingBottom: 24 },
+
+  title: { fontSize: 22, fontWeight: '800', color: '#111827', paddingHorizontal: 16, paddingTop: 16 },
+  caption: { fontSize: 15, color: '#111827', paddingHorizontal: 16, paddingTop: 8, lineHeight: 22 },
+
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
-  dateText: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 8,
-  },
-  mapContainer: {
-    height: 250,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  noMap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsContainer: {
+  avatar: { width: 42, height: 42, borderRadius: 21, marginRight: 10, backgroundColor: '#E5E7EB' },
+  username: { fontWeight: '700', color: '#111827' },
+  dateText: { fontSize: 12, color: '#6B7280' },
+
+  actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    width: '48%',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    justifyContent: 'space-around',
     alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    paddingVertical: 12,
     marginTop: 8,
-    marginBottom: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
   },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  notFound: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  notFoundText: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 16,
-  },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionText: { color: '#2563EB', fontWeight: '600' },
+
+  notFound: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  notFoundText: { fontSize: 18, color: '#6B7280', marginTop: 16 },
 });

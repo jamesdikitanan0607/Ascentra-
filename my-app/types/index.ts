@@ -56,6 +56,41 @@ export interface FavoriteSpot extends HikingSpot {
   favorited_at: string;
 }
 
+// Media used in activities/hikes
+export interface MediaItem {
+  uri: string;
+  type: 'image' | 'video';
+}
+
+// Post used in profile feed
+export interface Post {
+  id: string;
+  content?: string;
+  image_url?: string;
+  created_at: string;
+  user_id: string;
+  visibility?: string;
+  likeCount: number;
+  commentCount: number;
+  isLiked: boolean;
+  profiles?: {
+    username: string;
+    avatar_url?: string | null;
+  };
+}
+
+// Hike activity summary surfaced on Profile
+export interface Hike {
+  id: string;
+  title?: string;
+  description?: string;
+  date: string;
+  distance: number;
+  duration: number;
+  elevation: number;
+  media?: MediaItem[];
+}
+
 /**
  * Represents a trail route with all its details
  */

@@ -8,8 +8,8 @@ import TrackScreen from '../screens/TrackScreen';
 import { createLazyComponent } from '../utils/performanceOptimizer';
 import ProfileScreen from '../screens/ProfileScreen';
 
-// Use lazy loading for PostsScreen to match App.tsx
-const PostsScreen = createLazyComponent(() => import('../screens/PostsScreen.js'));
+// Use lazy loading for ForumPage (new modular forum)
+const ForumPage = createLazyComponent(() => import('../src/screens/ForumPage'));
 
 // Wrapper components to handle navigation props
 const HomeScreenWrapper = ({ navigation }: any) => {
@@ -76,7 +76,7 @@ export default function BottomTabNavigator() {
       />
       <Tab.Screen 
         name="Forum" 
-        component={PostsScreen}
+        component={ForumPage}
         options={{
           tabBarLabel: 'Forum',
         }}
