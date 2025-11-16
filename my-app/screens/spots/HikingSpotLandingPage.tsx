@@ -139,6 +139,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
+  const [favoriteSaving, setFavoriteSaving] = useState(false);
   
   // Trail context for shared trail selection
   const { selectedTrail, setSelectedTrail, setTrails } = useTrail();
@@ -226,8 +227,8 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
   // Handle favorite toggle
   const handleFavoriteToggle = async () => {
-    if (favoritesLoading || !hikingSpot) return;
-    
+    if (!hikingSpot || favoriteSaving) return;
+    setFavoriteSaving(true);
     try {
       const isCurrentlyFavorited = isSpotFavorited(hikingSpot.id);
       if (isCurrentlyFavorited) {
@@ -238,6 +239,8 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     } catch (error) {
       console.error('Error toggling favorite:', error);
       Alert.alert('Error', 'Failed to update favorites');
+    } finally {
+      setFavoriteSaving(false);
     }
   };
   
@@ -404,6 +407,14 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
                 />
               </View>
             )}
+            
+            {/* Favorite Button */}
+            <FavoriteButton
+              isFavorite={isSpotFavorited(hikingSpot.id)}
+              isLoading={favoriteSaving}
+              onPress={handleFavoriteToggle}
+              style={{}}
+            />
           </View>
         </ScrollView>
       

@@ -16,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { Video } from 'expo-av';
+import { useUserProfile, seedUserProfilesCache } from '../hooks/useUserProfile';
+import { useAuth } from '../contexts/AuthContext';
+import { useProfile } from '../contexts/ProfileContext';
 
 // Palette
 const COLORS = {
@@ -34,6 +37,8 @@ const SUPABASE_BUCKET = 'activities';
 
 export default function ForumPage() {
   const navigation = useNavigation();
+  const { user } = useAuth();
+  const { profile: currentProfile } = useProfile();
 
   // Filters and UI
   const [spots, setSpots] = useState([]); // [{id, name, cover_image_url}]
@@ -105,8 +110,11 @@ export default function ForumPage() {
         throw postsError;
       }
 
+      // Filter out any test posts (e.g., seeded or QA-only content)
+      const filteredPosts = (postsData || []).filter(p => !((p.title || '').toLowerCase().includes('test post')));
+
       // Profiles
-      const userIds = [...new Set((postsData || []).map(p => p.user_id))];
+      const userIds = [...new Set(filteredPosts.map(p => p.user_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, username, avatar_url')
@@ -114,14 +122,15 @@ export default function ForumPage() {
       const profilesMap = Object.fromEntries(
         (profilesData || []).map(p => [p.id, p])
       );
+      seedUserProfilesCache(profilesData || []);
 
       // Media for forum_posts only
       let mediaByPost = {};
-      if (!usingActivities && (postsData || []).length) {
+      if (!usingActivities && filteredPosts.length) {
         const { data: mediaData } = await supabase
           .from('forum_post_media')
           .select('id, post_id, media_url, media_type, thumbnail_url')
-          .in('post_id', postsData.map(p => p.id));
+          .in('post_id', filteredPosts.map(p => p.id));
         (mediaData || []).forEach(m => {
           mediaByPost[m.post_id] = mediaByPost[m.post_id] || [];
           mediaByPost[m.post_id].push(m);
@@ -129,7 +138,7 @@ export default function ForumPage() {
       }
 
       // Attach data
-      const enriched = (postsData || []).map(p => ({
+      const enriched = filteredPosts.map(p => ({
         ...p,
         profiles: profilesMap[p.user_id] || null,
         media: mediaByPost[p.id] || [],
@@ -168,6 +177,14 @@ export default function ForumPage() {
 
     const media = item.media && item.media.length > 0 ? item.media[0] : null;
 
+    const { displayName, avatarUrl, loading: profileLoading } = useUserProfile(
+      item.user_id,
+    );
+    const isOwn = !!user?.id && item.user_id === user.id;
+    const avatarSrc = isOwn && currentProfile?.avatar_url
+      ? `${currentProfile.avatar_url}?t=${currentProfile?.updated_at || ''}`
+      : (avatarUrl || 'https://www.gravatar.com/avatar/?d=mp');
+
     return (
       <TouchableOpacity
         onPress={() => openPost(item)}
@@ -176,11 +193,13 @@ export default function ForumPage() {
       >
         <View style={styles.cardHeader}>
           <Image
-            source={{ uri: item.profiles?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp' }}
+            source={{ uri: avatarSrc }}
             style={styles.avatar}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.username}>{item.profiles?.username || 'User'}</Text>
+            <Text style={styles.username}>
+              {profileLoading ? 'Hiker' : displayName}
+            </Text>
             <Text style={styles.metaText}>{new Date(item.created_at).toLocaleString()}</Text>
           </View>
           {isPublic ? (

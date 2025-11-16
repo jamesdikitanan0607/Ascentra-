@@ -122,7 +122,7 @@ export default function ActivityCommentsScreen({ route, navigation }) {
       console.error('Error fetching user profile:', error);
       setUserProfiles(prev => ({
         ...prev,
-        [userId]: { username: 'User', avatar_url: null }
+        [userId]: { username: 'Unnamed User', avatar_url: null }
       }));
     }
   }
@@ -209,7 +209,7 @@ export default function ActivityCommentsScreen({ route, navigation }) {
   };
 
   const renderComment = ({ item }) => {
-    const profile = userProfiles[item.user_id] || { username: 'User', avatar_url: null };
+    const profile = userProfiles[item.user_id] || { username: 'Unnamed User', avatar_url: null };
     
     return (
       <View style={styles.commentContainer}>

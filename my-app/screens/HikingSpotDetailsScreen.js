@@ -265,8 +265,8 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   }
 
   const handleFavoriteToggle = async () => {
-    if (favoritesLoading || !spot || !spot.hiking_spot_id) return;
-    
+    if (favoriteSaving || !spot || !spot.hiking_spot_id) return;
+    setFavoriteSaving(true);
     try {
       const isCurrentlyFavorited = isSpotFavorited(spot.hiking_spot_id);
       if (isCurrentlyFavorited) {
@@ -282,6 +282,8 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     } catch (error) {
       console.error('Error toggling favorite:', error);
       Alert.alert('Error', 'Failed to update favorites');
+    } finally {
+      setFavoriteSaving(false);
     }
   };
 
@@ -462,13 +464,17 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
             isSpotFavorited(spot?.hiking_spot_id) && styles.favoriteButtonActive
           ]}
           onPress={handleFavoriteToggle}
-          disabled={favoritesLoading}
+          disabled={favoriteSaving}
         >
-          <Ionicons 
-            name={isSpotFavorited(spot?.hiking_spot_id) ? 'heart' : 'heart-outline'} 
-            size={24} 
-            color={isSpotFavorited(spot?.hiking_spot_id) ? '#FF6B6B' : COLORS.primary} 
-          />
+          {favoriteSaving ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Ionicons 
+              name={isSpotFavorited(spot?.hiking_spot_id) ? 'heart' : 'heart-outline'} 
+              size={24} 
+              color={isSpotFavorited(spot?.hiking_spot_id) ? '#FF6B6B' : COLORS.primary} 
+            />
+          )}
           <Text style={[
             styles.favoriteButtonText,
             isSpotFavorited(spot?.hiking_spot_id) && styles.favoriteButtonTextActive

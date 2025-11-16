@@ -66,6 +66,32 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, authLoading]);
 
+  // Realtime subscription to favorites for current user
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Subscribe to INSERT/UPDATE/DELETE on favorites for this user
+    const channel = supabase
+      .channel(`favorites-user-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'favorites', filter: `user_id=eq.${user.id}` },
+        () => {
+          // Re-fetch to merge latest spot details and ensure consistency
+          fetchFavorites();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        // no-op
+      }
+    };
+  }, [user?.id]);
+
   const loadProfileFromCache = async () => {
     try {
       const cachedProfile = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
@@ -291,7 +317,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Get the spot IDs from favorites
-      const spotIds = favoritesData.map(fav => fav.spot_id);
+      const spotIds = favoritesData.map((fav: any) => fav.hiking_spot_id);
 
       // Then get the hiking spots data
       const { data: spotsData, error: spotsError } = await supabase
@@ -318,12 +344,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       // Combine favorites with hiking spots data
       const combinedData: FavoriteSpot[] = favoritesData.map((fav: any) => {
-        const spot = spotsData?.find((spot: any) => spot.id === fav.spot_id);
+        const spot = spotsData?.find((spot: any) => spot.id === fav.hiking_spot_id);
         if (!spot) return null;
         
         const spotData = spot as any;
         return {
-          id: spotData.id || fav.spot_id,
+          id: spotData.id || fav.hiking_spot_id,
           name: spotData.name || '',
           description: spotData.description || '',
           coordinates: spotData.coordinates || null,
@@ -369,9 +395,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (!user) return false;
 
       try {
+        // Normalize hiking spot id from various possible shapes
+        const rawId: any = (spot as any)?.id ?? (spot as any)?.hiking_spot_id ?? (spot as any)?.spot_id;
+        const normalizedId: number = Number(rawId);
+        if (!Number.isFinite(normalizedId)) {
+          console.error('addToFavorites: invalid hiking spot id', { rawId, spot });
+          return false;
+        }
+
+        if (favorites.some(f => Number(f.id) === normalizedId)) {
+          return true;
+        }
+
         // Optimistically update local state
         const newFavorite: FavoriteSpot = {
-          ...spot,
+          ...(spot as any),
+          id: normalizedId,
           favorited_at: new Date().toISOString(),
           is_favorited: true,
         };
@@ -382,10 +421,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         // Update database
         const { error } = await supabase.from('favorites').insert({
           user_id: user.id,
-          spot_id: spot.id,
+          hiking_spot_id: normalizedId,
         });
 
         if (error) {
+          const code = (error as any).code || '';
+          const msg = (error as any).message || '';
+          if (code === '23505' || /duplicate key/i.test(msg)) {
+            return true;
+          }
           // Revert optimistic update on error
           setFavorites(favorites);
           await saveFavoritesToCache(favorites);
@@ -417,7 +461,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           .from('favorites')
           .delete()
           .eq('user_id', user.id)
-          .eq('spot_id', spotId);
+          .eq('hiking_spot_id', spotId);
 
         if (error) {
           // Revert optimistic update on error
@@ -438,7 +482,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const isSpotFavorited = useCallback(
     (spotId: number): boolean => {
-      return favorites.some((fav) => fav.id === spotId);
+      const target = Number(spotId);
+      return favorites.some((fav) => Number(fav.id) === target);
     },
     [favorites],
   );

@@ -72,6 +72,7 @@ export default function MediaViewerScreen({ route, navigation }) {
   const [resolvedSources, setResolvedSources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [spotTags, setSpotTags] = useState([]);
   const flatListRef = useRef(null);
   const hasResolvedRef = useRef(false);
   
@@ -94,6 +95,31 @@ export default function MediaViewerScreen({ route, navigation }) {
     StatusBar.setHidden(true);
     return () => StatusBar.setHidden(false);
   }, []);
+
+  React.useEffect(() => {
+    const ids = Array.isArray(post?.tags)
+      ? post.tags
+      : Array.isArray(post?.tagged_spots)
+      ? (post.tagged_spots || []).map(s => Number(s)).filter(n => !Number.isNaN(n))
+      : [];
+    if (!ids || ids.length === 0) {
+      setSpotTags([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: spots } = await supabase
+        .from('hiking_spots')
+        .select('id, name')
+        .in('id', ids);
+      if (!cancelled) {
+        setSpotTags((spots || []).map(s => ({ id: s.id, name: s.name })));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [post?.tags, post?.tagged_spots]);
 
   // Handle initial scroll to the correct index when media is loaded
   React.useEffect(() => {
@@ -309,8 +335,43 @@ export default function MediaViewerScreen({ route, navigation }) {
     index,
   });
 
-  const onPressSpot = (spotId) => {
-    navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: String(spotId) });
+  const onPressSpot = (spot) => {
+    try {
+      console.log('[MediaViewerScreen] onPressSpot called with:', spot);
+      let candidate = spot;
+      if (spot && typeof spot === 'object') {
+        candidate = spot.id ?? spot.hiking_spot_id ?? spot.spotId ?? spot.spot_id;
+      }
+      let normalizedId = null;
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        const match = trimmed.match(/\d+/);
+        const num = match ? parseInt(match[0], 10) : NaN;
+        if (Number.isFinite(num) && num > 0) normalizedId = String(num);
+      } else if (typeof candidate === 'number') {
+        if (Number.isFinite(candidate) && candidate > 0) normalizedId = String(Math.trunc(candidate));
+      }
+      if (!normalizedId) {
+        console.warn('[MediaViewerScreen] Invalid hiking spot id received:', spot);
+        Alert.alert('Invalid Hiking Spot', 'Unable to open the tagged hiking spot because the ID is invalid.');
+        return;
+      }
+      if (normalizedId === '85') {
+        console.log('[MediaViewerScreen] Routing to SpartanTrailScreen with spotId:', normalizedId);
+        navigation.navigate('SpartanTrailScreen', { spotId: normalizedId });
+        return;
+      }
+      if (normalizedId === '72') {
+        console.log('[MediaViewerScreen] Routing to MountKanirag screen');
+        navigation.navigate('MountKanirag');
+        return;
+      }
+      console.log('[MediaViewerScreen] Navigating to HikingSpotLandingPage with hiking_spot_id:', normalizedId);
+      navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: normalizedId });
+    } catch (err) {
+      console.error('[MediaViewerScreen] Error in onPressSpot:', err);
+      Alert.alert('Error', 'Something went wrong while opening the hiking spot.');
+    }
   };
 
   const onShare = async () => {
@@ -417,6 +478,16 @@ export default function MediaViewerScreen({ route, navigation }) {
             <Text style={styles.captionText} numberOfLines={3}>
               {renderContentWithMentions(post.content, onPressSpot, { style: styles.captionText })}
             </Text>
+          )}
+          {spotTags && spotTags.length > 0 && (
+            <View style={styles.tagsRow}>
+              {spotTags.map(s => (
+                <TouchableOpacity key={s.id} style={styles.tagChip} onPress={() => onPressSpot(s.id)}>
+                  <Ionicons name="pricetag-outline" size={14} color="#2F855A" />
+                  <Text style={styles.tagText}>{s.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
           <View style={styles.actionRow}>
             <View style={styles.actionLeft}>
@@ -626,6 +697,28 @@ const styles = StyleSheet.create({
     color: '#FFF', 
     fontWeight: '600',
     fontSize: 14,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  tagText: {
+    color: '#FFF',
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: '600',
   },
   shareBtn: { 
     backgroundColor: 'rgba(255,255,255,0.2)', 

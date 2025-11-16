@@ -64,6 +64,49 @@ export default function PostsScreen({ navigation }) {
     }, [user])
   );
 
+  // Realtime updates for likes and comments
+  useEffect(() => {
+    let currentUserId = null;
+    supabase.auth.getUser().then(({ data }) => { currentUserId = data?.user?.id || null; }).catch(() => {});
+    const channel = supabase
+      .channel('realtime-post-interactions')
+      // Forum likes: handle both forum_post_id and legacy post_id
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_likes' }, (payload) => {
+        const row = payload?.new || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (currentUserId && row.user_id === currentUserId) return; // ignore own optimistic update
+        setPosts(prev => prev.map(p => p.id === pid ? { ...p, likeCount: (p.likeCount || 0) + 1 } : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'forum_likes' }, (payload) => {
+        const row = payload?.old || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (currentUserId && row.user_id === currentUserId) return; // ignore own optimistic update
+        setPosts(prev => prev.map(p => p.id === pid ? { ...p, likeCount: Math.max(0, (p.likeCount || 0) - 1) } : p));
+      })
+      // Forum comments: handle both forum_post_id and legacy post_id
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_comments' }, (payload) => {
+        const row = payload?.new || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (currentUserId && row.user_id === currentUserId) return; // ignore own optimistic update
+        setPosts(prev => prev.map(p => p.id === pid ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'forum_comments' }, (payload) => {
+        const row = payload?.old || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (currentUserId && row.user_id === currentUserId) return; // ignore own optimistic update
+        setPosts(prev => prev.map(p => p.id === pid ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p));
+      })
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, []);
+
   async function getUser() {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
@@ -122,7 +165,7 @@ export default function PostsScreen({ navigation }) {
           likeCount: 0,
           commentCount: 0,
           isLiked: false,
-          profiles: profilesMap[p.user_id] || { username: 'User', avatar_url: null },
+          profiles: profilesMap[p.user_id] || { username: 'Unnamed User', avatar_url: null },
           spotTags: (Array.isArray(p.tagged_spots) ? p.tagged_spots : [])
             .map(idStr => spotsMap[Number(idStr)])
             .filter(Boolean),
@@ -203,7 +246,7 @@ export default function PostsScreen({ navigation }) {
       // Compose posts with normalized media
       const composed = postsData.map(p => ({
         ...p,
-        profiles: profilesMap[p.user_id] || { username: 'User', avatar_url: null },
+        profiles: profilesMap[p.user_id] || { username: 'Unnamed User', avatar_url: null },
         media: (mediaByPost[p.id] || []).map(m => ({
           id: m.id,
           url: m.media_url,
@@ -736,7 +779,7 @@ export default function PostsScreen({ navigation }) {
                 style={styles.avatar} 
               />
               <View>
-                <Text style={styles.username}>{post.profiles?.username || 'User'}</Text>
+                <Text style={styles.username}>{post.profiles?.username || 'Unnamed User'}</Text>
                 <Text style={styles.timestamp}>
                   {new Date(post.created_at).toLocaleDateString()}
                 </Text>

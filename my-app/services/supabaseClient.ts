@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { validateSupabaseConfig } from '../utils/validateSupabaseConfig';
 
 // Get Supabase credentials from environment variables
@@ -60,6 +61,21 @@ export const supabase: SupabaseClient = createClient(clientUrl, clientKey, {
     headers: {
       'X-Client-Info': 'hiking-app-react-native',
       'X-Demo-Mode': isDemoMode ? 'true' : 'false',
+    },
+    fetch: (url, options) => {
+      // Android-specific SSL handling
+      if (Platform.OS === 'android') {
+        return fetch(url, options);
+      }
+      return fetch(url, options);
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2,
     },
   },
 });

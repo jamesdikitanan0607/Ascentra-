@@ -54,7 +54,10 @@ export function usePosts({ spotFilter, sortBy = 'newest', userId }: UsePostsOpti
       // Try forum_posts first
       let base = supabase
         .from('forum_posts')
-        .select('id, content, title, created_at, user_id, tags');
+        .select(`
+          *,
+          profiles:user_id ( id, username, avatar_url )
+        `);
 
       if (spotFilter) {
         base = base.contains('tags', [Number(spotFilter)]);
@@ -70,6 +73,38 @@ export function usePosts({ spotFilter, sortBy = 'newest', userId }: UsePostsOpti
       const to = currentCount + PAGE_SIZE - 1;
 
       const { data: postsData, error } = await base.range(from, to);
+
+      // If embedding is not supported (no FK to profiles), retry without embed
+      if (error && (error as any).code === 'PGRST200') {
+        let base2 = supabase
+          .from('forum_posts')
+          .select('*');
+        if (spotFilter) {
+          base2 = base2.contains('tags', [Number(spotFilter)]);
+        }
+        if (userId) {
+          base2 = base2.eq('user_id', userId);
+        }
+        base2 = sortQuery(base2);
+        const { data: data2, error: err2 } = await base2.range(from, to);
+        if (err2) throw err2;
+        const rowsNoEmbed = Array.isArray(data2) ? data2 : [];
+        const userIds = [...new Set(rowsNoEmbed.map((p: any) => p.user_id).filter(Boolean))];
+        if (userIds.length) {
+          try { console.warn('Embedding failed — using client-side join'); } catch {}
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', userIds);
+          const profMap: Record<string, any> = Object.fromEntries((profs || []).map((p: any) => [p.id, p]));
+          const enriched = rowsNoEmbed.map((post: any) => ({
+            ...post,
+            profiles: profMap[post.user_id] || null,
+          }));
+          return { primary: true, rows: enriched };
+        }
+        return { primary: true, rows: rowsNoEmbed };
+      }
 
       if (error && error.code === 'PGRST205') {
         // Fallback: activities
@@ -92,7 +127,31 @@ export function usePosts({ spotFilter, sortBy = 'newest', userId }: UsePostsOpti
         return { primary: false, rows: normalized };
       }
       if (error) throw error;
-      return { primary: true, rows: postsData || [] };
+
+      // If embed returned but any row lacks profiles, do client-side join
+      let rowsOut: any[] = Array.isArray(postsData) ? postsData : [];
+      const needsClientJoin = rowsOut.some((p: any) => {
+        const prof = p?.profiles;
+        return !prof || !(prof.id || prof.username || prof.avatar_url);
+      });
+      if (rowsOut.length && needsClientJoin) {
+        try { console.warn('Embedding failed — using client-side join'); } catch {}
+        const userIds = [...new Set(rowsOut.map((p: any) => p.user_id).filter(Boolean))];
+        if (userIds.length) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', userIds);
+          const profMap: Record<string, any> = Object.fromEntries((profs || []).map((p: any) => [p.id, p]));
+          rowsOut = rowsOut.map((post: any) => ({
+            ...post,
+            profiles: post.profiles && (post.profiles.id || post.profiles.username || post.profiles.avatar_url)
+              ? post.profiles
+              : (profMap[post.user_id] || null),
+          }));
+        }
+      }
+      return { primary: true, rows: rowsOut };
     } finally {
       setLoading(false);
     }
@@ -115,8 +174,9 @@ export function usePosts({ spotFilter, sortBy = 'newest', userId }: UsePostsOpti
       try {
         const { data, error } = await supabase
           .from('forum_post_media')
-          .select('id, post_id, media_url, media_type, thumbnail_url')
-          .in('post_id', ids);
+          .select('id, post_id, media_url, media_type, thumbnail_url, created_at')
+          .in('post_id', ids)
+          .order('created_at', { ascending: true });
         if (error) {
           errCode = (error as any)?.code;
           try { console.warn('[usePosts] media fetch by post_id error', { code: errCode }); } catch {}
@@ -196,13 +256,16 @@ export function usePosts({ spotFilter, sortBy = 'newest', userId }: UsePostsOpti
       } catch (_) {}
     }
 
-    const enriched: ForumPostItem[] = rows.map((r: any) => ({
-      ...r,
-      media: (mediaByPost[r.id] || []).map((m: any) => ({ id: String(m.id), url: m.media_url, type: m.media_type, thumbnail_url: m.thumbnail_url })),
-      profiles: profilesMap[r.user_id] || null,
-      likeCount: likeCounts[r.id] || 0,
-      commentCount: commentCounts[r.id] || 0,
-    }));
+    const enriched: ForumPostItem[] = rows.map((r: any) => {
+      const embeddedProfile = r?.profiles && (r.profiles.id || r.profiles.username || r.profiles.avatar_url) ? r.profiles : null;
+      return {
+        ...r,
+        media: (mediaByPost[r.id] || []).map((m: any) => ({ id: String(m.id), url: m.media_url, type: m.media_type, thumbnail_url: m.thumbnail_url })),
+        profiles: embeddedProfile || profilesMap[r.user_id] || null,
+        likeCount: likeCounts[r.id] || 0,
+        commentCount: commentCounts[r.id] || 0,
+      };
+    });
     return enriched;
   }, []);
 

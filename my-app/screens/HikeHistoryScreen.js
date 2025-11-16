@@ -23,7 +23,9 @@ import {
   deleteHike, 
   syncAllHikesToSupabase, 
   syncHikeToSupabase, 
-  getCurrentUserId 
+  getCurrentUserId,
+  setHikeVisibility,
+  shareHikeToForum
 } from '../services/databaseService';
 import { WebView } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
@@ -87,7 +89,7 @@ const HikeHistoryItem = ({ hike, onPress, onMediaPress, onOptionsPress, onSyncPr
           
           return (
             <TouchableOpacity 
-              key={index} 
+              key={`${hike.id}-${media.uri || media.name || index}`}
               style={styles.mediaThumbnail}
               onPress={() => onMediaPress(hike.media, index)}
               activeOpacity={0.9}
@@ -448,13 +450,44 @@ export default function HikeHistoryScreen({ navigation }) {
   };
 
   const handleOptionsPress = (hikeId) => {
-    // Show options menu for this hike
     Alert.alert(
       'Hike Options',
       'What would you like to do with this hike?',
       [
         { text: 'View Details', onPress: () => navigation.navigate('HikeDetail', { hikeId }) },
-        { text: 'Share', onPress: () => alert('Sharing feature coming soon!') },
+        { 
+          text: 'Share to Community', 
+          onPress: async () => {
+            try {
+              const res = await shareHikeToForum(hikeId);
+              if (res.success) {
+                // Update local state visibility to public
+                setHikeRecords(prev => prev.map(h => h.id === hikeId ? { ...h, visibility: 'public' } : h));
+                Alert.alert('Shared', 'Your activity has been shared to the community forum.');
+              } else {
+                Alert.alert('Share Failed', 'Could not share activity to the forum.');
+              }
+            } catch (e) {
+              Alert.alert('Share Failed', 'An error occurred while sharing.');
+            }
+          }
+        },
+        {
+          text: 'Keep Private',
+          onPress: async () => {
+            try {
+              const ok = await setHikeVisibility(hikeId, 'private');
+              if (ok) {
+                setHikeRecords(prev => prev.map(h => h.id === hikeId ? { ...h, visibility: 'private' } : h));
+                Alert.alert('Updated', 'This activity is now private.');
+              } else {
+                Alert.alert('Update Failed', 'Could not set activity to private.');
+              }
+            } catch (e) {
+              Alert.alert('Update Failed', 'An error occurred while updating visibility.');
+            }
+          }
+        },
         { text: 'Delete', onPress: () => handleDeleteHike(hikeId), style: 'destructive' },
         { text: 'Cancel', style: 'cancel' }
       ]
@@ -707,10 +740,10 @@ export default function HikeHistoryScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={16} color="white" />
         </TouchableOpacity>
       )}
-      
+
       <FlatList
         data={hikeRecords}
-        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+        keyExtractor={(item) => `${item.id?.toString?.() || 'hike'}-${item.date}`}
         renderItem={renderHikeItem}
         contentContainerStyle={hikeRecords.length === 0 ? { flex: 1 } : styles.listContent}
         ListEmptyComponent={renderEmptyState}

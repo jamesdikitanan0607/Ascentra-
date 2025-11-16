@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import { supabase } from '../services/supabaseClient';
+import { renderContentWithMentions } from '../src/hooks/useMentions';
 
 export default function ActivityDetailsScreen({ route, navigation }) {
   const { post, postId, activity, activityId } = route.params || {};
@@ -14,6 +15,39 @@ export default function ActivityDetailsScreen({ route, navigation }) {
   const mediaList = data?.media || [];
   const flatRef = useRef(null);
   const SCREEN_WIDTH = Dimensions.get('window').width;
+
+  const onPressSpot = (spotId) => {
+    if (!spotId) return;
+    navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: String(spotId) });
+  };
+
+  useEffect(() => {
+    // If initial post/activity is passed in params, resolve its spot tags
+    if (!initial) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tagIds = Array.isArray(initial?.tags)
+          ? initial.tags
+          : Array.isArray(initial?.tagged_spots)
+          ? (initial.tagged_spots || []).map((s) => Number(s)).filter((n) => !Number.isNaN(n))
+          : [];
+        if (tagIds.length > 0) {
+          const { data: spots } = await supabase
+            .from('hiking_spots')
+            .select('id, name')
+            .in('id', tagIds);
+          const spotTags = (spots || []).map((s) => ({ id: s.id, name: s.name }));
+          if (!cancelled) setData(prev => ({ ...(prev || {}), spotTags }));
+        }
+      } catch (_) {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initial]);
 
   useEffect(() => {
     if (initial) return; // already have full data
@@ -30,7 +64,7 @@ export default function ActivityDetailsScreen({ route, navigation }) {
         // Try forum_posts then fallback to activities
         const { data: postRow, error: postErr } = await supabase
           .from('forum_posts')
-          .select('id, title, content, created_at, user_id')
+          .select('id, title, content, created_at, user_id, tags')
           .eq('id', id)
           .single();
 
@@ -39,7 +73,7 @@ export default function ActivityDetailsScreen({ route, navigation }) {
           // Fall back to activities
           const { data: actRow, error: actErr } = await supabase
             .from('activities')
-            .select('id, title, content, created_at, user_id')
+            .select('id, title, content, created_at, user_id, tagged_spots')
             .eq('id', id)
             .single();
           if (!actErr) postData = actRow;
@@ -66,9 +100,28 @@ export default function ActivityDetailsScreen({ route, navigation }) {
           media = mediaRows || [];
         }
 
+        // Resolve hiking spot tags to display names for chips
+        let spotTags = [];
+        try {
+          const tagIds = Array.isArray(postData?.tags)
+            ? postData.tags
+            : Array.isArray(postData?.tagged_spots)
+            ? (postData.tagged_spots || []).map((s) => Number(s)).filter((n) => !Number.isNaN(n))
+            : [];
+          if (tagIds.length > 0) {
+            const { data: spots } = await supabase
+              .from('hiking_spots')
+              .select('id, name')
+              .in('id', tagIds);
+            spotTags = (spots || []).map((s) => ({ id: s.id, name: s.name }));
+          }
+        } catch (_) {
+          // Non-fatal; leave spotTags empty
+        }
+
         if (!cancelled) {
           console.info('Activity loaded:', postData.id);
-          setData({ ...postData, profiles: profile || null, media });
+          setData({ ...postData, profiles: profile || null, media, spotTags });
         }
       } catch (e) {
         console.error('Activity load error:', e);
@@ -173,9 +226,52 @@ export default function ActivityDetailsScreen({ route, navigation }) {
               />
             )}
 
-            {/* Title and caption */}
-            {!!data.title && <Text style={styles.title}>{data.title}</Text>}
-            {!!data.content && <Text style={styles.caption}>{data.content}</Text>}
+            {/* Title and caption with clickable hiking spot mentions */}
+            {!!data.title && (
+              <Text style={styles.title}>
+                {renderContentWithMentions(
+                  data.title,
+                  onPressSpot,
+                  { style: styles.title }
+                )}
+              </Text>
+            )}
+            {!!data.content && (
+              <Text style={styles.caption}>
+                {renderContentWithMentions(
+                  data.content,
+                  onPressSpot,
+                  { style: styles.caption }
+                )}
+              </Text>
+            )}
+
+            {/* Tagged hiking spots as chips */}
+            {!!(data.spotTags && data.spotTags.length > 0) && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 8 }}>
+                {data.spotTags.map((spot) => (
+                  <TouchableOpacity
+                    key={spot.id}
+                    onPress={() => onPressSpot(spot.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: '#E5E7EB',
+                      backgroundColor: '#F3F4F6',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 999,
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Ionicons name="pricetag-outline" size={14} color="#2F855A" />
+                    <Text style={{ marginLeft: 6, color: '#111827' }}>{spot.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {/* User row */}
             <View style={styles.userRow}>
@@ -184,7 +280,7 @@ export default function ActivityDetailsScreen({ route, navigation }) {
                 style={styles.avatar}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.username}>{data.profiles?.username || 'User'}</Text>
+                <Text style={styles.username}>{data.profiles?.username || 'Unnamed User'}</Text>
                 <Text style={styles.dateText}>{new Date(data.created_at).toLocaleString()}</Text>
               </View>
             </View>

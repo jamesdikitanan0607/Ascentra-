@@ -81,7 +81,12 @@ export function usePostInteractions() {
       }
 
       // Best-effort delete related rows first
-      await supabase.from('forum_comments').delete().eq('post_id', post.id);
+      try {
+        const { error: delErr1 } = await supabase.from('forum_comments').delete().eq('forum_post_id', post.id);
+        if (delErr1) {
+          await supabase.from('forum_comments').delete().eq('post_id', post.id);
+        }
+      } catch {}
       await supabase.from('forum_likes').delete().or(`forum_post_id.eq.${post.id},post_id.eq.${post.id}`);
       await supabase.from('forum_post_media').delete().or(`forum_post_id.eq.${post.id},post_id.eq.${post.id}`);
 

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isInDemoMode } from './supabaseClient';
+import { uploadMediaFilesWithTransaction } from './mediaUploadService';
 import { SupabaseServiceError, safeSupabaseQuery } from './supabaseService';
 import { sanitizeRouteCoordinates } from '../utils/mapHelpers';
 
@@ -39,6 +40,7 @@ export interface HikeData {
   routeCoordinates: RouteCoordinate[];
   media: MediaItem[];
   synced?: boolean;
+  visibility?: 'public' | 'private';
 }
 
 export interface SavedHike {
@@ -57,6 +59,7 @@ export interface SavedHike {
   media: MediaItem[];
   synced: boolean;
   stats?: HikeStats; // Optional for backward compatibility
+  visibility?: 'public' | 'private';
 }
 
 export interface SyncResult {
@@ -101,6 +104,143 @@ export const getCurrentUserId = async (): Promise<string> => {
   } catch (error) {
     console.error('Error getting current user ID:', error);
     return 'guest';
+  }
+};
+
+// Set hike visibility locally and attempt to sync to Supabase (best-effort)
+export const setHikeVisibility = async (hikeId: string, visibility: 'public' | 'private'): Promise<boolean> => {
+  try {
+    const userId = await getCurrentUserId();
+    const storageKey = `@ascentra_hikes_${userId}`;
+    const hikesStr = await AsyncStorage.getItem(storageKey);
+    if (!hikesStr) return false;
+    const hikes: SavedHike[] = JSON.parse(hikesStr);
+    const idx = hikes.findIndex(h => h.id === hikeId);
+    if (idx === -1) return false;
+    hikes[idx] = { ...hikes[idx], visibility };
+    await AsyncStorage.setItem(storageKey, JSON.stringify(hikes));
+
+    // Try updating Supabase if logged in and table has column (ignore schema errors)
+    if (userId !== 'guest' && !isInDemoMode) {
+      try {
+        const result = await safeSupabaseQuery(
+          () => supabase
+            .from('saveactivity')
+            .update({ visibility })
+            .eq('id', hikeId)
+            .eq('user_id', userId),
+          'Update hike visibility'
+        );
+        // If the column doesn't exist, ignore
+        if (result.error && !String(result.error.message || '').includes('column')) {
+          console.warn('Supabase visibility update warning:', result.error.message);
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// Share a hike to the forum by creating a forum post (fallback to activities if forum_posts doesn't exist)
+export const shareHikeToForum = async (hikeId: string): Promise<{ success: boolean; postId?: string }> => {
+  try {
+    const hike = await getHikeById(hikeId);
+    if (!hike) return { success: false };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false };
+
+    // Preserve original title and description/caption
+    const title = hike.title || 'Hiking Activity';
+    const content = (hike.description || '').toString();
+
+    // Try forum_posts first
+    const insertForum = await supabase
+      .from('forum_posts')
+      .insert([{ user_id: user.id, title, content, tags: [] }])
+      .select('id')
+      .single();
+
+    if (!insertForum.error && insertForum.data?.id) {
+      const postId = String(insertForum.data.id);
+      // Upload media in the same order they were saved
+      const mediaFiles = Array.isArray(hike.media) ? hike.media.map((m) => ({
+        uri: m.uri,
+        type: m.type || (m.uri && m.uri.endsWith('.mp4') ? 'video' : 'image'),
+        name: m.name || (m.uri?.split('/')?.pop() || 'media')
+      })) : [];
+
+      if (mediaFiles.length > 0) {
+        try {
+          const inserted = await uploadMediaFilesWithTransaction(supabase, mediaFiles, postId, user.id);
+          // Best-effort set media_urls on forum_posts for clients that use fallback
+          const mediaUrls = (inserted || []).map((r: any) => ({ url: r.media_url, type: r.media_type, thumbnail_url: r.thumbnail_url }));
+          try {
+            await supabase.from('forum_posts').update({ media_urls: mediaUrls }).eq('id', postId);
+          } catch (_) {}
+        } catch (e) {
+          // If media upload fails, continue with text-only post
+        }
+      }
+
+      await setHikeVisibility(hikeId, 'public');
+      return { success: true, postId };
+    }
+
+    // If forum_posts missing, fallback to activities
+    if (insertForum.error && String(insertForum.error.code) === 'PGRST205') {
+      const insertAct = await supabase
+        .from('activities')
+        .insert([{ user_id: user.id, title, content, tagged_spots: [], likes: 0, comments: 0 }])
+        .select('id')
+        .single();
+      if (!insertAct.error && insertAct.data?.id) {
+        await setHikeVisibility(hikeId, 'public');
+        return { success: true, postId: String(insertAct.data.id) };
+      }
+    }
+
+    return { success: false };
+  } catch (e) {
+    return { success: false };
+  }
+};
+
+// Update user_stats totals with a completed hike
+export const updateUserStatsWithHike = async (distance: number, elevation: number): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // Fetch existing stats (ignore not found)
+    const { data: stats, error } = await supabase
+      .from('user_stats')
+      .select('total_distance, total_elevation, total_hikes')
+      .eq('user_id', user.id)
+      .single();
+
+    const prevDistance = stats?.total_distance || 0;
+    const prevElevation = stats?.total_elevation || 0;
+    const prevHikes = stats?.total_hikes || 0;
+
+    const upsert = await supabase
+      .from('user_stats')
+      .upsert({
+        user_id: user.id,
+        total_distance: prevDistance + (distance || 0),
+        total_elevation: prevElevation + (elevation || 0),
+        total_hikes: prevHikes + 1,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (upsert.error) return false;
+    return true;
+  } catch (e) {
+    return false;
   }
 };
 
@@ -155,6 +295,7 @@ export const saveHikeToLocalDB = async (hikeData: HikeData): Promise<string> => 
         name: item.name || item.uri.split('/').pop() || 'unknown'
       })) : [],
       synced: false, // Track sync status with Supabase
+      visibility: hikeData.visibility || 'private',
     };
     
     // Get user-specific key

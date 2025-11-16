@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS public.forum_comments (
     post_id UUID REFERENCES public.forum_posts(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     content TEXT NOT NULL,
+    parent_comment_id UUID REFERENCES public.forum_comments(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -433,6 +434,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_likes_user_id ON public.activity_likes(u
 CREATE INDEX IF NOT EXISTS idx_activity_comments_activity_id ON public.activity_comments(activity_id);
 CREATE INDEX IF NOT EXISTS idx_forum_posts_category ON public.forum_posts(category);
 CREATE INDEX IF NOT EXISTS idx_forum_posts_created_at ON public.forum_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_forum_comments_parent_comment_id ON public.forum_comments(parent_comment_id);
 
 -- =============================================
 -- HELPFUL VIEWS

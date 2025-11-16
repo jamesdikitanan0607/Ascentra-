@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image as RNImage, TouchableOpacity, ScrollView 
 import { Ionicons } from '@expo/vector-icons';
 import { ForumPostItem } from '../../types/forum';
 import { renderContentWithMentions } from '../../hooks/useMentions';
+import { useProfile } from '../../../contexts/ProfileContext';
 
 interface Props {
   item: ForumPostItem;
@@ -16,28 +17,40 @@ interface Props {
 }
 
 const PostCard: React.FC<Props> = ({ item, onOpenPost, onOpenComments, onOpenMedia, onPressSpot, onToggleLike, onDelete, currentUserId }) => {
+  const { profile: currentProfile } = useProfile();
+  const isOwn = !!currentUserId && item.user_id === currentUserId;
+  const ownUrl = currentProfile?.avatar_url || null;
+  const avatarUri = isOwn && ownUrl
+    ? `${ownUrl}?t=${currentProfile?.updated_at || ''}`
+    : (item.profiles?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp');
+
+  try { console.log('Post item:', item); } catch {}
 
   return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onOpenPost?.(item)}>
+    <View style={styles.card}>
       <View style={styles.header}>
-        <RNImage source={{ uri: item.profiles?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp' }} style={styles.avatar} />
+        <RNImage source={{ uri: avatarUri }} style={styles.avatar} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.username}>{item.profiles?.username || 'User'}</Text>
+          <Text style={styles.username}>{item.profiles?.username || 'Anonymous'}</Text>
           <Text style={styles.meta}>{new Date(item.created_at).toLocaleString()}</Text>
         </View>
         <Ionicons name="leaf-outline" size={18} color="#2F855A" />
       </View>
 
       {!!item.title && (
-        <Text style={styles.title} numberOfLines={3}>
-          {renderContentWithMentions(item.title, (id: string) => onPressSpot?.(id), { style: styles.title })}
-        </Text>
+        <TouchableOpacity activeOpacity={0.8} onPress={() => onOpenPost?.(item)}>
+          <Text style={styles.title} numberOfLines={3}>
+            {renderContentWithMentions(item.title, (id: string) => onPressSpot?.(id), { style: styles.title })}
+          </Text>
+        </TouchableOpacity>
       )}
 
       {!!item.content && (
-        <Text style={styles.content}>
-          {renderContentWithMentions(item.content, (id: string) => onPressSpot?.(id), { style: styles.content })}
-        </Text>
+        <TouchableOpacity activeOpacity={0.8} onPress={() => onOpenPost?.(item)}>
+          <Text style={styles.content}>
+            {renderContentWithMentions(item.content, (id: string) => onPressSpot?.(id), { style: styles.content })}
+          </Text>
+        </TouchableOpacity>
       )}
 
       {!!item.media && item.media.length > 0 && (
@@ -75,7 +88,7 @@ const PostCard: React.FC<Props> = ({ item, onOpenPost, onOpenComments, onOpenMed
           </TouchableOpacity>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Platform } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Platform, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,11 +11,17 @@ import { usePostInteractions } from '../hooks/usePostInteractions';
 import { SortOption } from '../types/forum';
 import { supabase } from '../../services/supabaseClient';
 import { findSpotById } from '../data/hikingSpotsAdapter';
+import NotificationsDropdown from '../components/notifications/NotificationsDropdown';
+import NotificationBell from '../components/notifications/NotificationBell';
+import { fetchUnreadCount, subscribeToNotifications } from '../../services/notificationsService';
 
 const ForumPage: React.FC = () => {
   const navigation: any = useNavigation();
   const [spotFilter, setSpotFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   const { posts, loading, refreshing, hasMore, refresh, loadMore, setPosts } = usePosts({ spotFilter, sortBy });
   const { toggleLike, deletePost } = usePostInteractions();
@@ -23,7 +29,79 @@ const ForumPage: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data?.user?.id || null));
+    supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data?.user?.id || null;
+      setCurrentUserId(uid);
+      if (uid) {
+        try {
+          const count = await fetchUnreadCount(uid);
+          setUnreadCount(count);
+        } catch {}
+      }
+    });
+    
+    // Animate header on mount
+    Animated.timing(headerAnim, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsub = subscribeToNotifications(currentUserId, () => {
+      setUnreadCount((c) => c + 1);
+    });
+    return () => { try { unsub(); } catch {} };
+  }, [currentUserId]);
+
+  // Realtime post interaction counters (likes/comments)
+  useEffect(() => {
+    let uid: string | null = null;
+    supabase.auth.getUser().then(({ data }) => { uid = data?.user?.id || null; }).catch(() => {});
+    const channel = supabase
+      .channel('forumpage-post-interactions')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_likes' }, (payload) => {
+        const row: any = payload?.new || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (uid && row.user_id === uid) return;
+        setPosts(prev => (prev || []).map((p: any) => p.id === pid ? { ...p, likeCount: (p.likeCount || 0) + 1 } : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'forum_likes' }, (payload) => {
+        const row: any = payload?.old || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (uid && row.user_id === uid) return;
+        setPosts(prev => (prev || []).map((p: any) => p.id === pid ? { ...p, likeCount: Math.max(0, (p.likeCount || 0) - 1) } : p));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_comments' }, (payload) => {
+        const row: any = payload?.new || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (uid && row.user_id === uid) return;
+        setPosts(prev => (prev || []).map((p: any) => p.id === pid ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'forum_comments' }, (payload) => {
+        const row: any = payload?.old || {};
+        const pid = row.forum_post_id || row.post_id;
+        if (!pid) return;
+        if (uid && row.user_id === uid) return;
+        setPosts(prev => (prev || []).map((p: any) => p.id === pid ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p));
+      })
+      .subscribe();
+
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, [setPosts]);
+
+  const toggleNotifications = useCallback(() => {
+    setShowNotifications(prev => !prev);
+  }, []);
+
+  const handleNotificationClose = useCallback(() => {
+    setShowNotifications(false);
   }, []);
 
   const onPressSpot = useCallback((spotId: string) => {
@@ -50,6 +128,15 @@ const ForumPage: React.FC = () => {
     try { console.log('[ForumPage] onOpenPost', { postId: post?.id, mediaCount: media.length, first: media[0] }); } catch {}
     navigation.navigate('MediaViewer', { mediaItems: media, initialIndex: 0, post });
   }, [navigation]);
+
+  const filteredPosts = useMemo(() => {
+    return (posts || []).filter((p: any) => {
+      const title = String(p?.title ?? '').trim();
+      const content = String(p?.content ?? '').trim();
+      const isTestPost = title === 'Test Post' && content === 'This is a test post.';
+      return !isTestPost;
+    });
+  }, [posts]);
 
   const renderItem = useCallback(({ item }: any) => (
     <View>
@@ -82,29 +169,99 @@ const ForumPage: React.FC = () => {
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
+  const headerTranslateY = headerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-20, 0],
+  });
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Forum</Text>
+      <Animated.View 
+        style={[
+          styles.header,
+          { 
+            transform: [{ translateY: headerTranslateY }],
+            opacity: headerAnim
+          }
+        ]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Forum</Text>
+          <View style={styles.headerActions}>
+            <NotificationBell 
+              count={unreadCount} 
+              onPress={toggleNotifications} 
+            />
+          </View>
+        </View>
+        
         <View style={styles.sortRow}>
-          <TouchableOpacity onPress={() => setSortBy('newest')} style={[styles.sortChip, sortBy === 'newest' && styles.sortChipActive]}>
-            <Ionicons name="time-outline" size={14} color={sortBy === 'newest' ? '#fff' : '#475569'} />
-            <Text style={[styles.sortText, sortBy === 'newest' && styles.sortTextActive]}>Newest</Text>
+          <TouchableOpacity 
+            onPress={() => setSortBy('newest')} 
+            style={[styles.sortChip, sortBy === 'newest' && styles.sortChipActive]}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="time-outline" 
+              size={16} 
+              color={sortBy === 'newest' ? '#fff' : '#475569'} 
+              style={styles.sortIcon} 
+            />
+            <Text style={[styles.sortText, sortBy === 'newest' && styles.sortTextActive]}>
+              Newest
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setSortBy('most_liked')} style={[styles.sortChip, sortBy === 'most_liked' && styles.sortChipActive]}>
-            <Ionicons name="heart-outline" size={14} color={sortBy === 'most_liked' ? '#fff' : '#475569'} />
-            <Text style={[styles.sortText, sortBy === 'most_liked' && styles.sortTextActive]}>Most Liked</Text>
+          
+          <TouchableOpacity 
+            onPress={() => setSortBy('most_liked')} 
+            style={[styles.sortChip, sortBy === 'most_liked' && styles.sortChipActive]}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="heart-outline" 
+              size={16} 
+              color={sortBy === 'most_liked' ? '#fff' : '#475569'} 
+              style={styles.sortIcon} 
+            />
+            <Text style={[styles.sortText, sortBy === 'most_liked' && styles.sortTextActive]}>
+              Most Liked
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setSortBy('most_commented')} style={[styles.sortChip, sortBy === 'most_commented' && styles.sortChipActive]}>
-            <Ionicons name="chatbubble-ellipses-outline" size={14} color={sortBy === 'most_commented' ? '#fff' : '#475569'} />
-            <Text style={[styles.sortText, sortBy === 'most_commented' && styles.sortTextActive]}>Most Commented</Text>
+          
+          <TouchableOpacity 
+            onPress={() => setSortBy('most_commented')} 
+            style={[styles.sortChip, sortBy === 'most_commented' && styles.sortChipActive]}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name="chatbubble-ellipses-outline" 
+              size={16} 
+              color={sortBy === 'most_commented' ? '#fff' : '#475569'} 
+              style={styles.sortIcon} 
+            />
+            <Text style={[styles.sortText, sortBy === 'most_commented' && styles.sortTextActive]}>
+              Most Commented
+            </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
+      
+      <NotificationsDropdown 
+        isVisible={showNotifications} 
+        onClose={handleNotificationClose}
+        onAnyRead={async () => {
+          if (currentUserId) {
+            try {
+              const count = await fetchUnreadCount(currentUserId);
+              setUnreadCount(count);
+            } catch {}
+          }
+        }}
+      />
 
       <FlatList
         ListHeaderComponent={<PostComposer onPosted={refresh} />}
-        data={posts}
+        data={filteredPosts}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         onEndReachedThreshold={0.4}
@@ -127,14 +284,78 @@ const ForumPage: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? 14 : 8, paddingBottom: 12, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  sortRow: { flexDirection: 'row', gap: 8 },
-  sortChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#fff' },
-  sortChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  sortText: { color: '#475569', fontWeight: '600' },
-  sortTextActive: { color: '#fff' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#FAFAF7',
+  },
+  header: { 
+    paddingTop: Platform.OS === 'android' ? 14 : 8,
+    paddingBottom: 12, 
+    backgroundColor: '#FFFFFF', 
+    borderBottomWidth: StyleSheet.hairlineWidth, 
+    borderBottomColor: '#E6E8EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 10,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  headerTitle: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: '#1F2933',
+    letterSpacing: -0.5,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sortRow: { 
+    flexDirection: 'row', 
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    overflow: 'scroll',
+  },
+  sortChip: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6, 
+    paddingHorizontal: 12, 
+    paddingVertical: 8, 
+    borderRadius: 20, 
+    borderWidth: 1, 
+    borderColor: '#E6E8EB', 
+    backgroundColor: '#FFFFFF',
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sortChipActive: { 
+    backgroundColor: '#2E7D32', 
+    borderColor: '#2E7D32',
+  },
+  sortIcon: {
+    marginRight: 2,
+  },
+  sortText: { 
+    color: '#546E7A', 
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  sortTextActive: { 
+    color: '#FFFFFF',
+  },
 });
 
 export default ForumPage;

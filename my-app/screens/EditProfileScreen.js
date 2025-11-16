@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Image,
+  Animated,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
@@ -17,9 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../contexts/AuthContext';
+import { SUPABASE_AVATARS_BUCKET } from '../config/storage';
 import { useProfile } from '../contexts/ProfileContext';
 
 export default function EditProfileScreen({ navigation }) {
@@ -33,6 +32,7 @@ export default function EditProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState({});
+  const avatarOpacity = useRef(new Animated.Value(1)).current;
 
   // Skill levels definition for the picker
   const SKILL_LEVELS_ARRAY = [
@@ -173,81 +173,98 @@ export default function EditProfileScreen({ navigation }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        // Start upload
-        setUploading(true);
+      if (!result || result.canceled || !result.assets || !result.assets[0]) {
+        // No file selected; exit gracefully
+        return;
+      }
 
-        // Get the selected asset
-        const asset = result.assets[0];
+      if (!user?.id) {
+        Alert.alert('Error', 'You must be signed in to upload an avatar.');
+        return;
+      }
 
-        // Validate file size (max 5MB)
-        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-          Alert.alert(
-            'File Too Large',
-            'Please select an image smaller than 5MB.',
-          );
-          return;
-        }
+      // Start upload
+      setUploading(true);
 
-        // Read the file and convert to base64
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.Base64,
+      // Get the selected asset
+      const asset = result.assets[0];
+
+      // Validate file size (max 5MB)
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert(
+          'File Too Large',
+          'Please select an image smaller than 5MB.',
+        );
+        return;
+      }
+
+      // Determine content type and extension
+      const contentType = asset.mimeType || 'image/jpeg';
+      const extFromMime = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+      const extFromUri = (asset.uri.split('.').pop() || '').toLowerCase();
+      const fileExtension = extFromUri || extFromMime;
+      const fileName = `avatar-${Date.now()}.${fileExtension}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      // Fetch the file and get raw bytes (arrayBuffer works reliably on RN)
+      const response = await fetch(asset.uri);
+      const arrayBuffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // Upload to Supabase Storage using raw bytes
+      const { error } = await supabase.storage
+        .from(SUPABASE_AVATARS_BUCKET)
+        .upload(filePath, bytes, {
+          contentType,
+          upsert: true,
         });
 
-        // Create a filename with proper extension
-        const fileExtension = asset.uri.split('.').pop() || 'jpg';
-        const fileName = `avatar-${Date.now()}.${fileExtension}`;
-        const filePath = `${user.id}/${fileName}`;
-
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, decode(base64), {
-            contentType: asset.mimeType || 'image/jpeg',
-            upsert: true,
-          });
-
-        if (error) {
-          // Provide specific error messages
-          if (error.message.includes('bucket')) {
-            Alert.alert(
-              'Storage Error',
-              'Avatar storage is not properly configured. Please contact support.',
-            );
-          } else if (error.message.includes('policy')) {
-            Alert.alert(
-              'Permission Error',
-              'You do not have permission to upload files. Please try logging out and back in.',
-            );
-          } else if (error.message.includes('size')) {
-            Alert.alert(
-              'File Size Error',
-              'The selected image is too large. Please choose a smaller image.',
-            );
-          } else {
-            Alert.alert(
-              'Upload Error',
-              `Failed to upload avatar: ${error.message}`,
-            );
-          }
-          return;
+      if (error) {
+        // Provide specific error messages
+        if (error.message.includes('bucket')) {
+          Alert.alert(
+            'Storage Error',
+            'Avatar storage is not properly configured. Please contact support.',
+          );
+        } else if (error.message.includes('policy') || error.message.includes('permission')) {
+          Alert.alert(
+            'Permission Error',
+            'You do not have permission to upload files. Please try logging out and back in.',
+          );
+        } else if (error.message.includes('size')) {
+          Alert.alert(
+            'File Size Error',
+            'The selected image is too large. Please choose a smaller image.',
+          );
+        } else {
+          Alert.alert(
+            'Upload Error',
+            `Failed to upload avatar: ${error.message}`,
+          );
         }
-
-        // Get the public URL
-        const { data: urlData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-        if (!urlData?.publicUrl) {
-          Alert.alert('Error', 'Failed to get avatar URL. Please try again.');
-          return;
-        }
-
-        // Update state with the new avatar URL
-        setAvatarUrl(urlData.publicUrl);
-
-        Alert.alert('Success', 'Avatar uploaded successfully!');
+        return;
       }
+
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from(SUPABASE_AVATARS_BUCKET)
+        .getPublicUrl(filePath);
+
+      if (!urlData?.publicUrl) {
+        Alert.alert('Error', 'Failed to get avatar URL. Please try again.');
+        return;
+      }
+
+      const publicUrl = urlData.publicUrl;
+      const cacheBusted = `${publicUrl}?t=${Date.now()}`;
+      avatarOpacity.setValue(0);
+      setAvatarUrl(cacheBusted);
+      setUploading(false);
+      Animated.timing(avatarOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+      updateProfile({ avatar_url: publicUrl })
+        .then(() => forceRefreshProfile())
+        .catch(() => {});
+      Alert.alert('Success', 'Avatar uploaded successfully!');
     } catch (error) {
       // Handle different types of errors
       if (error.message.includes('network')) {
@@ -297,7 +314,7 @@ export default function EditProfileScreen({ navigation }) {
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
               {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                <Animated.Image source={{ uri: avatarUrl }} style={[styles.avatar, { opacity: avatarOpacity }]} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Text style={styles.avatarPlaceholderText}>

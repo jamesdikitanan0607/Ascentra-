@@ -84,7 +84,7 @@ const ActivityFeedComponent: React.FC<ActivityFeedComponentProps> = ({
           return {
             ...normalized,
             profiles: profileData || {
-              username: 'Unknown User',
+              username: 'Unnamed User',
               full_name: '',
               avatar_url: null,
             },

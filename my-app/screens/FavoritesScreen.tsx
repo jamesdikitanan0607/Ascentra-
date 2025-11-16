@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
 import { HikingSpot } from '../types';
 import { FavoriteSpot } from '../types';
@@ -236,7 +237,19 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() =>
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'MainTabs',
+                    params: { screen: 'Profile' },
+                  },
+                ],
+              }),
+            )
+          }
         >
           <Ionicons name='arrow-back' size={24} color='#FFFFFF' />
         </TouchableOpacity>

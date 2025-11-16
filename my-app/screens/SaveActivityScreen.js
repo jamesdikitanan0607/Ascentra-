@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { saveHikeToLocalDB, getCurrentUserId, syncHikeToSupabase } from '../services/databaseService';
+import { saveHikeToLocalDB, getCurrentUserId, syncHikeToSupabase, updateUserStatsWithHike } from '../services/databaseService';
 import { supabase, isUserLoggedIn } from '../services/supabaseClient';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -262,7 +262,8 @@ export default function SaveActivityScreen({ navigation, route }) {
           duration: stats.duration || 0,
           pace: stats.pace || 0,
           elevation: stats.elevation || 0
-        }
+        },
+        visibility: 'private'
       };
       
       // Get user ID for direct Supabase sync
@@ -283,9 +284,16 @@ export default function SaveActivityScreen({ navigation, route }) {
       setDebugInfo(prev => prev + 'Saving to local database...\n');
       const savedId = await saveHikeToLocalDB(hikeData);
       setDebugInfo(prev => prev + `Local save successful, assigned ID: ${savedId}\n`);
-      
+
       // Get the saved hike with its ID for manual sync
       hikeData.id = savedId;
+
+      // Update user stats totals (best-effort)
+      try {
+        await updateUserStatsWithHike(hikeData.stats.distance || 0, hikeData.stats.elevation || 0);
+      } catch (e) {
+        // ignore errors
+      }
       
       // Try manual sync to Supabase if we're online and logged in
       if (canSync && userId !== 'guest') {

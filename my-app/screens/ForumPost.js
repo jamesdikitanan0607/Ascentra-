@@ -21,6 +21,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabaseClient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { sendFriendRequest } from '../services/friendService';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Video } from 'expo-av';
@@ -45,6 +47,7 @@ import {
   uploadMediaWithFixedTypes,
   validateMediaForUpload
 } from '../services/fixedMediaUploadService';
+import { useUserProfile, seedUserProfilesCache } from '../hooks/useUserProfile';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Supabase Storage bucket imported from centralized config
@@ -88,6 +91,8 @@ export default function ForumPost() {
   const [userLikedPosts, setUserLikedPosts] = useState({});
   const [submittingComment, setSubmittingComment] = useState(false);
   const [submittingLike, setSubmittingLike] = useState(false);
+
+  const navigation = useNavigation();
 
   // Get current user on component mount
   useEffect(() => {
@@ -142,7 +147,8 @@ export default function ForumPost() {
         .in(
           'post_id',
           postsData.map(post => post.id),
-        );
+        )
+        .order('created_at', { ascending: true });
 
       if (mediaError) {
         logger.error('Error fetching post media:', mediaError);
@@ -179,6 +185,7 @@ export default function ForumPost() {
           profilesMap[profile.id] = profile;
         });
       }
+      seedUserProfilesCache(profilesData || []);
 
       // Fetch like counts for all posts
       const { data: likeData, error: likeError } = await supabase
@@ -863,7 +870,7 @@ export default function ForumPost() {
         <View style={styles.mediaGrid}>
           {media.map((item, index) => (
             <TouchableOpacity
-              key={item.id}
+              key={`${item.post_id || 'post'}-${item.id || index}`}
               style={styles.gridItem2}
               onPress={() => openMediaViewer(media, index)}
             >
@@ -930,7 +937,7 @@ export default function ForumPost() {
           <View style={styles.gridItemSmallContainer}>
             {media.slice(1, 3).map((item, index) => (
               <TouchableOpacity
-                key={item.id}
+                key={`${item.post_id || 'post'}-${item.id || index+1}`}
                 style={styles.gridItemSmall}
                 onPress={() => openMediaViewer(media, index + 1)}
               >
@@ -968,7 +975,7 @@ export default function ForumPost() {
       <View style={styles.mediaGrid}>
         {media.slice(0, 4).map((item, index) => (
           <TouchableOpacity
-            key={item.id}
+            key={`${item.post_id || 'post'}-${item.id || index}`}
             style={styles.gridItem4}
             onPress={() => openMediaViewer(media, index)}
           >
@@ -1144,6 +1151,7 @@ export default function ForumPost() {
             profileMap[profile.id] = profile;
           });
         }
+        seedUserProfilesCache(commenterProfiles || []);
 
         // Attach profile data to comments
         const commentsWithProfiles = data.map(comment => ({
@@ -1246,36 +1254,29 @@ export default function ForumPost() {
     }
   };
 
-  // Render a single comment
-  const renderComment = comment => {
+  const CommentItem = ({ comment }) => {
+    const { displayName, avatarUrl } = useUserProfile(comment.user_id);
     const date = new Date(comment.created_at);
     const formattedDate =
       date.toLocaleDateString() +
       ' at ' +
       date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const initial = (displayName || 'Hiker').charAt(0).toUpperCase();
+
     return (
       <View key={comment.id} style={styles.commentItem}>
         <View style={styles.commentHeader}>
-          {comment.profile?.avatar_url ? (
-            <Image
-              source={{ uri: comment.profile.avatar_url }}
-              style={styles.commentAvatar}
-            />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.commentAvatar} />
           ) : (
             <View style={styles.commentAvatarPlaceholder}>
-              <Text style={styles.commentAvatarText}>
-                {comment.profile?.username
-                  ? comment.profile.username.charAt(0).toUpperCase()
-                  : '?'}
-              </Text>
+              <Text style={styles.commentAvatarText}>{initial}</Text>
             </View>
           )}
 
           <View style={styles.commentInfo}>
-            <Text style={styles.commentUsername}>
-              {comment.profile?.username || 'Anonymous'}
-            </Text>
+            <Text style={styles.commentUsername}>{displayName}</Text>
             <Text style={styles.commentDate}>{formattedDate}</Text>
           </View>
         </View>
@@ -1285,7 +1286,6 @@ export default function ForumPost() {
     );
   };
 
-  // Render comments section for a post
   const renderCommentsSection = postId => {
     if (!commentsVisible[postId]) {
       return null;
@@ -1308,7 +1308,11 @@ export default function ForumPost() {
             No comments yet. Be the first to share your thoughts!
           </Text>
         ) : (
-          <View style={styles.commentsList}>{comments.map(renderComment)}</View>
+          <View style={styles.commentsList}>
+            {comments.map(c => (
+              <CommentItem key={c.id} comment={c} />
+            ))}
+          </View>
         )}
 
         <View style={styles.commentInputContainer}>
@@ -1341,8 +1345,7 @@ export default function ForumPost() {
     );
   };
 
-  // Render a post item
-  const renderPost = ({ item }) => {
+  const PostItem = ({ item }) => {
     // Format date
     const date = new Date(item.created_at);
     const formattedDate =
@@ -1350,9 +1353,8 @@ export default function ForumPost() {
       ' at ' +
       date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Get username and avatar
-    const username = item.profiles?.username || 'Anonymous';
-    const avatarUrl = item.profiles?.avatar_url;
+    // Get profile via hook (realtime + cached)
+    const { displayName, avatarUrl } = useUserProfile(item.user_id);
 
     // Get like and comment counts
     const likeCount = likeCounts[item.id] || 0;
@@ -1362,20 +1364,28 @@ export default function ForumPost() {
     return (
       <View style={styles.postItem}>
         <View style={styles.postHeader}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {username.charAt(0).toUpperCase()}
-              </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile', { userId: item.user_id })} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>{(displayName || 'Hiker').charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={styles.postInfo}>
+              <Text style={styles.username}>{displayName}</Text>
+              <Text style={styles.date}>{formattedDate}</Text>
             </View>
+          </TouchableOpacity>
+          {user?.id && user.id !== item.user_id && (
+            <TouchableOpacity onPress={async () => {
+              const res = await sendFriendRequest(item.user_id);
+              if (!res.success && res.message) Alert.alert('Friend Request', res.message);
+              if (res.success) Alert.alert('Friend Request', 'Request sent');
+            }}>
+              <Ionicons name='person-add-outline' size={22} color='#2E7D32' />
+            </TouchableOpacity>
           )}
-
-          <View style={styles.postInfo}>
-            <Text style={styles.username}>{username}</Text>
-            <Text style={styles.date}>{formattedDate}</Text>
-          </View>
         </View>
 
         {item.content && <Text style={styles.postContent}>{item.content}</Text>}
@@ -1648,7 +1658,7 @@ export default function ForumPost() {
       ) : (
         <FlatList
           data={posts}
-          renderItem={renderPost}
+          renderItem={({ item }) => <PostItem item={item} />}
           keyExtractor={item => item.id.toString()}
           contentContainerStyle={styles.postsList}
           refreshControl={

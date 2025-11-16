@@ -223,8 +223,42 @@ export default function OptimizedMediaViewerScreen({ route, navigation }) {
     }
   }, [resolvedSources, currentIndex]);
   // Handle hiking spot mention taps
-  const onPressSpot = useCallback((spotId) => {
-    navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: String(spotId) });
+  const onPressSpot = useCallback((spot) => {
+    try {
+      console.log('[OptimizedMediaViewer] onPressSpot', spot);
+      let candidate = spot;
+      if (spot && typeof spot === 'object') {
+        candidate = spot.id ?? spot.hiking_spot_id ?? spot.spotId ?? spot.spot_id;
+      }
+      let normalizedId = null;
+      if (typeof candidate === 'string') {
+        const match = candidate.trim().match(/\d+/);
+        const num = match ? parseInt(match[0], 10) : NaN;
+        if (Number.isFinite(num) && num > 0) normalizedId = String(num);
+      } else if (typeof candidate === 'number') {
+        if (Number.isFinite(candidate) && candidate > 0) normalizedId = String(Math.trunc(candidate));
+      }
+      if (!normalizedId) {
+        console.warn('[OptimizedMediaViewer] Invalid spot id', spot);
+        Alert.alert('Invalid Hiking Spot', 'Unable to open the tagged hiking spot because the ID is invalid.');
+        return;
+      }
+      if (normalizedId === '85') {
+        console.log('[OptimizedMediaViewer] -> SpartanTrailScreen', normalizedId);
+        navigation.navigate('SpartanTrailScreen', { spotId: normalizedId });
+        return;
+      }
+      if (normalizedId === '72') {
+        console.log('[OptimizedMediaViewer] -> MountKanirag');
+        navigation.navigate('MountKanirag');
+        return;
+      }
+      console.log('[OptimizedMediaViewer] -> HikingSpotLandingPage', normalizedId);
+      navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: normalizedId });
+    } catch (e) {
+      console.error('[OptimizedMediaViewer] onPressSpot error', e);
+      Alert.alert('Error', 'Something went wrong while opening the hiking spot.');
+    }
   }, [navigation]);
 
   // Render individual media item

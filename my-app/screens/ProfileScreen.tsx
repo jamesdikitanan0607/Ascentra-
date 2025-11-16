@@ -35,6 +35,7 @@ import { useProfile } from '../contexts/ProfileContext';
 import { useAuth } from '../contexts/AuthContext';
 import { logInfo, logError, logApiCall } from '../utils/logger';
 import { Profile as ProfileType, Post as PostType, Hike as HikeType, MediaItem as MediaItemType } from '../types';
+import { getFriendStatus, sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend, getFriendsList, FriendStatus } from '../services/friendService';
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -133,6 +134,10 @@ export default function ProfileScreen({
   const [hikesLoading, setHikesLoading] = useState<boolean>(true);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('Posts');
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
+  const [friendRequestId, setFriendRequestId] = useState<string | null>(null);
+  const [friendCount, setFriendCount] = useState<number>(0);
+  const [mutualCount, setMutualCount] = useState<number>(0);
 
   // Determine if we're viewing the current user's profile or someone else's
   const isOwnProfile = !userId || (currentUser && userId === currentUser.id);
@@ -162,8 +167,8 @@ export default function ProfileScreen({
     if (currentUser) {
       if (isOwnProfile) {
         // For own profile, use global context with force refresh for immediate updates
-        refreshProfile(); // This will refresh the global state
-        refreshFavorites(); // Refresh favorites from global context
+        refreshProfile();
+        refreshFavorites();
         fetchUserPosts(currentUser.id);
         fetchUserStats(currentUser.id);
         fetchUserHikes(currentUser.id);
@@ -173,9 +178,243 @@ export default function ProfileScreen({
         fetchUserPosts(userId);
         fetchUserStats(userId);
         fetchUserHikes(userId);
+        refreshFriendStatus(userId);
+        refreshFriendCounts(userId);
       }
     }
-  }, [currentUser, userId, isOwnProfile]);
+  }, [currentUser, userId, isOwnProfile, refreshProfile, refreshFavorites]);
+
+  async function refreshFriendStatus(targetId: string) {
+    try {
+      const res = await getFriendStatus(targetId);
+      setFriendStatus(res.status);
+      setFriendRequestId(res.requestId || null);
+    } catch {}
+  }
+
+  async function refreshFriendCounts(targetId: string) {
+    try {
+      const their = await getFriendsList(targetId);
+      setFriendCount(their.length || 0);
+      const mine = await getFriendsList(currentUser?.id);
+      const myIds = new Set((mine || []).map((p: any) => p.id));
+      const mutual = (their || []).filter((p: any) => myIds.has(p.id)).length;
+      setMutualCount(mutual);
+    } catch {
+      setFriendCount(0);
+      setMutualCount(0);
+    }
+  }
+
+  // Build header (profile info + tabs) to be used as ListHeaderComponent for list tabs
+  const renderProfileHeaderAndTabs = () => (
+    <>
+      <View style={styles.profileHeaderContainer}>
+        {/* Profile Info */}
+        <View style={styles.profileInfoContainer}>
+          {/* Avatar with border */}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{
+                uri:
+                  profile?.avatar_url
+                    ? `${profile.avatar_url}?t=${(profile as any)?.updated_at || ''}`
+                    : 'https://www.gravatar.com/avatar/?d=mp',
+              }}
+              style={styles.avatar}
+            />
+          </View>
+
+          {/* Name and Skill Badge */}
+          <View style={styles.nameAndBadgeContainer}>
+            <Text style={styles.profileName}>
+              {profile?.username || (profileLoading ? 'Loading...' : 'Unnamed User')}
+            </Text>
+
+            {/* Skill Level Badge */}
+            {profile?.skill_level &&
+              SKILL_LEVELS[
+                profile.skill_level as keyof typeof SKILL_LEVELS
+              ] ? (
+                <View
+                  style={[
+                    styles.skillBadge,
+                    {
+                      backgroundColor:
+                        SKILL_LEVELS[
+                          profile.skill_level as keyof typeof SKILL_LEVELS
+                        ].color,
+                    },
+                  ]}
+                >
+                  <Text style={styles.skillBadgeEmoji}>
+                    {
+                      SKILL_LEVELS[
+                        profile.skill_level as keyof typeof SKILL_LEVELS
+                      ].emoji
+                    }
+                  </Text>
+                  <Text style={styles.skillBadgeText}>
+                    {
+                      SKILL_LEVELS[
+                        profile.skill_level as keyof typeof SKILL_LEVELS
+                      ].name
+                    }
+                  </Text>
+                </View>
+              ) : (
+                !profileLoading && (
+                  <View
+                    style={[
+                      styles.skillBadge,
+                      {
+                        backgroundColor: SKILL_LEVELS.rookie_rambler.color,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.skillBadgeEmoji}>
+                      {SKILL_LEVELS.rookie_rambler.emoji}
+                    </Text>
+                    <Text style={styles.skillBadgeText}>
+                      {SKILL_LEVELS.rookie_rambler.name}
+                    </Text>
+                  </View>
+                )
+              )}
+          </View>
+
+          {/* Friend actions for viewing other user's profile */}
+          {!isOwnProfile && (
+            <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
+              {friendStatus === 'none' && (
+                <TouchableOpacity
+                  style={[styles.editProfileButton]}
+                  onPress={async () => { await sendFriendRequest(profileId || ''); await refreshFriendStatus(profileId || ''); }}
+                  accessibilityLabel='Add Friend'
+                >
+                  <Text style={styles.editProfileText}>Add Friend</Text>
+                </TouchableOpacity>
+              )}
+              {friendStatus === 'pending_outgoing' && (
+                <View style={[styles.editProfileButton, { backgroundColor: '#9CA3AF' }]}> 
+                  <Text style={styles.editProfileText}>Request Sent</Text>
+                </View>
+              )}
+              {friendStatus === 'pending_incoming' && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.editProfileButton]}
+                    onPress={async () => { if (friendRequestId) { await acceptFriendRequest(friendRequestId); await refreshFriendStatus(profileId || ''); await refreshFriendCounts(profileId || ''); } }}
+                    accessibilityLabel='Accept Friend Request'
+                  >
+                    <Text style={styles.editProfileText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.editProfileButton, { backgroundColor: '#E5E7EB' }]}
+                    onPress={async () => { if (friendRequestId) { await declineFriendRequest(friendRequestId); await refreshFriendStatus(profileId || ''); } }}
+                    accessibilityLabel='Decline Friend Request'
+                  >
+                    <Text style={[styles.editProfileText, { color: '#1F2937' }]}>Decline</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {friendStatus === 'accepted' && (
+                <TouchableOpacity
+                  style={[styles.editProfileButton, { backgroundColor: '#FCA5A5' }]}
+                  onPress={async () => { await removeFriend(profileId || ''); await refreshFriendStatus(profileId || ''); await refreshFriendCounts(profileId || ''); }}
+                  accessibilityLabel='Remove Friend'
+                >
+                  <Text style={styles.editProfileText}>Remove Friend</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Location & Bio */}
+          {(profile as any)?.location && (
+            <Text style={styles.profileLocation}>🌍 {(profile as any).location}</Text>
+          )}
+          {profile?.bio && (
+            <Text style={styles.profileBio}>{profile.bio}</Text>
+          )}
+
+          {/* Edit Profile Button */}
+          {isOwnProfile && (
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={editProfile}
+              accessibilityLabel='Edit profile'
+            >
+              <Text style={styles.editProfileText}>Edit Profile</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Stats Row - pill style */}
+          <View style={styles.statsRow}>
+            <View style={styles.statPill}>
+              <Ionicons name='walk' size={16} color='#2F855A' style={styles.statIcon} />
+              <Text style={styles.statPillNumber}>
+                {isOwnProfile && progressionStats
+                  ? progressionStats.totalHikes
+                  : stats.hikesCount}
+              </Text>
+              <Text style={styles.statPillLabel}>Hikes</Text>
+            </View>
+            <View style={styles.statPill}>
+              <Ionicons name='speedometer' size={16} color='#2F855A' style={styles.statIcon} />
+              <Text style={styles.statPillNumber}>
+                {isOwnProfile && progressionStats
+                  ? (progressionStats.totalDistance || 0).toFixed(1)
+                  : (
+                      profile?.total_km_traveled || stats.totalDistance || 0
+                    ).toFixed(1)}
+              </Text>
+              <Text style={styles.statPillUnit}>km</Text>
+              <Text style={styles.statPillLabel}>Distance</Text>
+            </View>
+            <View style={styles.statPill}>
+              <Ionicons name='chatbubbles' size={16} color='#2F855A' style={styles.statIcon} />
+              <Text style={styles.statPillNumber}>{stats.postsCount}</Text>
+              <Text style={styles.statPillLabel}>Posts</Text>
+            </View>
+            {!isOwnProfile && (
+              <View style={styles.statPill}>
+                <Ionicons name='people' size={16} color='#2F855A' style={styles.statIcon} />
+                <Text style={styles.statPillNumber}>{friendCount}</Text>
+                <Text style={styles.statPillLabel}>Friends</Text>
+              </View>
+            )}
+            {!isOwnProfile && (
+              <View style={styles.statPill}>
+                <Ionicons name='hand-left' size={16} color='#2F855A' style={styles.statIcon} />
+                <Text style={styles.statPillNumber}>{mutualCount}</Text>
+                <Text style={styles.statPillLabel}>Mutual</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        {[
+          { key: 'Posts', icon: 'newspaper' },
+          { key: 'About', icon: 'information-circle' },
+          { key: 'Friends', icon: 'people' },
+          { key: 'Favorites', icon: 'star' },
+        ].map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tabButton, activeTab === tab.key && styles.activeTabButton]}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Ionicons name={tab.icon as any} size={18} color={activeTab === tab.key ? '#2F855A' : '#666'} />
+            <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>{tab.key}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+  );
 
   // Handle refresh when navigating back from EditProfile
   useFocusEffect(
@@ -305,7 +544,7 @@ export default function ProfileScreen({
                 likeCount: 0,
                 commentCount: 0,
                 isLiked: false,
-                profiles: profileData || { username: 'Unknown User', avatar_url: null },
+                profiles: profileData || { username: 'Unnamed User', avatar_url: null },
               };
             })
           );
@@ -579,7 +818,7 @@ export default function ProfileScreen({
         <Text style={styles.headerTitle}>
           {isOwnProfile
             ? 'My Profile'
-            : `${profile?.username || 'User'}'s Profile`}
+            : `${profile?.username || 'Unnamed User'}'s Profile`}
         </Text>
         {isOwnProfile ? (
           <TouchableOpacity
@@ -673,174 +912,34 @@ export default function ProfileScreen({
         </TouchableOpacity>
       </Modal>
 
-      <ScrollView
-        nestedScrollEnabled={true}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Profile Header */}
-        <View style={styles.profileHeaderContainer}>
-          {/* Profile Info */}
-          <View style={styles.profileInfoContainer}>
-            {/* Avatar with border */}
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{
-                  uri:
-                    profile?.avatar_url ||
-                    'https://www.gravatar.com/avatar/?d=mp',
-                }}
-                style={styles.avatar}
-              />
-            </View>
-
-            {/* Name and Skill Badge */}
-            <View style={styles.nameAndBadgeContainer}>
-              <Text style={styles.profileName}>
-                {profile?.username || (profileLoading ? 'Loading...' : 'User')}
-              </Text>
-
-              {/* Skill Level Badge */}
-              {profile?.skill_level &&
-                SKILL_LEVELS[
-                  profile.skill_level as keyof typeof SKILL_LEVELS
-                ] ? (
-                  <View
-                    style={[
-                      styles.skillBadge,
-                      {
-                        backgroundColor:
-                          SKILL_LEVELS[
-                            profile.skill_level as keyof typeof SKILL_LEVELS
-                          ].color,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.skillBadgeEmoji}>
-                      {
-                        SKILL_LEVELS[
-                          profile.skill_level as keyof typeof SKILL_LEVELS
-                        ].emoji
-                      }
-                    </Text>
-                    <Text style={styles.skillBadgeText}>
-                      {
-                        SKILL_LEVELS[
-                          profile.skill_level as keyof typeof SKILL_LEVELS
-                        ].name
-                      }
-                    </Text>
-                  </View>
-                ) : (
-                  !profileLoading && (
-                    <View
-                      style={[
-                        styles.skillBadge,
-                        {
-                          backgroundColor: SKILL_LEVELS.rookie_rambler.color,
-                        },
-                      ]}
-                    >
-                      <Text style={styles.skillBadgeEmoji}>
-                        {SKILL_LEVELS.rookie_rambler.emoji}
-                      </Text>
-                      <Text style={styles.skillBadgeText}>
-                        {SKILL_LEVELS.rookie_rambler.name}
-                      </Text>
-                    </View>
-                  )
-                )}
-            </View>
-
-            {/* Location & Bio */}
-            {(profile as any)?.location && (
-              <Text style={styles.profileLocation}>🌍 {(profile as any).location}</Text>
-            )}
-            {profile?.bio && (
-              <Text style={styles.profileBio}>{profile.bio}</Text>
-            )}
-
-            {/* Edit Profile Button */}
-            {isOwnProfile && (
-              <TouchableOpacity
-                style={styles.editProfileButton}
-                onPress={editProfile}
-                accessibilityLabel='Edit profile'
-              >
-                <Text style={styles.editProfileText}>Edit Profile</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Stats Row - pill style */}
-            <View style={styles.statsRow}>
-              <View style={styles.statPill}>
-                <Ionicons name='walk' size={16} color='#2F855A' style={styles.statIcon} />
-                <Text style={styles.statPillNumber}>
-                  {isOwnProfile && progressionStats
-                    ? progressionStats.totalHikes
-                    : stats.hikesCount}
-                </Text>
-                <Text style={styles.statPillLabel}>Hikes</Text>
-              </View>
-              <View style={styles.statPill}>
-                <Ionicons name='speedometer' size={16} color='#2F855A' style={styles.statIcon} />
-                <Text style={styles.statPillNumber}>
-                  {isOwnProfile && progressionStats
-                    ? (progressionStats.totalDistance || 0).toFixed(1)
-                    : (
-                        profile?.total_km_traveled || stats.totalDistance || 0
-                      ).toFixed(1)}
-                </Text>
-                <Text style={styles.statPillUnit}>km</Text>
-                <Text style={styles.statPillLabel}>Distance</Text>
-              </View>
-              <View style={styles.statPill}>
-                <Ionicons name='chatbubbles' size={16} color='#2F855A' style={styles.statIcon} />
-                <Text style={styles.statPillNumber}>{stats.postsCount}</Text>
-                <Text style={styles.statPillLabel}>Posts</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          {[
-            { key: 'Posts', icon: 'newspaper' },
-            { key: 'About', icon: 'information-circle' },
-            { key: 'Friends', icon: 'people' },
-            { key: 'Favorites', icon: 'star' },
-          ].map(tab => (
+      {activeTab === 'Posts' && (
+        <View style={{ flex: 1 }}>
+          <ProfilePostsFeed
+            userId={profile?.id || null}
+            isOwnProfile={!!isOwnProfile}
+            navigation={navigation}
+            ListHeaderComponent={renderProfileHeaderAndTabs()}
+          />
+          {isOwnProfile && (
             <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabButton, activeTab === tab.key && styles.activeTabButton]}
-              onPress={() => setActiveTab(tab.key)}
+              style={styles.fab}
+              onPress={() => navigation.navigate('Forum')}
+              accessibilityLabel='Create Post'
             >
-              <Ionicons name={tab.icon as any} size={18} color={activeTab === tab.key ? '#2F855A' : '#666'} />
-              <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>{tab.key}</Text>
+              <Ionicons name='add' size={28} color='#FFFFFF' />
             </TouchableOpacity>
-          ))}
+          )}
         </View>
+      )}
 
-        {/* Tab Content */}
-        {activeTab === 'Posts' && (
-          <View style={styles.tabContentWrapper}>
-            <ProfilePostsFeed userId={profile?.id || null} isOwnProfile={!!isOwnProfile} navigation={navigation} />
-            {isOwnProfile && (
-              <TouchableOpacity
-                style={styles.fab}
-                onPress={() => navigation.navigate('Forum')}
-                accessibilityLabel='Create Post'
-              >
-                <Ionicons name='add' size={28} color='#FFFFFF' />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* About Tab */}
-        {activeTab === 'About' && (
+      {activeTab === 'About' && (
+        <ScrollView
+          nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {renderProfileHeaderAndTabs()}
           <View style={styles.tabContent}>
             <View style={styles.aboutSection}>
               <Text style={styles.sectionTitle}>About</Text>
@@ -880,98 +979,96 @@ export default function ProfileScreen({
               </View>
             </TouchableOpacity>
           </View>
-        )}
+        </ScrollView>
+      )}
 
-        {/* Friends Tab */}
-        {activeTab === 'Friends' && (
-          <FriendsComponent
-            userId={profile?.id || ''}
-            navigation={navigation}
-          />
-        )}
+      {activeTab === 'Friends' && (
+        <FriendsComponent
+          userId={profile?.id || ''}
+          navigation={navigation}
+          ListHeaderComponent={renderProfileHeaderAndTabs()}
+        />
+      )}
 
-        {/* Favorites Tab */}
-        {activeTab === 'Favorites' && (
-          <View style={styles.favoritesTabContainer}>
-            {favoritesLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>Loading favorites...</Text>
-              </View>
-            ) : favorites.length > 0 ? (
-              <FlatList
-                data={favorites}
-                keyExtractor={(item) => item.id.toString()}
-                numColumns={2}
-                columnWrapperStyle={styles.favoritesRow}
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.favoriteCard}
-                    onPress={() => {
-                      navigation.navigate('HikingSpotLandingPage', {
-                        hiking_spot_id: String(item.id),
-                      });
-                    }}
-                  >
-                    <Image
-                      source={{
-                        uri: item.cover_image_url || 'https://via.placeholder.com/150x100?text=No+Image',
-                      }}
-                      style={styles.favoriteImage}
-                    />
-                    <TouchableOpacity
-                      style={styles.favoriteHeartButton}
-                      onPress={async () => {
-                        const success = await removeFromFavorites(item.id);
-                        if (!success) {
-                          Alert.alert('Error', 'Failed to remove from favorites');
-                        }
-                      }}
-                      accessibilityLabel='Remove from favorites'
-                    >
-                      <Ionicons name="heart" size={20} color="#FF6B6B" />
-                    </TouchableOpacity>
-                    <View style={styles.favoriteCardContent}>
-                      <Text style={styles.favoriteCardTitle} numberOfLines={2}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.favoriteCardLocation} numberOfLines={1}>
-                        {item.location_text || 'Unknown Location'}
-                      </Text>
-                      <View style={styles.favoriteCardStats}>
-                        <Text style={styles.favoriteCardStat}>
-                          {item.difficulty || 'Moderate'}
-                        </Text>
-                        <Text style={styles.favoriteCardStat}>
-                          {formatDistance(item.trail_length_km || item.trail_length || 0)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
-            ) : (
-              <View style={styles.emptyFavoritesContainer}>
-                <Ionicons name="heart-outline" size={64} color="#CCC" />
-                <Text style={styles.emptyFavoritesTitle}>No Favorites Yet</Text>
-                <Text style={styles.emptyFavoritesSubtitle}>
-                  Start exploring and add hiking spots to your favorites!
-                </Text>
-                <TouchableOpacity
-                  style={styles.exploreButton}
-                  onPress={() => navigation.navigate('Home')}
-                >
-                  <Text style={styles.exploreButtonText}>Explore Spots</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+      {activeTab === 'Favorites' && (
+        favoritesLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading favorites...</Text>
           </View>
-        )}
-
-        
-      </ScrollView>
+        ) : favorites.length > 0 ? (
+          <FlatList
+            data={favorites}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={2}
+            columnWrapperStyle={styles.favoritesRow}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListHeaderComponent={renderProfileHeaderAndTabs()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.favoriteCard}
+                onPress={() => {
+                  navigation.navigate('HikingSpotLandingPage', {
+                    hiking_spot_id: String(item.id),
+                  });
+                }}
+              >
+                <Image
+                  source={{
+                    uri: item.cover_image_url || 'https://via.placeholder.com/150x100?text=No+Image',
+                  }}
+                  style={styles.favoriteImage}
+                />
+                <TouchableOpacity
+                  style={styles.favoriteHeartButton}
+                  onPress={async () => {
+                    const success = await removeFromFavorites(item.id);
+                    if (!success) {
+                      Alert.alert('Error', 'Failed to remove from favorites');
+                    }
+                  }}
+                  accessibilityLabel='Remove from favorites'
+                >
+                  <Ionicons name="heart" size={20} color="#FF6B6B" />
+                </TouchableOpacity>
+                <View style={styles.favoriteCardContent}>
+                  <Text style={styles.favoriteCardTitle} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.favoriteCardLocation} numberOfLines={1}>
+                    {item.location_text || 'Unknown Location'}
+                  </Text>
+                  <View style={styles.favoriteCardStats}>
+                    <Text style={styles.favoriteCardStat}>
+                      {item.difficulty || 'Moderate'}
+                    </Text>
+                    <Text style={styles.favoriteCardStat}>
+                      {formatDistance(item.trail_length_km || item.trail_length || 0)}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        ) : (
+          <View style={styles.emptyFavoritesContainer}>
+            <Ionicons name="heart-outline" size={64} color="#CCC" />
+            <Text style={styles.emptyFavoritesTitle}>No Favorites Yet</Text>
+            <Text style={styles.emptyFavoritesSubtitle}>
+              Start exploring and add hiking spots to your favorites!
+            </Text>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              onPress={() => navigation.navigate('Home')}
+            >
+              <Text style={styles.exploreButtonText}>Explore Spots</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      )}
     </SafeAreaView>
   );
 }
@@ -1016,6 +1113,7 @@ const styles = StyleSheet.create({
   profileHeaderContainer: {
     backgroundColor: '#FFF',
     marginBottom: 0,
+    paddingTop: 48,
   },
   coverPhotoContainer: {
     position: 'relative',
@@ -1038,7 +1136,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     alignItems: 'center',
-    marginTop: -50,
+    marginTop: 0,
   },
   avatarContainer: {
     backgroundColor: '#FFF',
@@ -1051,13 +1149,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
   },
   nameAndBadgeContainer: {
     alignItems: 'center',
-    marginTop: 15,
+    marginTop: 12,
     marginBottom: 10,
   },
   skillBadge: {
@@ -1066,7 +1164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 8,
+    marginTop: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -1106,7 +1204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    marginVertical: 10,
+    marginTop: 12,
   },
   editProfileText: {
     color: '#FFF',
@@ -1115,7 +1213,8 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
+    flexWrap: 'wrap',
     width: '100%',
     marginTop: 15,
     paddingVertical: 10,
@@ -1128,6 +1227,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
+    justifyContent: 'center',
+    minWidth: 96,
+    marginHorizontal: 6,
+    marginVertical: 4,
   },
   statIcon: {
     marginRight: 6,

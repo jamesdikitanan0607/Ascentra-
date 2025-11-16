@@ -75,7 +75,7 @@ export default function CommentsScreen({ route, navigation }) {
 
         setPost({
           ...activityData,
-          profiles: profileData || { username: 'User', avatar_url: null },
+          profiles: profileData || { username: 'Unnamed User', avatar_url: null },
         });
         setPostLoading(false);
         return;
@@ -103,7 +103,7 @@ export default function CommentsScreen({ route, navigation }) {
 
       setPost({
         ...postData,
-        profiles: profileError ? { username: 'User', avatar_url: null } : profileData
+        profiles: profileError ? { username: 'Unnamed User', avatar_url: null } : profileData
       });
       setPostLoading(false);
     } catch (err) {
@@ -139,7 +139,7 @@ export default function CommentsScreen({ route, navigation }) {
 
         return {
           ...comment,
-          profiles: profileError ? { username: 'User', avatar_url: null } : profileData
+          profiles: profileError ? { username: 'Unnamed User', avatar_url: null } : profileData
         };
       }));
 
@@ -165,7 +165,7 @@ export default function CommentsScreen({ route, navigation }) {
         .insert([{
           forum_post_id: postId,
           user_id: user.id,
-          comment_text: newComment.trim()
+          content: newComment.trim()
         }])
         .select(`*`);
       
@@ -182,7 +182,7 @@ export default function CommentsScreen({ route, navigation }) {
         
         const commentWithProfile = {
           ...data[0],
-          profiles: profileData || { username: 'Unknown User', avatar_url: null }
+          profiles: profileData || { username: 'Unnamed User', avatar_url: null }
         };
         
         setComments([...comments, commentWithProfile]);
@@ -271,12 +271,12 @@ export default function CommentsScreen({ route, navigation }) {
         />
         <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
-            <Text style={styles.username}>{item.profiles?.username || 'User'}</Text>
+            <Text style={styles.username}>{item.profiles?.username || 'Unnamed User'}</Text>
             <Text style={styles.timestamp}>
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
           </View>
-          <Text style={styles.commentText}>{item.comment_text}</Text>
+          <Text style={styles.commentText}>{item.comment_text || item.content}</Text>
         </View>
         
         {isOwnComment && (
@@ -304,7 +304,7 @@ export default function CommentsScreen({ route, navigation }) {
             style={styles.postAvatar} 
           />
           <View>
-            <Text style={styles.postUsername}>{post.profiles?.username || 'User'}</Text>
+            <Text style={styles.postUsername}>{post.profiles?.username || 'Unnamed User'}</Text>
             <Text style={styles.postTimestamp}>
               {new Date(post.created_at).toLocaleDateString()}
             </Text>

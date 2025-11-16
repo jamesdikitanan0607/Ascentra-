@@ -12,9 +12,10 @@ interface Props {
   userId: string | null | undefined;
   isOwnProfile?: boolean;
   navigation: any;
+  ListHeaderComponent?: React.ReactElement | null;
 }
 
-const ProfilePostsFeed: React.FC<Props> = ({ userId, isOwnProfile, navigation }) => {
+const ProfilePostsFeed: React.FC<Props> = ({ userId, isOwnProfile, navigation, ListHeaderComponent }) => {
   const { posts, loading, refreshing, hasMore, refresh, loadMore, setPosts } = usePosts({ userId: userId || null });
   const { toggleLike, deletePost } = usePostInteractions();
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -77,6 +78,7 @@ const ProfilePostsFeed: React.FC<Props> = ({ userId, isOwnProfile, navigation })
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={["#2E7D32"]} />}
       onEndReachedThreshold={0.4}
       onEndReached={() => { if (hasMore && !loading) loadMore(); }}
+      ListHeaderComponent={ListHeaderComponent || null}
       ListEmptyComponent={!loading ? (
         <View style={{ padding: 24, alignItems: 'center' }}>
           <Text style={{ color: '#6B7280' }}>No posts yet</Text>

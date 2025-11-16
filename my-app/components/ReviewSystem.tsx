@@ -87,7 +87,7 @@ export default function ReviewSystem({ hikingSpotId, onReviewsUpdate }: ReviewSy
 
       const reviewsWithUsernames = data?.map(review => ({
         ...review,
-        user_name: review.profiles?.[0]?.username || 'Anonymous'
+        user_name: review.profiles?.[0]?.username || 'Unnamed User'
       })) || [];
 
       setReviews(reviewsWithUsernames);

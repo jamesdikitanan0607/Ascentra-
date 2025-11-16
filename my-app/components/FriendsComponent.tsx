@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
+import { getFriendsList, sendFriendRequest, removeFriend } from '../services/friendService';
 
 interface FriendsComponentProps {
   navigation: any;
   userId?: string;
+  ListHeaderComponent?: React.ReactElement | null;
 }
 
 interface Friend {
@@ -31,14 +33,28 @@ interface Friend {
 const FriendsComponent: React.FC<FriendsComponentProps> = ({
   navigation,
   userId,
+  ListHeaderComponent,
 }) => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'friends' | 'suggestions'>('friends');
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const [pendingOutgoing, setPendingOutgoing] = useState<Set<string>>(new Set());
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchFriends();
+  }, [userId, activeTab]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`friends-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `sender_id=eq.${userId}` }, () => fetchFriends())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${userId}` }, () => fetchFriends())
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
   }, [userId, activeTab]);
 
   const fetchFriends = async () => {
@@ -47,35 +63,59 @@ const FriendsComponent: React.FC<FriendsComponentProps> = ({
         setLoading(false);
         return;
       }
+      // Accepted follows via service (supports local fallback)
+      const acceptedProfiles = await getFriendsList(userId);
+      const acceptedIds = new Set<string>((acceptedProfiles || []).map((p: any) => p.id));
+      const { data: pendingRows } = await supabase
+        .from('friend_requests')
+        .select('receiver_id')
+        .eq('sender_id', userId)
+        .eq('status', 'pending');
+      const pendingSet = new Set<string>((pendingRows || []).map((r: any) => r.receiver_id));
+
+      setFollowingIds(acceptedIds);
+      setPendingOutgoing(pendingSet);
 
       if (activeTab === 'friends') {
-        // For now, we'll show recent users as "friends" since we don't have a friends table
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url, skill_level')
-          .neq('id', userId)
-          .limit(10);
-
-        if (error) {
-          console.error('Error fetching friends:', error);
-          return;
+        // Following tab: show accepted profiles + pending outgoing (as following, with pending icon)
+        const acceptedMapped: Friend[] = (acceptedProfiles || []).map((p: any) => ({
+          id: p.id,
+          username: p.username || 'User',
+          full_name: p.full_name || undefined,
+          avatar_url: p.avatar_url || undefined,
+          skill_level: p.skill_level || undefined,
+          is_following: true,
+        }));
+        let pendingMapped: Friend[] = [];
+        const pendingIds = Array.from(pendingSet);
+        if (pendingIds.length) {
+          const { data: pendProfs } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url, skill_level')
+            .in('id', pendingIds);
+          pendingMapped = (pendProfs || []).map((p: any) => ({
+            id: p.id,
+            username: p.username || 'User',
+            full_name: p.full_name || undefined,
+            avatar_url: p.avatar_url || undefined,
+            skill_level: p.skill_level || undefined,
+            is_following: true,
+          }));
         }
-
-        setFriends(data || []);
+        setFriends([...acceptedMapped, ...pendingMapped]);
       } else {
-        // Show suggested friends (other users)
+        // Discover tab: users not yet followed nor pending
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username, full_name, avatar_url, skill_level')
           .neq('id', userId)
-          .limit(15);
-
+          .limit(50);
         if (error) {
           console.error('Error fetching suggestions:', error);
           return;
         }
-
-        setFriends(data || []);
+        const filtered = (data || []).filter((p: any) => !acceptedIds.has(p.id) && !pendingSet.has(p.id));
+        setFriends(filtered);
       }
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -91,12 +131,44 @@ const FriendsComponent: React.FC<FriendsComponentProps> = ({
   };
 
   const handleFollowToggle = async (friendId: string) => {
-    // This would implement follow/unfollow functionality
-    // For now, just show an alert
-    Alert.alert(
-      'Feature Coming Soon',
-      'Friend connections will be available in a future update!'
-    );
+    if (!userId) return;
+    if (busyIds.has(friendId)) return;
+    const nextBusy = new Set(busyIds); nextBusy.add(friendId); setBusyIds(nextBusy);
+
+    try {
+      if (activeTab === 'suggestions') {
+        // Optimistic: mark as pending and remove from discover list
+        setPendingOutgoing(prev => new Set<string>(prev).add(friendId));
+        setFriends(prev => prev.filter(f => f.id !== friendId));
+
+        const res = await sendFriendRequest(friendId);
+        if (!res.success) {
+          // rollback by reloading list
+          await fetchFriends();
+          Alert.alert('Could not follow user', res.message || 'Please try again.');
+        } else {
+          try {
+            const just = friends.find(f => f.id === friendId);
+            Alert.alert('Following', `You're now following @${just?.username || 'user'}.`);
+            // Refresh lists so Following tab shows the user immediately as accepted/pending
+            fetchFriends();
+          } catch {}
+        }
+      } else {
+        // Following tab: attempt to remove (unfollow) if already accepted
+        if (followingIds.has(friendId)) {
+          const res = await removeFriend(friendId);
+          if (res.success) {
+            setFollowingIds(prev => { const cp = new Set(prev); cp.delete(friendId); return cp; });
+            setFriends(prev => prev.filter(f => f.id !== friendId));
+          } else if (res.message) {
+            Alert.alert('Unable to remove', res.message);
+          }
+        }
+      }
+    } finally {
+      const cp = new Set(busyIds); cp.delete(friendId); setBusyIds(cp);
+    }
   };
 
   const navigateToProfile = (friendId: string) => {
@@ -133,54 +205,63 @@ const FriendsComponent: React.FC<FriendsComponentProps> = ({
     }
   };
 
-  const renderFriend = ({ item }: { item: Friend }) => (
-    <TouchableOpacity
-      style={styles.friendItem}
-      onPress={() => navigateToProfile(item.id)}
-    >
-      <View style={styles.friendInfo}>
-        <View style={styles.avatarContainer}>
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={24} color="#666" />
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.friendDetails}>
-          <Text style={styles.friendName}>
-            {item.full_name || item.username}
-          </Text>
-          <Text style={styles.friendUsername}>@{item.username}</Text>
-          <View style={styles.skillLevelContainer}>
-            <View
-              style={[
-                styles.skillLevelBadge,
-                { backgroundColor: getSkillLevelColor(item.skill_level) },
-              ]}
-            >
-              <Text style={styles.skillLevelText}>
-                {getSkillLevelLabel(item.skill_level)}
-              </Text>
+  const renderFriend = ({ item }: { item: Friend }) => {
+    const isPending = pendingOutgoing.has(item.id);
+    const isFollowing = followingIds.has(item.id) || isPending || !!item.is_following;
+    const disabled = activeTab === 'suggestions' && isFollowing;
+    const iconName = activeTab === 'friends' ? (isPending ? 'time-outline' : 'person-remove-outline') : (isFollowing ? 'checkmark-circle' : 'person-add-outline');
+    const iconColor = activeTab === 'friends' ? (isPending ? '#9CA3AF' : '#4CAF50') : (isFollowing ? '#9CA3AF' : '#4CAF50');
+
+    return (
+      <TouchableOpacity
+        style={styles.friendItem}
+        onPress={() => navigateToProfile(item.id)}
+      >
+        <View style={styles.friendInfo}>
+          <View style={styles.avatarContainer}>
+            {item.avatar_url ? (
+              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={24} color="#666" />
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.friendDetails}>
+            <Text style={styles.friendName}>
+              {item.full_name || item.username}
+            </Text>
+            <Text style={styles.friendUsername}>@{item.username}</Text>
+            <View style={styles.skillLevelContainer}>
+              <View
+                style={[
+                  styles.skillLevelBadge,
+                  { backgroundColor: getSkillLevelColor(item.skill_level) },
+                ]}
+              >
+                <Text style={styles.skillLevelText}>
+                  {getSkillLevelLabel(item.skill_level)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
-      
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() => handleFollowToggle(item.id)}
-      >
-        <Ionicons
-          name={activeTab === 'friends' ? 'person-remove-outline' : 'person-add-outline'}
-          size={20}
-          color="#4CAF50"
-        />
+        
+        <TouchableOpacity
+          style={[styles.actionButton, disabled && { opacity: 0.6 }]}
+          onPress={() => handleFollowToggle(item.id)}
+          disabled={disabled || busyIds.has(item.id)}
+        >
+          <Ionicons
+            name={iconName as any}
+            size={20}
+            color={iconColor}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -220,6 +301,7 @@ const FriendsComponent: React.FC<FriendsComponentProps> = ({
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListHeaderComponent={ListHeaderComponent || null}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#ccc" />
