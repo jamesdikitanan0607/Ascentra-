@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  TextInput, 
-  Text, 
-  TouchableOpacity, 
-  Alert, 
-  Image, 
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Image,
   SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
@@ -41,16 +41,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    
+
     // Handle demo mode
     if (isInDemoMode) {
       Alert.alert(
-        '🎭 Demo Mode', 
+        '🎭 Demo Mode',
         'Login is disabled in demo mode.\n\nTo enable login:\n1. Create a Supabase project\n2. Update your .env file\n3. Restart the app\n\nSee FIX_REGISTRATION_NOW.md for instructions.'
       );
       return;
     }
-    
+
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
@@ -65,16 +65,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
     // Handle demo mode
     if (isInDemoMode) {
       Alert.alert(
-        '🎭 Demo Mode', 
+        '🎭 Demo Mode',
         'Google Sign-in is disabled in demo mode.\n\nTo enable authentication:\n1. Create a Supabase project\n2. Update your .env file\n3. Restart the app\n\nSee FIX_REGISTRATION_NOW.md for instructions.'
       );
       return;
     }
-    
+
     try {
       setLoading(true);
       const session = await signInWithGoogle();
-      
+
       if (session && session.session) {
         // Navigation will be handled automatically by the auth state change
         // Google sign-in successful
@@ -93,10 +93,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" />
-      
+
       {/* Header with background image */}
       <View style={styles.headerContainer}>
-        <ImageBackground 
+        <ImageBackground
           source={{ uri: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=1000' }}
           style={styles.headerBackground}
         >
@@ -111,14 +111,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
           </LinearGradient>
         </ImageBackground>
       </View>
-      
+
       {/* Content section */}
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.content}
         keyboardVerticalOffset={Platform.OS === "ios" ? -64 : 0}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
@@ -126,14 +126,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
           <View style={styles.card}>
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../assets/images/ascentra.png')} 
+                <Image
+                  source={require('../assets/images/ascentra.png')}
                   style={styles.logo}
                 />
               </View>
               <Text style={styles.subtitle}>Discover trails. Share experiences.</Text>
             </View>
-            
+
             <View style={styles.formContainer}>
               <Text style={styles.formLabel}>EMAIL</Text>
               <View style={styles.inputContainer}>
@@ -161,14 +161,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
                 />
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.forgotPassword}
                 onPress={() => Alert.alert('Reset Password', 'Password reset functionality will be implemented here')}
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.loginButton}
                 onPress={() => signInWithEmail()}
                 disabled={loading}
@@ -180,21 +180,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps): JSX.Eleme
                 )}
               </TouchableOpacity>
             </View>
-
-            <View style={styles.separator}>
-              <View style={styles.line} />
-              <Text style={styles.separatorText}>OR</Text>
-              <View style={styles.line} />
-            </View>
-
-            <TouchableOpacity 
-              style={styles.googleButton}
-              onPress={handleGoogleSignIn}
-              disabled={loading}
-            >
-              <Ionicons name="logo-google" size={24} color="#EA4335" />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
@@ -388,7 +373,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16, // Reduced margin
+    marginTop: 4, // Adjusted for even spacing
   },
   footerText: {
     fontSize: 15,
