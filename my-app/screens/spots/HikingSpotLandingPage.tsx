@@ -69,9 +69,9 @@ interface HikingSpotLandingPageProps {
 const toTrailRoute = (details: TrailRouteDetails): TrailRoute => ({
   id: details.route_id,
   route_name: details.route_name || 'Unnamed Route',
-  difficulty: details.difficulty_level === 'Easy' ? 'Easy' : 
-             details.difficulty_level === 'Moderate' ? 'Moderate' :
-             details.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
+  difficulty: details.difficulty_level === 'Easy' ? 'Easy' :
+    details.difficulty_level === 'Moderate' ? 'Moderate' :
+      details.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
   distance: details.distance_km || 0,
   elevation_gain: details.elevation_gain_m || 0,
   estimated_duration: Math.round((details.estimated_duration_hr || 0) * 60),
@@ -118,7 +118,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: Missing hiking spot information</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.errorBackButton}
             onPress={() => navigation.goBack()}
           >
@@ -130,21 +130,21 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
   }
 
   const { hiking_spot_id } = route.params;
-  const [coordinates, setCoordinates] = useState<{latitude: number, longitude: number} | null>(null);
+  const [coordinates, setCoordinates] = useState<{ latitude: number, longitude: number } | null>(null);
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const trailInfoYRef = useRef<number>(0);
   const infoOpacity = useRef(new Animated.Value(0)).current;
   const infoTranslateY = useRef(new Animated.Value(12)).current;
-  
+
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
   const [favoriteSaving, setFavoriteSaving] = useState(false);
-  
+
   // Trail context for shared trail selection
   const { selectedTrail, setSelectedTrail, setTrails } = useTrail();
   const [selectedRoute, setSelectedRoute] = useState<TrailRoute | null>(null);
-  
+
   // Custom hook for fetching and managing hiking spot data
   const {
     hikingSpot,
@@ -153,14 +153,15 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     error,
     fetchHikingSpotData,
   } = useHikingSpotData(hiking_spot_id);
-  
+
   // Transform DB routes (TrailRouteDetails) into UI routes (types.TrailRoute) for UI components
-  const uiRoutes: TrailRoute[] = trailRoutes ? trailRoutes.map(r => ({
+  // MEMOIZED to prevent infinite loop in useEffect below
+  const uiRoutes: TrailRoute[] = React.useMemo(() => trailRoutes ? trailRoutes.map(r => ({
     id: r.route_id,
     route_name: r.route_name || 'Unnamed Route',
-    difficulty: r.difficulty_level === 'Easy' ? 'Easy' : 
-               r.difficulty_level === 'Moderate' ? 'Moderate' :
-               r.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
+    difficulty: r.difficulty_level === 'Easy' ? 'Easy' :
+      r.difficulty_level === 'Moderate' ? 'Moderate' :
+        r.difficulty_level === 'Hard' ? 'Hard' : 'Expert',
     distance: r.distance_km || 0,
     elevation_gain: r.elevation_gain_m || 0,
     estimated_duration: Math.round((r.estimated_duration_hr || 0) * 60),
@@ -173,7 +174,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     waypoints: r.waypoints || '',
     created_at: r.created_at,
     updated_at: r.updated_at
-  })) : [];
+  })) : [], [trailRoutes]);
 
   // Set initial selected route when routes or selectedTrail changes
   useEffect(() => {
@@ -201,7 +202,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       if (route) setSelectedRoute(route);
     } else setSelectedRoute(null);
   }, [uiRoutes, selectedTrail]);
-  
+
   // Update map coordinates when hiking spot changes
   useEffect(() => {
     if (hikingSpot?.coordinates?.coordinates) {
@@ -211,7 +212,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       });
     }
   }, [hikingSpot]);
-  
+
   // Animate Trail Information panel when selected route changes
   useEffect(() => {
     if (selectedRoute) {
@@ -243,16 +244,16 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       setFavoriteSaving(false);
     }
   };
-  
+
   // Handle fullscreen map toggle
   const handleFullscreenMap = () => {
     setIsFullscreenMap(true);
   };
-  
+
   const handleCloseFullscreen = () => {
     setIsFullscreenMap(false);
   };
-  
+
   // Handle trail selection from map or list
   const handleTrailSelect = useCallback((trailId: string) => {
     if (!trailId || !uiRoutes.length) return;
@@ -281,13 +282,13 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
     // Scroll to trail info section
     if (trailInfoYRef.current && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ 
-        y: Math.max(trailInfoYRef.current - 20, 0), 
-        animated: true 
+      scrollViewRef.current.scrollTo({
+        y: Math.max(trailInfoYRef.current - 20, 0),
+        animated: true
       });
     }
   }, [uiRoutes, setSelectedTrail]);
-  
+
   // Handle focus on map
   const handleFocusOnMap = (routeId: string) => {
     handleTrailSelect(routeId);
@@ -314,7 +315,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           <Text style={styles.errorText}>
             {error || 'Hiking spot not found'}
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.errorBackButton}
             onPress={() => navigation.goBack()}
           >
@@ -335,7 +336,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     >
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-        
+
         {/* Hiking Spot Header with Image Carousel */}
         <HikingSpotHeader
           name={hikingSpot.name}
@@ -344,10 +345,10 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           images={hikingSpot.images || []}
           onBackPress={() => navigation.goBack()}
         />
-        
-        <ScrollView 
-          ref={scrollViewRef} 
-          style={styles.container} 
+
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.container}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -362,7 +363,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               }}
               hikingSpotId={hiking_spot_id}
             />
-            
+
             {/* Trail Map Section */}
             {coordinates && (
               <TrailMapSection
@@ -373,26 +374,26 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
                 onFullscreenPress={handleFullscreenMap}
               />
             )}
-            
+
             {/* Trail Routes Slider */}
             {trailRoutes && (
-              <TrailRoutesSlider 
-                routes={trailRoutes} 
+              <TrailRoutesSlider
+                routes={trailRoutes}
                 selectedRoute={selectedRoute ? findTrailRouteDetails(trailRoutes, selectedRoute.id) : null}
                 onRouteSelect={(route: TrailRouteDetails) => handleTrailSelect(route.route_id)}
               />
             )}
 
             {/* Trail Information Section */}
-            <TrailInfoSection 
+            <TrailInfoSection
               selectedRoute={selectedRoute}
               onFocusOnMap={handleTrailSelect}
             />
-            
+
             {/* Reviews Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Reviews</Text>
-              <ReviewSystem 
+              <ReviewSystem
                 hikingSpotId={hiking_spot_id}
               />
             </View>
@@ -401,13 +402,13 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
             {coordinates && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Weather Forecast</Text>
-                <WeatherWidget 
+                <WeatherWidget
                   latitude={coordinates.latitude}
                   longitude={coordinates.longitude}
                 />
               </View>
             )}
-            
+
             {/* Favorite Button */}
             <FavoriteButton
               isFavorite={isSpotFavorited(hikingSpot.id)}
@@ -417,7 +418,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
             />
           </View>
         </ScrollView>
-      
+
         {/* Fullscreen Map Modal */}
         <Modal
           visible={isFullscreenMap}
@@ -426,7 +427,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         >
           <View style={styles.fullscreenMapContainer}>
             <View style={styles.fullscreenMapHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={handleCloseFullscreen}
               >
@@ -437,7 +438,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               </Text>
               <View style={{ width: 40 }} />
             </View>
-            
+
             <View style={styles.fullscreenMap}>
               <LeafletTrailMap
                 selectedHikingSpotId={hiking_spot_id}

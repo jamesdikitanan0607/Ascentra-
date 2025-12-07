@@ -5,11 +5,13 @@ interface NavigationProps {
   navigation: any;
 }
 
-export default function MountTagaytayScreen({ navigation }: NavigationProps) {
+export function MountTagaytayScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '85' } }}
+      route={{ params: { hiking_spot_id: '84' } }}
     />
   );
 }
+
+export default MountTagaytayScreen;

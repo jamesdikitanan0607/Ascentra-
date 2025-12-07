@@ -7,9 +7,9 @@ interface NavigationProps {
 
 export function MountKalbasaanScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
-      navigation={navigation} 
-      route={{ params: { hiking_spot_id: '81' } }} 
+    <HikingSpotWrapper
+      navigation={navigation}
+      route={{ params: { hiking_spot_id: '78' } }}
     />
   );
 }

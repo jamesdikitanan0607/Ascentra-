@@ -7,9 +7,9 @@ interface NavigationProps {
 
 export function LugsanganPeakScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '94' } }}
+      route={{ params: { hiking_spot_id: '81' } }}
     />
   );
 }

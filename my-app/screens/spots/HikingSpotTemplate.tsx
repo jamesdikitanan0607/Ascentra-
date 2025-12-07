@@ -82,9 +82,9 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   console.log('HikingSpotTemplate - spotData:', spotData);
   console.log('HikingSpotTemplate - spotData.hiking_spot_id:', spotData.hiking_spot_id);
   console.log('HikingSpotTemplate - spotData.id:', spotData.id);
-  
+
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Trail routes state
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
@@ -92,7 +92,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
   const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
   const [effectiveSpotId, setEffectiveSpotId] = useState<string>((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id);
-  
+
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
 
@@ -113,10 +113,10 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
       const initialId = ((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id).toString();
       const response = await getTrailRoutesBySpotId(initialId);
       console.log('API Response:', JSON.stringify(response, null, 2));
-      
+
       let routes = (response.data || []) as TrailRouteDetails[];
       console.log('Fetched routes:', routes);
-      
+
       if (!routes || routes.length === 0) {
         try {
           const { data: spotLookup, error: spotErr } = await supabase
@@ -156,25 +156,25 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
       console.log('trailRoutes is not an array');
       return [];
     }
-    
+
     return trailRoutes.map((r) => {
       // Parse start and end coordinates from the database
       let startLat = spotData.latitude;
       let startLng = spotData.longitude;
       let endLat = spotData.latitude;
       let endLng = spotData.longitude;
-      
+
       // Use provided coordinates if available
       if (r.start_coordinates) {
         startLat = r.start_coordinates.latitude;
         startLng = r.start_coordinates.longitude;
       }
-      
+
       if (r.end_coordinates) {
         endLat = r.end_coordinates.latitude;
         endLng = r.end_coordinates.longitude;
       }
-      
+
       // Parse waypoints if available
       let coordinates: [number, number][] = [];
       if (r.route_coordinates && Array.isArray(r.route_coordinates)) {
@@ -182,7 +182,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           .filter(coord => coord && typeof coord.latitude === 'number' && typeof coord.longitude === 'number')
           .map(coord => [coord.longitude, coord.latitude] as [number, number]);
       }
-      
+
       // Map database fields to UI model
       const route: TrailRoute = {
         id: r.route_id,  // Using route_id from the database
@@ -214,7 +214,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
         created_at: r.created_at,
         updated_at: r.updated_at
       };
-      
+
       console.log(`Mapped route ${route.id} (${route.route_name}):`, route);
       return route;
     });
@@ -224,13 +224,13 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   useEffect(() => {
     console.log('Selected route changed:', selectedRoute);
     console.log('Available UI routes:', uiRoutes);
-    
-    if (!selectedRoute) { 
+
+    if (!selectedRoute) {
       console.log('No selected route, setting selectedUiRoute to null');
-      setSelectedUiRoute(null); 
-      return; 
+      setSelectedUiRoute(null);
+      return;
     }
-    
+
     const found = uiRoutes.find(u => String(u.id) === String(selectedRoute.route_id));
     console.log('Found matching UI route for selected route:', found);
     setSelectedUiRoute(found || null);
@@ -262,14 +262,14 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
   const handleSelectFromSlider = (trailId: string) => {
     console.log('handleSelectFromSlider called with trailId:', trailId);
     console.log('Available trailRoutes:', trailRoutes);
-    
+
     // Find the route in the database routes
     const details = trailRoutes.find(r => String(r.route_id) === String(trailId));
     console.log('Found route details:', details);
-    
+
     if (details) {
       setSelectedRoute(details);
-      
+
       // Also update the selected UI route
       const uiRoute = uiRoutes.find(r => r.id === trailId);
       if (uiRoute) {
@@ -279,21 +279,22 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     }
   };
 
-
-
   const handleFavoriteToggle = async () => {
     if (favoritesLoading) return;
-    
+
     try {
       const isCurrentlyFavorited = isSpotFavorited(spotData.id);
       if (isCurrentlyFavorited) {
         await removeFromFavorites(spotData.id);
       } else {
-        await addToFavorites({
+        // Ensure hiking_spot_id is present as per user requirement
+        const spotToSave = {
           ...spotData,
+          hiking_spot_id: (spotData as any).hiking_spot_id || spotData.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        };
+        await addToFavorites(spotToSave);
       }
     } catch (error) {
       // Error toggling favorite
@@ -306,7 +307,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
       ios: `maps:0,0?q=${spotData.latitude},${spotData.longitude}`,
       android: `geo:0,0?q=${spotData.latitude},${spotData.longitude}`
     });
-    
+
     if (url) {
       Linking.openURL(url);
     }
@@ -343,8 +344,6 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
         return '#757575'; // Gray
     }
   };
-
-
 
   if (isLoading) {
     return (
@@ -388,7 +387,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
               <View style={styles.heroRating}>
                 {renderStars(Math.floor(spotData.rating))}
                 <Text style={styles.heroRatingText}>
-                  {spotData.rating} <Text style={{opacity: 0.85}}>({spotData.review_count} reviews)</Text>
+                  {spotData.rating} <Text style={{ opacity: 0.85 }}>({spotData.review_count} reviews)</Text>
                 </Text>
               </View>
               <View style={styles.heroLocation}>
@@ -402,10 +401,10 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
         {/* Content Container */}
         <View style={styles.contentContainer}>
           {/* Removed first 'Trail Information' header and stats row for a cleaner layout */}
-          
+
           {/* Add to Favorites Section */}
           <View style={styles.section}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.favoriteButton,
                 isSpotFavorited(spotData.id) && styles.favoriteButtonActive
@@ -413,10 +412,10 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
               onPress={handleFavoriteToggle}
               disabled={favoritesLoading}
             >
-              <Ionicons 
-                name={isSpotFavorited(spotData.id) ? 'heart' : 'heart-outline'} 
-                size={20} 
-                color="#FFFFFF" 
+              <Ionicons
+                name={isSpotFavorited(spotData.id) ? 'heart' : 'heart-outline'}
+                size={20}
+                color="#FFFFFF"
               />
               <Text style={[
                 styles.favoriteButtonText,
@@ -446,8 +445,8 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                 <View style={styles.trailRoutesErrorContainer}>
                   <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
                   <Text style={styles.trailRoutesErrorText}>{trailRoutesError}</Text>
-                  <TouchableOpacity 
-                    style={styles.retryButton} 
+                  <TouchableOpacity
+                    style={styles.retryButton}
                     onPress={fetchTrailRoutes}
                   >
                     <MaterialIcons name="refresh" size={20} color="white" />
@@ -524,16 +523,16 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
           {/* Trail Routes Section (slider) */}
           <View style={styles.section}>
             {trailRoutesLoading ? (
-              <View style={{padding: 20, alignItems: 'center'}}>
+              <View style={{ padding: 20, alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
                 <Text>Loading trail routes...</Text>
               </View>
             ) : trailRoutesError ? (
-              <View style={{padding: 20, alignItems: 'center'}}>
-                <Text style={{color: 'red'}}>{trailRoutesError}</Text>
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: 'red' }}>{trailRoutesError}</Text>
               </View>
             ) : uiRoutes.length === 0 ? (
-              <View style={{padding: 20, alignItems: 'center'}}>
+              <View style={{ padding: 20, alignItems: 'center' }}>
                 <Text>No trail routes available for this spot.</Text>
               </View>
             ) : (
@@ -607,8 +606,8 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
 
           {/* Reviews Section */}
           <View style={styles.section}>
-            <ReviewSystem 
-              hikingSpotId={spotData.hiking_spot_id || spotData.id} 
+            <ReviewSystem
+              hikingSpotId={spotData.hiking_spot_id || spotData.id}
               onReviewAdded={() => {
                 // Optionally refresh hiking spot data to update average rating
                 // Review added successfully

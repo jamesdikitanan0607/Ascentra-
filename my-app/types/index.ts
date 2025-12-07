@@ -9,6 +9,7 @@ export interface Favorite {
 
 export interface HikingSpot {
   id: number;
+  hiking_spot_id?: number | string;
   name: string;
   coordinates?: any; // PostGIS POINT type
   description?: string;
@@ -36,6 +37,7 @@ export interface HikingSpot {
   created_at?: string;
   updated_at?: string;
   is_favorited?: boolean;
+  thumbnail?: any;
 }
 
 export interface Profile {
@@ -97,46 +99,46 @@ export interface Hike {
 export interface TrailRoute {
   /** Unique identifier for the trail route */
   id: string;
-  
+
   /** Name of the trail route */
   route_name: string;
-  
+
   /** Difficulty level of the trail */
   difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert';
-  
+
   /** Distance in kilometers */
   distance: number;
-  
+
   /** Elevation gain in meters */
   elevation_gain: number;
-  
+
   /** Estimated duration in minutes */
   estimated_duration: number;
-  
+
   /** Detailed description of the route */
   route_description: string;
-  
+
   /** Key highlights or features of the trail */
   highlights: string;
-  
+
   /** Color code for the route line on the map */
   route_color: string;
-  
+
   /** Starting point coordinates of the trail */
-  start_coordinates: { 
-    latitude: number; 
+  start_coordinates: {
+    latitude: number;
     longitude: number;
   };
-  
+
   /** Ending point coordinates of the trail */
-  end_coordinates: { 
-    latitude: number; 
+  end_coordinates: {
+    latitude: number;
     longitude: number;
   };
-  
+
   /** Array of [longitude, latitude] coordinates for the route line */
   coordinates: [number, number][];
-  
+
   /** 
    * Waypoints along the route as a JSON string or array of waypoint objects
    * @example '[{"latitude": 10.1234, "longitude": 123.4567, "name": "Viewpoint 1"}]'
@@ -147,10 +149,10 @@ export interface TrailRoute {
     name?: string;
     description?: string;
   }>;
-  
+
   /** Timestamp when the route was created */
   created_at?: string;
-  
+
   /** Timestamp when the route was last updated */
   updated_at?: string;
 }

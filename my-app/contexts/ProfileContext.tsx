@@ -4,12 +4,14 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useMemo,
 } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { HikingSpot, Profile, FavoriteSpot } from '../types';
+import { hikingSpots as localHikingSpots } from '../data/hikingSpots';
 
 interface ProfileContextType {
   profile: Profile | null;
@@ -55,42 +57,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     loadProfileFromCache();
     loadFavoritesFromCache();
   }, []);
-
-  // Fetch profile and favorites when user changes
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchProfile();
-      fetchFavorites();
-    } else if (!authLoading && !user) {
-      clearProfile();
-    }
-  }, [user, authLoading]);
-
-  // Realtime subscription to favorites for current user
-  useEffect(() => {
-    if (!user?.id) return;
-
-    // Subscribe to INSERT/UPDATE/DELETE on favorites for this user
-    const channel = supabase
-      .channel(`favorites-user-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'favorites', filter: `user_id=eq.${user.id}` },
-        () => {
-          // Re-fetch to merge latest spot details and ensure consistency
-          fetchFavorites();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (e) {
-        // no-op
-      }
-    };
-  }, [user?.id]);
 
   const loadProfileFromCache = async () => {
     try {
@@ -138,7 +104,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchProfile = async (userId?: string) => {
+  const fetchProfile = useCallback(async (userId?: string) => {
     const targetUserId = userId || user?.id;
     if (!targetUserId) {
       setLoading(false);
@@ -223,7 +189,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const updateProfile = useCallback(
     async (updates: Partial<Profile>): Promise<boolean> => {
@@ -262,7 +228,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
         // Force refresh to ensure data consistency
         await fetchProfile(user.id);
-        
+
         return true;
       } catch (error) {
         console.error('Error updating profile:', error);
@@ -272,32 +238,34 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [user, profile],
+    [user, profile, fetchProfile],
   );
 
   const refreshProfile = useCallback(async () => {
     if (user) {
       await fetchProfile(user.id);
     }
-  }, [user]);
+  }, [user, fetchProfile]);
 
   // Force immediate profile refresh - useful for signup and critical updates
-   const forceRefreshProfile = useCallback(async (): Promise<void> => {
-     if (!user) return;
-     
-     // Clear cache first to ensure fresh data
-     await AsyncStorage.removeItem(PROFILE_STORAGE_KEY);
-     
-     // Fetch fresh profile data
-     await fetchProfile(user.id);
-   }, [user, fetchProfile]);
+  const forceRefreshProfile = useCallback(async (): Promise<void> => {
+    if (!user) return;
 
-  const fetchFavorites = async () => {
+    // Clear cache first to ensure fresh data
+    await AsyncStorage.removeItem(PROFILE_STORAGE_KEY);
+
+    // Fetch fresh profile data
+    await fetchProfile(user.id);
+  }, [user, fetchProfile]);
+
+  const lastFavoritesRef = React.useRef<string>('');
+
+  const fetchFavorites = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       setFavoritesLoading(true);
-      
+
       // First get the favorites
       const { data: favoritesData, error: favoritesError } = await supabase
         .from('favorites')
@@ -311,19 +279,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!favoritesData || favoritesData.length === 0) {
-        setFavorites([]);
-        await saveFavoritesToCache([]);
+        if (lastFavoritesRef.current !== '[]') {
+          setFavorites([]);
+          await saveFavoritesToCache([]);
+          lastFavoritesRef.current = '[]';
+        }
         return;
       }
 
       // Get the spot IDs from favorites
       const spotIds = favoritesData.map((fav: any) => fav.hiking_spot_id);
 
-      // Then get the hiking spots data
+      // Then get the hiking spots data from Supabase
       const { data: spotsData, error: spotsError } = await supabase
         .from('hiking_spots')
         .select(`
-          id,
+          hiking_spot_id,
           name,
           description,
           difficulty,
@@ -331,34 +302,61 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           latitude,
           longitude,
           rating,
-          review_count
+          review_count,
+          elevation,
+          trail_length,
+          estimated_duration
         `)
-        .in('id', spotIds);
+        .in('hiking_spot_id', spotIds);
 
-      const error = spotsError;
-
-      if (error) {
-        console.error('Error fetching hiking spots:', error);
+      if (spotsError) {
+        console.error('Error fetching hiking spots:', spotsError);
         return;
       }
 
-      // Combine favorites with hiking spots data
       const combinedData: FavoriteSpot[] = favoritesData.map((fav: any) => {
-        const spot = spotsData?.find((spot: any) => spot.id === fav.hiking_spot_id);
-        if (!spot) return null;
-        
-        const spotData = spot as any;
+        const remoteSpot = spotsData?.find((spot: any) => spot.hiking_spot_id === fav.hiking_spot_id);
+
+        // Robust matching strategy:
+        // 1. Try exact ID match
+        let localSpot = localHikingSpots.find((s: any) => String(s.id) === String(fav.hiking_spot_id));
+
+        // 2. If no ID match, try name match (fuzzy/normalized)
+        if (!localSpot && remoteSpot) {
+          const remoteName = (remoteSpot.name || '').toLowerCase().trim();
+          localSpot = localHikingSpots.find((s: any) =>
+            (s.name || '').toLowerCase().trim() === remoteName ||
+            (s.slug || '').toLowerCase().trim() === remoteName
+          );
+        }
+
+        if (!remoteSpot && !localSpot) return null;
+
+        const spotData = (remoteSpot || {}) as any;
+        const localData = (localSpot || {}) as any;
+
+        // CRITICAL: Use local ID if available to ensure navigation works (e.g. 82 -> OsmenaPeakScreen)
+        // If we matched by name but IDs were different, we MUST use the local ID for getSpotScreenName to work.
+        const effectiveId = localSpot ? localSpot.id : fav.hiking_spot_id;
+
         return {
-          id: spotData.id || fav.hiking_spot_id,
-          name: spotData.name || '',
+          id: effectiveId, // Use the ID that maps to the correct screen
+          name: localData.name || spotData.name || '',
           description: spotData.description || '',
-          coordinates: spotData.coordinates || null,
-          cover_image_url: spotData.image_url || spotData.cover_image_url || null,
-          average_rating: spotData.rating || spotData.average_rating || 0,
-          number_of_reviews: spotData.review_count || spotData.number_of_reviews || 0,
-          difficulty: spotData.difficulty || spotData.difficulty_level || null,
-          elevation: spotData.elevation || spotData.elevation_gain || null,
-          trail_length: spotData.trail_length || spotData.distance || null,
+          coordinates: {
+            latitude: localData.latitude || spotData.latitude || 0,
+            longitude: localData.longitude || spotData.longitude || 0,
+          },
+          cover_image_url: spotData.image_url || null, // Keep cover_image_url as string only
+          thumbnail: localData.thumbnail, // Explicitly set thumbnail property
+
+          // Prioritize local data for consistency with Home screen
+          average_rating: localData.average_rating || spotData.rating || 0,
+          number_of_reviews: localData.rating_count || spotData.review_count || 0,
+          difficulty: localData.difficulty || spotData.difficulty || null,
+          elevation: localData.elevation_gain_m || spotData.elevation || null,
+          trail_length: localData.distance_km || spotData.trail_length || null,
+
           estimated_duration: spotData.estimated_duration || null,
           image_url: spotData.image_url || null,
           images: spotData.photos || spotData.images || null,
@@ -366,29 +364,38 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           best_season: spotData.best_season || null,
           created_by: spotData.created_by || null,
           is_verified: spotData.is_verified || false,
-          rating: spotData.rating || null,
-          review_count: spotData.review_count || null,
-          latitude: spotData.latitude || null,
-          longitude: spotData.longitude || null,
+          rating: localData.average_rating || spotData.rating || null,
+          review_count: localData.rating_count || spotData.review_count || null,
+          latitude: localData.latitude || spotData.latitude || null,
+          longitude: localData.longitude || spotData.longitude || null,
           location_text: spotData.location_name || spotData.location_text || null,
-          elevation_m: spotData.elevation || spotData.elevation_gain || null,
-          trail_length_km: spotData.trail_length || spotData.distance || null,
+          elevation_m: localData.elevation_gain_m || spotData.elevation || null,
+          trail_length_km: localData.distance_km || spotData.trail_length || null,
           estimated_duration_min: spotData.estimated_duration || null,
           created_at: spotData.created_at || new Date().toISOString(),
           updated_at: spotData.updated_at || new Date().toISOString(),
           favorited_at: fav.created_at,
           is_favorited: true,
         } as FavoriteSpot;
-      }).filter(Boolean) as FavoriteSpot[]; // Remove any undefined entries
+      }).filter(Boolean) as FavoriteSpot[];
 
-      setFavorites(combinedData);
-      await saveFavoritesToCache(combinedData);
+      // Deep comparison to prevent unnecessary re-renders
+      const newFavoritesString = JSON.stringify(combinedData);
+      if (newFavoritesString !== lastFavoritesRef.current) {
+        console.log('Favorites changed, updating state');
+        lastFavoritesRef.current = newFavoritesString;
+        setFavorites(combinedData);
+        await saveFavoritesToCache(combinedData);
+      } else {
+        console.log('Favorites unchanged, skipping update');
+      }
+
     } catch (error) {
       console.error('Error in fetchFavorites:', error);
     } finally {
       setFavoritesLoading(false);
     }
-  };
+  }, [user]);
 
   const addToFavorites = useCallback(
     async (spot: HikingSpot): Promise<boolean> => {
@@ -490,7 +497,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const refreshFavorites = useCallback(async () => {
     await fetchFavorites();
-  }, [user]);
+  }, [fetchFavorites]);
 
   const forceRefresh = useCallback(async () => {
     if (user) {
@@ -499,7 +506,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         fetchFavorites()
       ]);
     }
-  }, [user]);
+  }, [user, fetchProfile, fetchFavorites]);
 
   const clearProfile = useCallback(() => {
     setProfile(null);
@@ -511,7 +518,43 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.removeItem(FAVORITES_STORAGE_KEY).catch(console.error);
   }, []);
 
-  const value: ProfileContextType = {
+  // Fetch profile and favorites when user changes
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchProfile();
+      fetchFavorites();
+    } else if (!authLoading && !user) {
+      clearProfile();
+    }
+  }, [user, authLoading, fetchProfile, fetchFavorites, clearProfile]);
+
+  // Realtime subscription to favorites for current user
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Subscribe to INSERT/UPDATE/DELETE on favorites for this user
+    const channel = supabase
+      .channel(`favorites-user-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'favorites', filter: `user_id=eq.${user.id}` },
+        () => {
+          // Re-fetch to merge latest spot details and ensure consistency
+          fetchFavorites();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {
+        // no-op
+      }
+    };
+  }, [user?.id, fetchFavorites]);
+
+  const value: ProfileContextType = useMemo(() => ({
     profile,
     loading,
     error,
@@ -526,7 +569,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     isSpotFavorited,
     refreshFavorites,
     forceRefresh,
-  };
+  }), [
+    profile,
+    loading,
+    error,
+    fetchProfile,
+    updateProfile,
+    refreshProfile,
+    forceRefreshProfile,
+    favorites,
+    favoritesLoading,
+    addToFavorites,
+    removeFromFavorites,
+    isSpotFavorited,
+    refreshFavorites,
+    forceRefresh,
+  ]);
 
   return (
     <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>

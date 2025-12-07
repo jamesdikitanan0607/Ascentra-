@@ -7,9 +7,9 @@ interface NavigationProps {
 
 export function MountKaniragScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '75' } }}
+      route={{ params: { hiking_spot_id: '72' } }}
     />
   );
 }

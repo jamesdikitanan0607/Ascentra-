@@ -80,7 +80,7 @@ const ProfileScreen = createLazyComponent(() => import('./screens/ProfileScreen'
 const EditProfileScreen = createLazyComponent(() => import('./screens/EditProfileScreen'));
 const ChangePasswordScreen = createLazyComponent(() => import('./screens/ChangePasswordScreen'));
 const FavoritesScreen = createLazyComponent(() => import('./screens/FavoritesScreen'));
-const MediaViewerScreen = createLazyComponent(() => import('./screens/MediaViewerScreen'));
+const MediaViewerScreen = createLazyComponent(() => import('./screens/OptimizedMediaViewerScreen'));
 const SaveActivityScreen = createLazyComponent(() => import('./screens/SaveActivityScreen'));
 const HikeDetailScreen = createLazyComponent(() => import('./screens/HikeDetailScreen'));
 const ActivityCommentsScreen = createLazyComponent(() => import('./screens/ActivityCommentsScreen'));

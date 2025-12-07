@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -10,144 +10,17 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
-  Alert,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
-import { HikingSpot } from '../types';
-import { FavoriteSpot } from '../types';
-// Using standard React Native components instead of missing design system components
-import { getHikingSpotImageSource } from '../utils/imageHelpers';
 import { useProfile } from '../contexts/ProfileContext';
-import { logErrorContext } from '../utils/logger';
+import HikingSpotCard from '../components/HikingSpotCard';
+import { getAllHikingSpots } from '../data/hikingSpots';
 
-const { width, height } = Dimensions.get('window');
-const CARD_HEIGHT = height * 0.7; // TikTok-like full screen cards
-
-interface FavoriteSpotCardProps {
-  spot: HikingSpot;
-  onPress: () => void;
-  onRemoveFavorite: (spotId: number) => void;
-}
-
-const FavoriteSpotCard: React.FC<FavoriteSpotCardProps> = React.memo(
-  ({ spot, onPress, onRemoveFavorite }) => {
-    const [isRemoving, setIsRemoving] = useState(false);
-    const imageSource = getHikingSpotImageSource(spot);
-
-    const handleRemoveFavorite = async () => {
-      Alert.alert(
-        'Remove Favorite',
-        `Remove "${spot.name}" from your favorites?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove',
-            style: 'destructive',
-            onPress: async () => {
-              setIsRemoving(true);
-              try {
-                await onRemoveFavorite(spot.id);
-              } catch (error) {
-                logErrorContext('FavoriteSpotCard.handleRemoveFavorite', error);
-              } finally {
-                setIsRemoving(false);
-              }
-            },
-          },
-        ],
-      );
-    };
-
-    return (
-      <TouchableOpacity onPress={onPress} style={styles.cardContainer}>
-        <View style={styles.card}>
-          <Image
-            source={imageSource}
-            style={styles.backgroundImage}
-            resizeMode='cover'
-          />
-
-          {/* Gradient Overlay */}
-          <View style={styles.gradientOverlay} />
-
-          {/* Remove Favorite Button */}
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={handleRemoveFavorite}
-            disabled={isRemoving}
-          >
-            {isRemoving ? (
-              <ActivityIndicator size='small' color='#FFFFFF' />
-            ) : (
-              <Ionicons name='heart' size={24} color='#D32F2F' />
-            )}
-          </TouchableOpacity>
-
-          {/* Content Overlay */}
-          <View style={styles.contentOverlay}>
-            <View style={styles.spotInfo}>
-              <Text style={styles.spotName} numberOfLines={2}>
-                {spot.name}
-              </Text>
-              <View style={styles.locationContainer}>
-                <Ionicons name='location' size={16} color='#FFFFFF' />
-                <Text style={styles.spotLocation} numberOfLines={1}>
-                  {/* Location info not available in current interface */}
-                </Text>
-              </View>
-
-              <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Ionicons name='star' size={16} color='#FFD700' />
-                  <Text style={styles.statText}>
-                    {(spot as any).rating?.toFixed(1) || 'N/A'}
-                  </Text>
-                </View>
-
-                <View style={styles.statItem}>
-                  <Ionicons name='people' size={16} color='#FFFFFF' />
-                  <Text style={styles.statText}>
-                    {(spot as any).review_count || 0} reviews
-                  </Text>
-                </View>
-
-                <View style={styles.difficultyBadge}>
-                  <Text style={styles.difficultyText}>
-                    {(spot as any).difficulty || (spot as any).difficulty_level || 'Unknown'}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.description} numberOfLines={3}>
-                {spot.description}
-              </Text>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name='share-outline' size={24} color='#FFFFFF' />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name='bookmark-outline' size={24} color='#FFFFFF' />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.primaryActionButton}>
-                <Ionicons name='navigate' size={20} color='#FFFFFF' />
-                <Text style={styles.primaryActionText}>Explore</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  },
-);
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48) / 2;
 
 type FavoritesScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -162,64 +35,89 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
   const {
     favorites,
     favoritesLoading: loading,
-    removeFromFavorites,
     refreshFavorites,
   } = useProfile();
   const [refreshing, setRefreshing] = useState(false);
+  const [localSpots, setLocalSpots] = useState<any[]>([]);
 
-  const loadFavorites = useCallback(async () => {
-    try {
-      await refreshFavorites();
-    } catch (error) {
-      Alert.alert(
-        'Error',
-        'Failed to load your favorite spots. Please try again.',
-      );
-    }
-  }, [refreshFavorites]);
+  // Load local spots once on mount - EXACTLY as HomeScreen does
+  useEffect(() => {
+    const spots = getAllHikingSpots();
+    setLocalSpots(spots);
+  }, []);
+
+  // Refresh favorites when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const load = async () => {
+        // Only refresh if we're not already loading to prevent loops
+        if (!loading) {
+          try {
+            console.log('[FavoritesScreen] Screen focused, refreshing favorites...');
+            await refreshFavorites();
+          } catch (error) {
+            console.error('[FavoritesScreen] Error refreshing favorites:', error);
+          }
+        }
+      };
+
+      load();
+
+      return () => {
+        isActive = false;
+      };
+    }, [refreshFavorites]) // Removed loading dependency to prevent flip-flop loop
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFavorites();
-    setRefreshing(false);
-  }, [loadFavorites]);
-
-  const handleRemoveFavorite = useCallback(async (spotId: number) => {
     try {
-      const success = await removeFromFavorites(spotId);
-      if (!success) {
-        Alert.alert('Error', 'Failed to remove favorite. Please try again.');
-      }
+      await refreshFavorites();
     } catch (error) {
-      Alert.alert('Error', 'Failed to remove favorite. Please try again.');
+      console.error('[FavoritesScreen] Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
     }
-  }, [removeFromFavorites]);
+  }, [refreshFavorites]);
 
-  const handleSpotPress = useCallback(
-    (spot: HikingSpot) => {
-      navigation.navigate('HikingSpotLandingPage', { hiking_spot_id: String(spot.id) });
-    },
-    [navigation],
-  );
+  // Map favorites to local hiking spots to ensure UI and Navigation consistency
+  // This logic mirrors how HomeScreen filters spots, but based on favorites list
+  const displaySpots = useMemo(() => {
+    if (localSpots.length === 0 || favorites.length === 0) return [];
 
-  useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
+    // Create a set of favorite IDs for O(1) lookup
+    // Prioritize f.id as it is normalized by ProfileContext to match local data IDs (e.g. '71')
+    const favoriteIds = new Set(favorites.map(f => String(f.id || f.hiking_spot_id)));
 
-  const renderItem = useCallback(
-    ({ item }: { item: FavoriteSpot }) => (
-      <FavoriteSpotCard
-        spot={item as HikingSpot}
-        onPress={() => handleSpotPress(item as HikingSpot)}
-        onRemoveFavorite={handleRemoveFavorite}
-      />
-    ),
-    [handleSpotPress, handleRemoveFavorite],
-  );
+    // Filter local spots that are in the favorites list
+    // This ensures we use the EXACT same objects as HomeScreen, guaranteeing
+    // that navigation params (ID, slug, etc.) are identical.
+    return localSpots.filter(spot => favoriteIds.has(String(spot.id)));
+  }, [favorites, localSpots]);
 
-  const keyExtractor = useCallback((item: FavoriteSpot) => item.id.toString(), []);
+  const renderGridSpots = useCallback(() => {
+    const rows = [];
+    for (let i = 0; i < displaySpots.length; i += 2) {
+      const rowSpots = displaySpots.slice(i, i + 2);
+      rows.push(
+        <View key={i} style={[styles.gridRow, { flexDirection: 'row' }]}>
+          {rowSpots.map((spot) => (
+            <HikingSpotCard
+              key={spot.id}
+              spot={spot as any}
+              thumbnail={spot.thumbnail}
+            />
+          ))}
+          {rowSpots.length === 1 && <View style={{ width: CARD_WIDTH }} />}
+        </View>
+      );
+    }
+    return rows;
+  }, [displaySpots]);
 
-  if (loading) {
+  if (loading && !refreshing && favorites.length === 0) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle='light-content' backgroundColor='#2E7D32' />
@@ -259,48 +157,38 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
         </View>
       </View>
 
-      {favorites.length > 0 ? (
-        <FlatList
-          data={favorites}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-          snapToInterval={CARD_HEIGHT}
-          decelerationRate='fast'
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#2E7D32']}
-              tintColor='#2E7D32'
-            />
-          }
-          getItemLayout={(data, index) => ({
-            length: CARD_HEIGHT,
-            offset: CARD_HEIGHT * index,
-            index,
-          })}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={3}
-          windowSize={5}
-          initialNumToRender={2}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name='heart-outline' size={80} color='#666666' />
-          <Text style={styles.emptyTitle}>No Favorites Yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Start exploring and save your favorite hiking spots!
-          </Text>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Text style={styles.exploreButtonText}>Explore Spots</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2E7D32']}
+            tintColor='#2E7D32'
+          />
+        }
+        contentContainerStyle={favorites.length === 0 ? styles.scrollViewEmpty : null}
+      >
+        {favorites.length > 0 ? (
+          <View style={styles.gridContainer}>
+            {renderGridSpots()}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name='heart-outline' size={80} color='#666666' />
+            <Text style={styles.emptyTitle}>No Favorites Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Start exploring and save your favorite hiking spots!
+            </Text>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              onPress={() => navigation.navigate('Home')}
+            >
+              <Text style={styles.exploreButtonText}>Explore Spots</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -308,13 +196,13 @@ const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8F5',
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F8F5',
+    backgroundColor: '#fff',
   },
   loadingText: {
     marginTop: 16,
@@ -353,148 +241,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  cardContainer: {
-    height: CARD_HEIGHT,
-    width: width,
-  },
-  card: {
+  scrollView: {
     flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
   },
-  backgroundImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
+  scrollViewEmpty: {
+    flexGrow: 1,
   },
-  gradientOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  gridContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
   },
-  removeButton: {
-    position: 'absolute',
-    top: 32,
-    right: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  contentOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 32,
-    justifyContent: 'flex-end',
-  },
-  spotInfo: {
-    marginBottom: 32,
-  },
-  spotName: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  spotLocation: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    marginLeft: 4,
-    opacity: 0.9,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    flexWrap: 'wrap',
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 24,
-    marginBottom: 4,
-  },
-  statText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  difficultyBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  difficultyText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-  },
-  description: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    lineHeight: 22,
-    opacity: 0.9,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  gridRow: {
     justifyContent: 'space-between',
-  },
-  actionButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryActionButton: {
-    backgroundColor: '#2E7D32',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  primaryActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 8,
+    marginBottom: 16,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    minHeight: 400, // Ensure it takes up space in ScrollView
   },
   emptyTitle: {
     fontSize: 24,

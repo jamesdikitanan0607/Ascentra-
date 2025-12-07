@@ -22,6 +22,8 @@ import { RootStackParamList } from '../App';
 import { useProfile } from '../contexts/ProfileContext';
 import { User } from '@supabase/supabase-js';
 import { hikingSpots, getAllHikingSpots, getTopRatedHikingSpots } from '../data/hikingSpots';
+import HikingSpotCard from '../components/HikingSpotCard';
+import { getSpotScreenName } from '../utils/navigationUtils';
 
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -49,49 +51,6 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px margins
 const LOGO_ASPECT = 3; // width:height ratio for the logo
 const LOGO_TARGET_WIDTH = Math.min(width * 0.7, 360); // responsive logo width with an upper bound
-
-// Mapping function to convert spot IDs to individual screen names
-const getSpotScreenName = (spotId: number): keyof RootStackParamList => {
-  switch (spotId) {
-    // Explicit mappings used by current home data set
-    case 78:
-      return 'MountKalbasaanScreen';
-    case 81:
-      return 'LugsanganPeakScreen';
-    case 83:
-      return 'CasinoPeakScreen';
-    case 85:
-      return 'SpartanTrailScreen';
-
-    // Core canonical IDs used elsewhere
-    case 71:
-      return 'MountBabag';
-    case 72:
-      return 'MountKanirag';
-    case 73:
-      return 'MountNaupa';
-    case 74:
-      return 'MountManunggal';
-    case 75:
-      return 'MountMago';
-    case 76:
-      return 'MountKapayas';
-    case 77:
-      return 'MountLantoy';
-    case 79:
-      return 'MountMauyog';
-    case 80:
-      return 'MountLanaya';
-    case 82:
-      return 'OsmenaPeak';
-    case 84:
-      return 'MountTagaytayScreen';
-    case 94:
-      return 'LugsanganPeakScreen';
-    default:
-      return 'HikingSpotDetails';
-  }
-};
 
 // Top Rated Card Component
 const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
@@ -127,65 +86,6 @@ const TopRatedCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navig
   );
 });
 
-// Hiking Spot Grid Card Component
-const HikingSpotGridCard = React.memo(({ spot, navigation }: { spot: HikingSpot; navigation: HomeScreenNavigationProp }) => {
-  const handlePress = useCallback(() => {
-    const screenName = getSpotScreenName(parseInt(spot.id));
-    if (screenName === 'HikingSpotDetails') {
-      // Pass the spot object for the generic details screen
-      navigation.navigate(screenName, { spot });
-    } else {
-      // For specific spot screens, navigate without parameters
-      navigation.navigate(screenName as any);
-    }
-  }, [navigation, spot]);
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty?.toLowerCase()) {
-      case 'easy': return '#4CAF50';
-      case 'moderate': return '#FF9800';
-      case 'hard': return '#F44336';
-      default: return '#9E9E9E';
-    }
-  };
-
-  return (
-    <TouchableOpacity style={styles.gridCard} onPress={handlePress}>
-      <Image source={spot.thumbnail} style={styles.gridCardImage} resizeMode="cover" />
-      <View style={styles.gridCardContent}>
-        <Text style={styles.gridCardTitle} numberOfLines={2}>{spot.name}</Text>
-        
-        {spot.difficulty && (
-          <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(spot.difficulty) }]}>
-            <Text style={styles.difficultyText}>{spot.difficulty.toUpperCase()}</Text>
-          </View>
-        )}
-        
-        <View style={styles.gridCardStats}>
-          {spot.distance_km && (
-            <View style={styles.statItem}>
-              <MaterialIcons name="straighten" size={12} color="#666" />
-              <Text style={styles.statText}>{formatDistance(spot.distance_km)}</Text>
-            </View>
-          )}
-          {spot.elevation_gain_m && (
-            <View style={styles.statItem}>
-              <MaterialIcons name="terrain" size={12} color="#666" />
-              <Text style={styles.statText}>{formatElevation(spot.elevation_gain_m)}</Text>
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.gridCardRating}>
-          <MaterialIcons name="star" size={14} color="#FFD700" />
-          <Text style={styles.gridCardRatingText}>{spot.average_rating}</Text>
-          <Text style={styles.statText}>({spot.rating_count})</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   const [hikingSpots, setHikingSpots] = useState<HikingSpot[]>([]);
   const [filteredSpots, setFilteredSpots] = useState<HikingSpot[]>([]);
@@ -199,11 +99,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   const loadHikingSpots = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Get all hiking spots from centralized data
       const allSpots = getAllHikingSpots();
       const topRated = getTopRatedHikingSpots(5);
-      
+
       setHikingSpots(allSpots);
       setFilteredSpots(allSpots);
       setTopRatedSpots(topRated);
@@ -255,14 +155,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
       rows.push(
         <View key={i} style={[styles.gridRow, { flexDirection: 'row' }]}>
           {rowSpots.map((spot) => (
-            <HikingSpotGridCard key={spot.id} spot={spot} navigation={navigation} />
+            <HikingSpotCard key={spot.id} spot={spot as any} thumbnail={spot.thumbnail} />
           ))}
           {rowSpots.length === 1 && <View style={{ width: CARD_WIDTH }} />}
         </View>
       );
     }
     return rows;
-  }, [filteredSpots, navigation]);
+  }, [filteredSpots]);
 
   if (loading) {
     return (
@@ -279,7 +179,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2E7D32']} />
@@ -288,8 +188,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image 
-              source={require('../assets/images/ascentra.png')} 
+            <Image
+              source={require('../assets/images/ascentra.png')}
               style={[styles.logo, { width: LOGO_TARGET_WIDTH, height: LOGO_TARGET_WIDTH / LOGO_ASPECT }]}
               resizeMode="contain"
             />
@@ -355,24 +255,6 @@ const getRandomDifficulty = () => {
   return difficulties[Math.floor(Math.random() * difficulties.length)];
 };
 
-const getMockHikingSpots = (): HikingSpot[] => [
-  { id: '1', name: 'Mount Babag', slug: 'mount-babag', latitude: 10.3157, longitude: 123.9621, average_rating: 4.5, rating_count: 128 },
-  { id: '2', name: 'Mount Kan-irag', slug: 'mt-kan-irag', latitude: 10.3200, longitude: 123.9500, average_rating: 4.3, rating_count: 95 },
-  { id: '3', name: 'Mount Naupa', slug: 'mt-naupa', latitude: 10.2800, longitude: 123.9200, average_rating: 4.7, rating_count: 156 },
-  { id: '4', name: 'Mount Manunggal', slug: 'mt-manunggal', latitude: 10.4500, longitude: 124.0200, average_rating: 4.2, rating_count: 87 },
-  { id: '5', name: 'Mount Mago', slug: 'mt-mago', latitude: 10.3800, longitude: 123.9800, average_rating: 4.4, rating_count: 112 },
-  { id: '6', name: 'Mount Kapayas', slug: 'mt-kapayas', latitude: 10.3600, longitude: 123.9400, average_rating: 4.1, rating_count: 73 },
-  { id: '7', name: 'Mount Lantoy', slug: 'mount-lantoy', latitude: 10.3300, longitude: 123.9700, average_rating: 4.6, rating_count: 134 },
-  { id: '8', name: 'Mount Kalbasan', slug: 'mt-kalbasan', latitude: 10.3100, longitude: 123.9300, average_rating: 4.0, rating_count: 65 },
-  { id: '9', name: 'Mount Mauyog', slug: 'mt-mauyog', latitude: 10.3400, longitude: 123.9600, average_rating: 4.3, rating_count: 98 },
-  { id: '10', name: 'Mount Lanaya', slug: 'mt-lanaya', latitude: 10.3700, longitude: 123.9900, average_rating: 4.5, rating_count: 121 },
-  { id: '11', name: 'Mount Hambubuyog', slug: 'mount-hambubuyog', latitude: 10.2900, longitude: 123.9100, average_rating: 4.2, rating_count: 89 },
-  { id: '12', name: 'Osmeña Peak', slug: 'osmena-peak', latitude: 10.2600, longitude: 123.8900, average_rating: 4.8, rating_count: 203 },
-  { id: '13', name: 'Casino Peak', slug: 'casino-peak', latitude: 10.2700, longitude: 123.9000, average_rating: 4.4, rating_count: 145 },
-  { id: '14', name: 'Budlaan Falls', slug: 'budlaan-falls', latitude: 10.3500, longitude: 123.9800, average_rating: 4.6, rating_count: 167 },
-  { id: '15', name: 'Spartan Trail', slug: 'spartan-trail', latitude: 10.3000, longitude: 123.9500, average_rating: 4.1, rating_count: 78 }
-];
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -401,7 +283,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   logo: {
-    
+
   },
   searchContainer: {
     flexDirection: 'row',
@@ -416,25 +298,25 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   searchInput: {
-     flex: 1,
-     fontSize: 16,
-     color: '#333',
-   },
-   noResultsContainer: {
-     alignItems: 'center',
-     paddingVertical: 40,
-   },
-   noResultsText: {
-     fontSize: 18,
-     fontWeight: '600',
-     color: '#666',
-     marginTop: 16,
-   },
-   noResultsSubtext: {
-     fontSize: 14,
-     color: '#999',
-     marginTop: 8,
-   },
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noResultsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+  },
 
   section: {
     marginBottom: 24,
@@ -535,70 +417,6 @@ const styles = StyleSheet.create({
   gridRow: {
     justifyContent: 'space-between',
   },
-  gridCard: {
-    width: CARD_WIDTH,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  gridCardImage: {
-    width: '100%',
-    height: 120,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  gridCardContent: {
-    padding: 12,
-  },
-  gridCardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  difficultyBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  difficultyText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  gridCardStats: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  statText: {
-    fontSize: 11,
-    color: '#666',
-    marginLeft: 2,
-  },
-  gridCardRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  gridCardRatingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginLeft: 4,
-  },
-
 });
 
 export default HomeScreen;

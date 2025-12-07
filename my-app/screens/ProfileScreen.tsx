@@ -17,8 +17,9 @@ import { supabase } from '../services/supabaseClient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfilePostsFeed from '../src/components/profile/ProfilePostsFeed';
- 
+
 import FriendsComponent from '../components/FriendsComponent';
+import HikingSpotCard from '../components/HikingSpotCard';
 import { getHikesForUser } from '../services/databaseService';
 import {
   formatDate,
@@ -189,7 +190,7 @@ export default function ProfileScreen({
       const res = await getFriendStatus(targetId);
       setFriendStatus(res.status);
       setFriendRequestId(res.requestId || null);
-    } catch {}
+    } catch { }
   }
 
   async function refreshFriendCounts(targetId: string) {
@@ -234,53 +235,53 @@ export default function ProfileScreen({
             {/* Skill Level Badge */}
             {profile?.skill_level &&
               SKILL_LEVELS[
-                profile.skill_level as keyof typeof SKILL_LEVELS
+              profile.skill_level as keyof typeof SKILL_LEVELS
               ] ? (
+              <View
+                style={[
+                  styles.skillBadge,
+                  {
+                    backgroundColor:
+                      SKILL_LEVELS[
+                        profile.skill_level as keyof typeof SKILL_LEVELS
+                      ].color,
+                  },
+                ]}
+              >
+                <Text style={styles.skillBadgeEmoji}>
+                  {
+                    SKILL_LEVELS[
+                      profile.skill_level as keyof typeof SKILL_LEVELS
+                    ].emoji
+                  }
+                </Text>
+                <Text style={styles.skillBadgeText}>
+                  {
+                    SKILL_LEVELS[
+                      profile.skill_level as keyof typeof SKILL_LEVELS
+                    ].name
+                  }
+                </Text>
+              </View>
+            ) : (
+              !profileLoading && (
                 <View
                   style={[
                     styles.skillBadge,
                     {
-                      backgroundColor:
-                        SKILL_LEVELS[
-                          profile.skill_level as keyof typeof SKILL_LEVELS
-                        ].color,
+                      backgroundColor: SKILL_LEVELS.rookie_rambler.color,
                     },
                   ]}
                 >
                   <Text style={styles.skillBadgeEmoji}>
-                    {
-                      SKILL_LEVELS[
-                        profile.skill_level as keyof typeof SKILL_LEVELS
-                      ].emoji
-                    }
+                    {SKILL_LEVELS.rookie_rambler.emoji}
                   </Text>
                   <Text style={styles.skillBadgeText}>
-                    {
-                      SKILL_LEVELS[
-                        profile.skill_level as keyof typeof SKILL_LEVELS
-                      ].name
-                    }
+                    {SKILL_LEVELS.rookie_rambler.name}
                   </Text>
                 </View>
-              ) : (
-                !profileLoading && (
-                  <View
-                    style={[
-                      styles.skillBadge,
-                      {
-                        backgroundColor: SKILL_LEVELS.rookie_rambler.color,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.skillBadgeEmoji}>
-                      {SKILL_LEVELS.rookie_rambler.emoji}
-                    </Text>
-                    <Text style={styles.skillBadgeText}>
-                      {SKILL_LEVELS.rookie_rambler.name}
-                    </Text>
-                  </View>
-                )
-              )}
+              )
+            )}
           </View>
 
           {/* Friend actions for viewing other user's profile */}
@@ -296,7 +297,7 @@ export default function ProfileScreen({
                 </TouchableOpacity>
               )}
               {friendStatus === 'pending_outgoing' && (
-                <View style={[styles.editProfileButton, { backgroundColor: '#9CA3AF' }]}> 
+                <View style={[styles.editProfileButton, { backgroundColor: '#9CA3AF' }]}>
                   <Text style={styles.editProfileText}>Request Sent</Text>
                 </View>
               )}
@@ -366,8 +367,8 @@ export default function ProfileScreen({
                 {isOwnProfile && progressionStats
                   ? (progressionStats.totalDistance || 0).toFixed(1)
                   : (
-                      profile?.total_km_traveled || stats.totalDistance || 0
-                    ).toFixed(1)}
+                    profile?.total_km_traveled || stats.totalDistance || 0
+                  ).toFixed(1)}
               </Text>
               <Text style={styles.statPillUnit}>km</Text>
               <Text style={styles.statPillLabel}>Distance</Text>
@@ -561,7 +562,7 @@ export default function ProfileScreen({
               .select('username, avatar_url')
               .eq('id', post.user_id)
               .single();
-            
+
             return {
               id: post.id,
               content: post.content,
@@ -739,10 +740,10 @@ export default function ProfileScreen({
           Alert.alert(
             item.title || 'Hiking Activity',
             `${item.description ? item.description + '\n\n' : ''}` +
-              `Date: ${formatDate(item.date)}\n` +
-              `Distance: ${formatDistance(item.distance)}\n` +
-              `Duration: ${formatDuration(item.duration)}\n` +
-              `Elevation gain: ${item.elevation?.toFixed(0)}m`,
+            `Date: ${formatDate(item.date)}\n` +
+            `Distance: ${formatDistance(item.distance)}\n` +
+            `Duration: ${formatDuration(item.duration)}\n` +
+            `Elevation gain: ${item.elevation?.toFixed(0)}m`,
           );
         }}
       >
@@ -1008,49 +1009,10 @@ export default function ProfileScreen({
             }
             ListHeaderComponent={renderProfileHeaderAndTabs()}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.favoriteCard}
-                onPress={() => {
-                  navigation.navigate('HikingSpotLandingPage', {
-                    hiking_spot_id: String(item.id),
-                  });
-                }}
-              >
-                <Image
-                  source={{
-                    uri: item.cover_image_url || 'https://via.placeholder.com/150x100?text=No+Image',
-                  }}
-                  style={styles.favoriteImage}
-                />
-                <TouchableOpacity
-                  style={styles.favoriteHeartButton}
-                  onPress={async () => {
-                    const success = await removeFromFavorites(item.id);
-                    if (!success) {
-                      Alert.alert('Error', 'Failed to remove from favorites');
-                    }
-                  }}
-                  accessibilityLabel='Remove from favorites'
-                >
-                  <Ionicons name="heart" size={20} color="#FF6B6B" />
-                </TouchableOpacity>
-                <View style={styles.favoriteCardContent}>
-                  <Text style={styles.favoriteCardTitle} numberOfLines={2}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.favoriteCardLocation} numberOfLines={1}>
-                    {item.location_text || 'Unknown Location'}
-                  </Text>
-                  <View style={styles.favoriteCardStats}>
-                    <Text style={styles.favoriteCardStat}>
-                      {item.difficulty || 'Moderate'}
-                    </Text>
-                    <Text style={styles.favoriteCardStat}>
-                      {formatDistance(item.trail_length_km || item.trail_length || 0)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <HikingSpotCard
+                spot={item as any}
+                thumbnail={item.thumbnail}
+              />
             )}
           />
         ) : (

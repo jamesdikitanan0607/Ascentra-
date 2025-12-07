@@ -7,7 +7,7 @@ interface NavigationProps {
 
 export function MountBabagScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
       route={{ params: { hiking_spot_id: '71' } }}
     />

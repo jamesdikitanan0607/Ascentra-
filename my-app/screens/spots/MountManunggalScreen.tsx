@@ -7,9 +7,9 @@ interface NavigationProps {
 
 export function MountManunggalScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '77' } }}
+      route={{ params: { hiking_spot_id: '74' } }}
     />
   );
 }

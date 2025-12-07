@@ -7,9 +7,9 @@ interface NavigationProps {
 
 export function CasinoPeakScreen({ navigation }: NavigationProps) {
   return (
-    <HikingSpotWrapper 
+    <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '73' } }}
+      route={{ params: { hiking_spot_id: '83' } }}
     />
   );
 }
