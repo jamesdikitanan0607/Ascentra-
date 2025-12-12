@@ -27,6 +27,7 @@ import WeatherWidget from '../../components/WeatherWidget';
 import { getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
 import { TrailRoutesSection } from './components/TrailRoutesSection';
 import { TrailInfoSection } from './components/TrailInfoSection';
+import { LeaveNoTraceSection } from './components/LeaveNoTraceSection';
 import { TrailRoute } from '../../types';
 
 
@@ -587,6 +588,9 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
               </View>
             ))}
           </View>
+
+          {/* Leave No Trace Section */}
+          <LeaveNoTraceSection />
 
           {/* Amenities Section */}
           <View style={styles.section}>
