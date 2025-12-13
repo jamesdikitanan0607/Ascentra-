@@ -39,8 +39,8 @@ const HikingSpotCard = React.memo(({ spot, thumbnail }: HikingSpotCardProps) => 
     const { isSpotFavorited, addToFavorites, removeFromFavorites } = useProfile();
     const [isToggling, setIsToggling] = useState(false);
 
-    // Ensure ID is a number for consistency
-    const spotId = Number(spot.id || (spot as any).hiking_spot_id);
+    // Ensure ID is handled as a string for consistency across UUIDs and numeric IDs
+    const spotId = String(spot.id || (spot as any).hiking_spot_id);
     const isFavorited = isSpotFavorited(spotId);
 
     // Determine image source: prop thumbnail > spot.thumbnail (if exists) > spot.image_url > spot.cover_image_url
@@ -59,7 +59,8 @@ const HikingSpotCard = React.memo(({ spot, thumbnail }: HikingSpotCardProps) => 
     const handlePress = useCallback(() => {
         // Robust ID parsing
         const rawId = spot.id || (spot as any).hiking_spot_id;
-        const parsedSpotId = Number(rawId);
+        // Keep as string if it's a UUID, otherwise parse as number if it looks like one
+        const parsedSpotId = isNaN(Number(rawId)) ? rawId : Number(rawId);
 
         console.log(`[HikingSpotCard DEBUG] Pressed. Raw ID: ${rawId}, Parsed ID: ${parsedSpotId}, Name: ${spot.name}`);
 

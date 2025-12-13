@@ -63,3 +63,23 @@ export interface Review {
     created_at: string;
     user?: User;
 }
+
+export interface Profile {
+    id: string;
+    user_id: string;
+    username: string;
+    full_name: string;
+    bio: string;
+    avatar_url?: string;
+    skill_level?: string;
+    cover_photo_url?: string;
+    total_km_traveled?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface FavoriteSpot extends HikingSpot {
+    favorited_at: string;
+    is_favorited: boolean;
+    hiking_spot_id: string;
+}

@@ -288,38 +288,54 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Get the spot IDs from favorites
-      const spotIds = favoritesData.map((fav: any) => fav.hiking_spot_id);
+      // Handle both hiking_spot_id (new standard) and spot_id (legacy/fix script)
+      const spotIds = favoritesData.map((fav: any) => String(fav.hiking_spot_id || fav.spot_id));
 
-      // Then get the hiking spots data from Supabase
-      const { data: spotsData, error: spotsError } = await supabase
-        .from('hiking_spots')
-        .select(`
-          hiking_spot_id,
-          name,
-          description,
-          difficulty,
-          image_url,
-          latitude,
-          longitude,
-          rating,
-          review_count,
-          elevation,
-          trail_length,
-          estimated_duration
-        `)
-        .in('hiking_spot_id', spotIds);
+      // Separate UUIDs (for remote fetch) from others
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validUuids = spotIds.filter(id => uuidRegex.test(id));
 
-      if (spotsError) {
-        console.error('Error fetching hiking spots:', spotsError);
-        return;
+      let spotsData: any[] = [];
+
+      // Only query Supabase for valid UUIDs to avoid "invalid input syntax for type uuid"
+      if (validUuids.length > 0) {
+        const { data, error } = await supabase
+          .from('hiking_spots')
+          .select(`
+            id,
+            hiking_spot_id,
+            name,
+            description,
+            difficulty,
+            image_url,
+            latitude,
+            longitude,
+            rating,
+            review_count,
+            elevation,
+            trail_length,
+            estimated_duration
+          `)
+          .in('id', validUuids);
+
+        if (error) {
+          console.error('Error fetching hiking spots:', error);
+        } else if (data) {
+          spotsData = data;
+        }
       }
 
       const combinedData: FavoriteSpot[] = favoritesData.map((fav: any) => {
-        const remoteSpot = spotsData?.find((spot: any) => spot.hiking_spot_id === fav.hiking_spot_id);
+        const favId = String(fav.hiking_spot_id || fav.spot_id);
 
-        // Robust matching strategy:
+        // Match remote spot by ID (UUID) OR hiking_spot_id (legacy)
+        const remoteSpot = spotsData.find((spot: any) =>
+          String(spot.id) === favId || String(spot.hiking_spot_id) === favId
+        );
+
+        // Robust matching strategy for local spots:
         // 1. Try exact ID match
-        let localSpot = localHikingSpots.find((s: any) => String(s.id) === String(fav.hiking_spot_id));
+        let localSpot = localHikingSpots.find((s: any) => String(s.id) === favId);
 
         // 2. If no ID match, try name match (fuzzy/normalized)
         if (!localSpot && remoteSpot) {
@@ -336,8 +352,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         const localData = (localSpot || {}) as any;
 
         // CRITICAL: Use local ID if available to ensure navigation works (e.g. 82 -> OsmenaPeakScreen)
-        // If we matched by name but IDs were different, we MUST use the local ID for getSpotScreenName to work.
-        const effectiveId = localSpot ? localSpot.id : fav.hiking_spot_id;
+        const effectiveId = localSpot ? String(localSpot.id) : favId;
 
         return {
           id: effectiveId, // Use the ID that maps to the correct screen
@@ -347,8 +362,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
             latitude: localData.latitude || spotData.latitude || 0,
             longitude: localData.longitude || spotData.longitude || 0,
           },
-          cover_image_url: spotData.image_url || null, // Keep cover_image_url as string only
-          thumbnail: localData.thumbnail, // Explicitly set thumbnail property
+          cover_image_url: spotData.image_url || null,
+          thumbnail: localData.thumbnail,
 
           // Prioritize local data for consistency with Home screen
           average_rating: localData.average_rating || spotData.rating || 0,
@@ -376,13 +391,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           updated_at: spotData.updated_at || new Date().toISOString(),
           favorited_at: fav.created_at,
           is_favorited: true,
+          hiking_spot_id: favId, // Ensure consistency
         } as FavoriteSpot;
       }).filter(Boolean) as FavoriteSpot[];
 
       // Deep comparison to prevent unnecessary re-renders
       const newFavoritesString = JSON.stringify(combinedData);
       if (newFavoritesString !== lastFavoritesRef.current) {
-        console.log('Favorites changed, updating state');
+        console.log('Favorites changed, updating state', { count: combinedData.length });
         lastFavoritesRef.current = newFavoritesString;
         setFavorites(combinedData);
         await saveFavoritesToCache(combinedData);
@@ -399,54 +415,87 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const addToFavorites = useCallback(
     async (spot: HikingSpot): Promise<boolean> => {
-      if (!user) return false;
+      console.log('[ProfileContext] addToFavorites called with spot:', spot?.id, spot?.name);
+      if (!user) {
+        console.error('[ProfileContext] No user logged in');
+        return false;
+      }
 
       try {
         // Normalize hiking spot id from various possible shapes
         const rawId: any = (spot as any)?.id ?? (spot as any)?.hiking_spot_id ?? (spot as any)?.spot_id;
-        const normalizedId: number = Number(rawId);
-        if (!Number.isFinite(normalizedId)) {
-          console.error('addToFavorites: invalid hiking spot id', { rawId, spot });
+
+        if (!rawId) {
+          console.error('[ProfileContext] addToFavorites: invalid hiking spot id', { rawId, spot });
           return false;
         }
 
-        if (favorites.some(f => Number(f.id) === normalizedId)) {
+        const rawIdStr = String(rawId);
+        console.log('[ProfileContext] Normalized ID for favorite:', rawIdStr);
+
+        if (favorites.some(f => String(f.id || f.hiking_spot_id) === rawIdStr)) {
+          console.log('[ProfileContext] Spot already in favorites, skipping');
           return true;
+        }
+
+        // Normalize ID to local ID if possible (to match Home Screen logic immediately)
+        let effectiveId = rawIdStr;
+
+        // Try to find matching local spot
+        // 1. Exact ID match (if rawId is already "82")
+        let localMatch = localHikingSpots.find(s => String(s.id) === rawIdStr);
+
+        // 2. If valid UUID or not found, try name match
+        if (!localMatch) {
+          const nameToMatch = (spot.name || '').toLowerCase().trim();
+          localMatch = localHikingSpots.find(s => (s.name || '').toLowerCase().trim() === nameToMatch);
+        }
+
+        if (localMatch) {
+          effectiveId = String(localMatch.id);
         }
 
         // Optimistically update local state
         const newFavorite: FavoriteSpot = {
           ...(spot as any),
-          id: normalizedId,
+          id: effectiveId, // Use the ID that matches local data (e.g. "82")
+          hiking_spot_id: rawIdStr, // Always store the original ID as the reference
           favorited_at: new Date().toISOString(),
           is_favorited: true,
         };
+        console.log('[ProfileContext] Optimistically adding favorite:', newFavorite);
         const updatedFavorites = [newFavorite, ...favorites];
         setFavorites(updatedFavorites);
         await saveFavoritesToCache(updatedFavorites);
 
         // Update database
+        console.log('[ProfileContext] Sending insert to Supabase...');
         const { error } = await supabase.from('favorites').insert({
           user_id: user.id,
-          hiking_spot_id: normalizedId,
+          hiking_spot_id: rawIdStr,
         });
 
         if (error) {
           const code = (error as any).code || '';
           const msg = (error as any).message || '';
+          console.error('[ProfileContext] Supabase insert error:', error);
+
           if (code === '23505' || /duplicate key/i.test(msg)) {
+            console.log('[ProfileContext] Duplicate key error, treating as success');
             return true;
           }
           // Revert optimistic update on error
+          console.warn('[ProfileContext] Reverting optimistic update due to error');
           setFavorites(favorites);
           await saveFavoritesToCache(favorites);
           console.error('Error adding to favorites:', error);
           return false;
         }
 
+        console.log('[ProfileContext] Successfully added to favorites in DB');
         return true;
       } catch (error) {
-        console.error('Error in addToFavorites:', error);
+        console.error('[ProfileContext] Error in addToFavorites:', error);
         return false;
       }
     },
@@ -454,23 +503,35 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeFromFavorites = useCallback(
-    async (spotId: number): Promise<boolean> => {
-      if (!user) return false;
+    async (spotId: number | string): Promise<boolean> => {
+      console.log('[ProfileContext] removeFromFavorites called for ID:', spotId);
+      if (!user) {
+        console.error('[ProfileContext] No user logged in');
+        return false;
+      }
 
       try {
+        const targetId = String(spotId);
+
         // Optimistically update local state
-        const updatedFavorites = favorites.filter((fav) => fav.id !== spotId);
+        console.log('[ProfileContext] Optimistically removing favorite:', targetId);
+        const updatedFavorites = favorites.filter((fav) =>
+          String(fav.id) !== targetId &&
+          String(fav.hiking_spot_id) !== targetId
+        );
         setFavorites(updatedFavorites);
         await saveFavoritesToCache(updatedFavorites);
 
         // Update database
+        console.log('[ProfileContext] Sending delete to Supabase...');
         const { error } = await supabase
           .from('favorites')
           .delete()
           .eq('user_id', user.id)
-          .eq('hiking_spot_id', spotId);
+          .eq('hiking_spot_id', targetId);
 
         if (error) {
+          console.error('[ProfileContext] Supabase delete error:', error);
           // Revert optimistic update on error
           setFavorites(favorites);
           await saveFavoritesToCache(favorites);
@@ -478,9 +539,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           return false;
         }
 
+        console.log('[ProfileContext] Successfully removed from favorites in DB');
         return true;
       } catch (error) {
-        console.error('Error in removeFromFavorites:', error);
+        console.error('[ProfileContext] Error in removeFromFavorites:', error);
         return false;
       }
     },
@@ -488,9 +550,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   );
 
   const isSpotFavorited = useCallback(
-    (spotId: number): boolean => {
-      const target = Number(spotId);
-      return favorites.some((fav) => Number(fav.id) === target);
+    (spotId: number | string): boolean => {
+      const target = String(spotId);
+      // Check both the effective ID (which might be local '84') AND the original hiking_spot_id (which might be UUID)
+      const isFav = favorites.some((fav) =>
+        String(fav.id) === target ||
+        String(fav.hiking_spot_id) === target
+      );
+      return isFav;
     },
     [favorites],
   );

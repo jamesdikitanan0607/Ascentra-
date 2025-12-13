@@ -240,18 +240,43 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
   // Handle favorite toggle
   const handleFavoriteToggle = async () => {
-    if (!hikingSpot || favoriteSaving) return;
+    // Basic null check
+    if (!hikingSpot) {
+      console.warn('handleFavoriteToggle: hikingSpot is null');
+      return;
+    }
+    if (favoriteSaving) {
+      return;
+    }
+
+    // Robust ID access
+    const spotId = hikingSpot.id || (hikingSpot as any).hiking_spot_id;
+    if (!spotId) {
+      console.error('handleFavoriteToggle: missing spot ID', hikingSpot);
+      Alert.alert('Error', 'Cannot favorite this spot: Missing ID');
+      return;
+    }
+
     setFavoriteSaving(true);
     try {
-      const isCurrentlyFavorited = isSpotFavorited(hikingSpot.id);
+      const isCurrentlyFavorited = isSpotFavorited(spotId);
+
+      let success;
       if (isCurrentlyFavorited) {
-        await removeFromFavorites(hikingSpot.id);
+        success = await removeFromFavorites(spotId);
       } else {
-        await addToFavorites(hikingSpot);
+        // Ensure the spot object has a valid ID for context usage
+        const spotToSave = { ...hikingSpot, id: spotId };
+        success = await addToFavorites(spotToSave);
       }
+
+      if (!success) {
+        Alert.alert('Error', 'Failed to update favorites. Please checks if you are logged in.');
+      }
+
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      Alert.alert('Error', 'Failed to update favorites');
+      Alert.alert('Error', 'Failed to update favorites: ' + String(error));
     } finally {
       setFavoriteSaving(false);
     }
@@ -457,6 +482,9 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
       ? hikingSpot.images
       : [require('../../assets/images/placeholder-mountain.jpg')];
 
+  // Resolve the correct ID, handling cases where 'id' might be missing but 'hiking_spot_id' exists
+  const spotId = hikingSpot.id || (hikingSpot as any).hiking_spot_id;
+
   return (
     <ErrorBoundary
       navigation={navigation}
@@ -489,7 +517,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
             {/* Description Section */}
             <View style={styles.section}>
               <FavoriteButton
-                isFavorite={isSpotFavorited(hikingSpot.id)}
+                isFavorite={isSpotFavorited(spotId)}
                 isLoading={favoriteSaving}
                 onPress={handleFavoriteToggle}
                 style={{ marginBottom: 16, width: '100%' }}
