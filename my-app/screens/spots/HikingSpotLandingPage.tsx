@@ -81,28 +81,34 @@ const toTrailRoute = (details: TrailRouteDetails): TrailRoute => ({
   start_coordinates: details.start_coordinates || { latitude: 0, longitude: 0 },
   end_coordinates: details.end_coordinates || { latitude: 0, longitude: 0 },
   coordinates: details.geojson_path?.coordinates || [],
-  waypoints: details.waypoints || '',
   created_at: details.created_at,
-  updated_at: details.updated_at
+  updated_at: details.updated_at,
+  // Satisfy strict TrailRoute interface
+  hiking_spot_id: details.hiking_spot_id,
+  name: details.route_name || 'Unnamed Route',
+  distance_km: details.distance_km || 0,
+  elevation_gain_m: details.elevation_gain_m || 0,
+  estimated_time_hours: details.estimated_duration_hr || 0,
+  waypoints: Array.isArray(details.waypoints) ? details.waypoints : []
 });
 
 const toTrailRouteDetails = (route: TrailRoute): TrailRouteDetails => ({
   route_id: route.id,
-  route_name: route.route_name,
+  route_name: route.route_name || route.name || 'Unnamed Route',
   difficulty_level: route.difficulty,
-  distance_km: route.distance,
-  elevation_gain_m: route.elevation_gain,
-  estimated_duration_hr: route.estimated_duration / 60,
+  distance_km: route.distance_km || route.distance || 0,
+  elevation_gain_m: route.elevation_gain_m || route.elevation_gain || 0,
+  estimated_duration_hr: route.estimated_time_hours || ((route.estimated_duration || 0) / 60) || 0,
   route_description: route.route_description,
   highlights: route.highlights,
   route_color: route.route_color,
   start_coordinates: route.start_coordinates,
   end_coordinates: route.end_coordinates,
-  geojson_path: { coordinates: route.coordinates },
+  geojson_path: { coordinates: route.coordinates || [] },
   waypoints: route.waypoints,
   created_at: route.created_at,
   updated_at: route.updated_at,
-  hiking_spot_id: '' // Will be populated from context if needed elsewhere
+  hiking_spot_id: route.hiking_spot_id || '' // Will be populated from context if needed elsewhere
 });
 
 const findTrailRouteDetails = (routes: TrailRouteDetails[], id: string): TrailRouteDetails | null => {
@@ -171,10 +177,16 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     start_coordinates: r.start_coordinates || { latitude: 0, longitude: 0 },
     end_coordinates: r.end_coordinates || { latitude: 0, longitude: 0 },
     coordinates: r.geojson_path?.coordinates || [],
-    waypoints: r.waypoints || '',
+    waypoints: r.waypoints || [],
     created_at: r.created_at,
-    updated_at: r.updated_at
-  })) : [], [trailRoutes]);
+    updated_at: r.updated_at,
+    // Satisfy strict TrailRoute interface
+    hiking_spot_id: r.hiking_spot_id || hiking_spot_id,
+    name: r.route_name || 'Unnamed Route',
+    distance_km: r.distance_km || 0,
+    elevation_gain_m: r.elevation_gain_m || 0,
+    estimated_time_hours: r.estimated_duration_hr || 0,
+  })) : [], [trailRoutes, hiking_spot_id]);
 
   // Set initial selected route when routes or selectedTrail changes
   useEffect(() => {
@@ -350,8 +362,20 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     }
     if (name.includes('tagaytay')) {
       return [
+        require('../../assets/images/Mount Tagaytay/1.webp'),
+        require('../../assets/images/Mount Tagaytay/2.webp'),
+        require('../../assets/images/Mount Tagaytay/3.webp'),
+        require('../../assets/images/Mount Tagaytay/4.jpg'),
         require('../../assets/images/Mount Tagaytay/5.jpg'),
-        // Add more if available/renamed in folder
+      ];
+    }
+    if (name.includes('mago')) {
+      return [
+        require('../../assets/images/mt mago/thumbnail.jpg'),
+        require('../../assets/images/mt mago/2.webp'),
+        require('../../assets/images/mt mago/3.jpg'),
+        require('../../assets/images/mt mago/4.jpg'),
+        require('../../assets/images/mt mago/5.webp'),
       ];
     }
     if (name.includes('mauyog')) {
@@ -379,6 +403,42 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         require('../../assets/images/Lugsangan Peak/3.jpg'),
         require('../../assets/images/Lugsangan Peak/4.jpg'),
         require('../../assets/images/Lugsangan Peak/5.jpg'),
+      ];
+    }
+    if (name.includes('osmena') || name.includes('osmeña')) {
+      return [
+        require('../../assets/images/osmena peak/thumbnail.jpg'),
+        require('../../assets/images/osmena peak/2.jpg'),
+        require('../../assets/images/osmena peak/3.jpg'),
+        require('../../assets/images/osmena peak/4.jpg'),
+        require('../../assets/images/osmena peak/5.jpg'),
+      ];
+    }
+    if (name.includes('kapayas')) {
+      return [
+        require('../../assets/images/mt kapayas/thumbnail.webp'),
+        require('../../assets/images/mt kapayas/2.jpg'),
+        require('../../assets/images/mt kapayas/3.jpg'),
+        require('../../assets/images/mt kapayas/4.webp'),
+        require('../../assets/images/mt kapayas/5.jpg'),
+      ];
+    }
+    if (name.includes('kalbasan') || name.includes('kalbasaan')) {
+      return [
+        require('../../assets/images/mt kalbasan/thumbnail.jpg'),
+        require('../../assets/images/mt kalbasan/2.jpg'),
+        require('../../assets/images/mt kalbasan/3.jpg'),
+        require('../../assets/images/mt kalbasan/4.jpg'),
+        require('../../assets/images/mt kalbasan/5.jpg'),
+      ];
+    }
+    if (name.includes('spartan')) {
+      return [
+        require('../../assets/images/spartantrail/thumbnail.jpg'),
+        require('../../assets/images/spartantrail/2.jpg'),
+        require('../../assets/images/spartantrail/3.jpg'),
+        require('../../assets/images/spartantrail/4.jpg'),
+        require('../../assets/images/spartantrail/5.jpg'),
       ];
     }
 
@@ -428,6 +488,12 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
             {/* Description Section */}
             <View style={styles.section}>
+              <FavoriteButton
+                isFavorite={isSpotFavorited(hikingSpot.id)}
+                isLoading={favoriteSaving}
+                onPress={handleFavoriteToggle}
+                style={{ marginBottom: 16, width: '100%' }}
+              />
               <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.description}>
                 {hikingSpot.description || 'No description available for this hiking spot.'}
@@ -483,13 +549,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               />
             </View>
 
-            {/* Favorite Button */}
-            <FavoriteButton
-              isFavorite={isSpotFavorited(hikingSpot.id)}
-              isLoading={favoriteSaving}
-              onPress={handleFavoriteToggle}
-              style={{}}
-            />
+
           </View>
         </ScrollView>
 
@@ -574,7 +634,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 16,
   },
   section: {
     marginBottom: 24,

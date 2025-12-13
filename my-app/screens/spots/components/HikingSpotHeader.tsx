@@ -24,10 +24,16 @@ export const HikingSpotHeader: React.FC<HikingSpotHeaderProps> = ({
     <View style={styles.container}>
       {/* Image Carousel */}
       <View style={styles.imageContainer}>
-        <ImageCarousel spotName={name} customImages={images} />
+        <ImageCarousel
+          spotName={name}
+          customImages={images}
+          height={300}
+          resizeMode="cover"
+        />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.gradientOverlay}
+          pointerEvents="none"
         />
 
         {/* Back Button */}
@@ -36,7 +42,7 @@ export const HikingSpotHeader: React.FC<HikingSpotHeaderProps> = ({
         </TouchableOpacity>
 
         {/* Header Content */}
-        <View style={styles.headerContent}>
+        <View style={styles.headerContent} pointerEvents="none">
           <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
             {name}
           </Text>
@@ -72,9 +78,6 @@ export const HikingSpotHeader: React.FC<HikingSpotHeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    marginBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
     overflow: 'hidden',
   },
   imageContainer: {
@@ -85,8 +88,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 50,
-    height: '60%',
+    bottom: 0, // Anchored to bottom
+    height: '100%', // Increased coverage for better readability
   },
   backButton: {
     position: 'absolute',
@@ -104,9 +107,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 50,
+    bottom: 0, // Anchored to bottom
     padding: 20,
-    paddingBottom: 20,
+    paddingBottom: 40, // Space for pagination dots
     zIndex: 5,
   },
   title: {

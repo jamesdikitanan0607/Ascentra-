@@ -53,6 +53,7 @@ interface LeafletTrailMapProps {
   showFullscreenButton?: boolean;
   includeCarouselBelowMap?: boolean;
   navigation?: any;
+  routes?: any[];
 }
 
 const DIFFICULTY_ORDER: Record<string, number> = {
@@ -305,6 +306,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   showFullscreenButton = false,
   includeCarouselBelowMap = false,
   navigation,
+  routes
 }: LeafletTrailMapProps) => {
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -355,7 +357,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
 
     routes.sort((a, b) => (DIFFICULTY_ORDER[a.difficulty] || 0) - (DIFFICULTY_ORDER[b.difficulty] || 0));
 
-    console.log('[LEAFLET_MAP] Routes prepared:', routes.length);
+    // console.log('[LEAFLET_MAP] Routes prepared:', routes.length);
 
     return routes.map(route => ({ ...route, color: DIFFICULTY_COLORS[route.difficulty] || '#2ecc71' }));
   }, [databaseRoutes]);
@@ -373,6 +375,50 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
 
   useEffect(() => {
     const fetchTrailRoutes = async () => {
+      // Priority 1: Use passed routes if available
+      if (routes && routes.length > 0) {
+        setIsLoadingRoutes(true);
+        try {
+          console.log('[LEAFLET_MAP] Using passed routes:', routes.length);
+          const mappedRoutes = routes.map(r => {
+            // Map external/UI route type to internal TrailRoute type
+            // Determine geojson_path
+            let geojsonPath: GeoJSONPath = { type: 'LineString', coordinates: [] };
+            if (r.coordinates && Array.isArray(r.coordinates) && r.coordinates.length > 0) {
+              geojsonPath = { type: 'LineString', coordinates: r.coordinates };
+            } else if (r.geojson_path) {
+              // Should validation/parsing here if needed, but assuming pre-processed
+              geojsonPath = r.geojson_path;
+            }
+
+            return {
+              id: r.id || r.route_id,
+              route_id: r.id || r.route_id,
+              route_name: r.route_name || r.name,
+              hiking_spot_id: r.hiking_spot_id || selectedHikingSpotId || '',
+              difficulty: r.difficulty || 'Moderate',
+              distance_km: r.distance_km || r.distance || 0,
+              elevation_gain_m: r.elevation_gain_m || r.elevation_gain || 0,
+              estimated_duration_min: r.estimated_duration_min || r.estimated_duration || 0,
+              start_coordinates: r.start_coordinates,
+              end_coordinates: r.end_coordinates,
+              geojson_path: geojsonPath,
+              color: DIFFICULTY_COLORS[r.difficulty] || '#ff0000',
+              isFallback: !!r.isFallback
+            } as TrailRoute;
+          });
+          setDatabaseRoutes(mappedRoutes);
+          setRouteError(null);
+        } catch (err) {
+          console.error('[LEAFLET_MAP] Error processing passed routes:', err);
+          setRouteError('Failed to process routes');
+        } finally {
+          setIsLoadingRoutes(false);
+        }
+        return;
+      }
+
+      // Priority 2: Fetch from API
       if (!selectedHikingSpotId) return;
 
       setIsLoadingRoutes(true);
@@ -393,8 +439,8 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
         const validatedRoutes = routesArray.map(route => {
           let geojsonPath: GeoJSONPath = { type: 'LineString', coordinates: [] };
 
-          console.log('[TRAIL_MAP] Processing route:', route.route_name);
-          console.log('[TRAIL_MAP] Raw geojson_path:', route.geojson_path);
+          // console.log('[TRAIL_MAP] Processing route:', route.route_name);
+          // console.log('[TRAIL_MAP] Raw geojson_path:', route.geojson_path);
 
           if (route.geojson_path) {
             if (typeof (route as any).geojson_path === 'string') {
@@ -406,7 +452,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
               }
             } else if (route.geojson_path.coordinates && Array.isArray(route.geojson_path.coordinates)) {
               geojsonPath = route.geojson_path;
-              console.log('[TRAIL_MAP] Using object geojson_path:', geojsonPath);
+              // console.log('[TRAIL_MAP] Using object geojson_path:', geojsonPath);
             }
           }
 
@@ -416,8 +462,8 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
             return null; // Skip invalid routes
           }
 
-          console.log('[TRAIL_MAP] Valid route:', route.route_name, 'with', geojsonPath.coordinates.length, 'coordinate points');
-          console.log('[TRAIL_MAP] First coord:', geojsonPath.coordinates[0], 'Last coord:', geojsonPath.coordinates[geojsonPath.coordinates.length - 1]);
+          // console.log('[TRAIL_MAP] Valid route:', route.route_name, 'with', geojsonPath.coordinates.length, 'coordinate points');
+          // console.log('[TRAIL_MAP] First coord:', geojsonPath.coordinates[0], 'Last coord:', geojsonPath.coordinates[geojsonPath.coordinates.length - 1]);
 
           return {
             ...route,
@@ -438,7 +484,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
     };
 
     fetchTrailRoutes();
-  }, [selectedHikingSpotId]);
+  }, [selectedHikingSpotId, routes]);
 
   const renderMap = (customStyle?: StyleProp<ViewStyle>): JSX.Element => {
     if (isLoadingRoutes) {

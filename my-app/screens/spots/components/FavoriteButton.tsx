@@ -26,25 +26,16 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        style,
-        isFavorite ? styles.favoritedButton : styles.defaultButton,
-      ]}
+      style={[styles.button, style]}
       onPress={onPress}
       disabled={isLoading}
     >
       <Ionicons
         name={isFavorite ? 'heart' : 'heart-outline'}
         size={20}
-        color={isFavorite ? COLORS.error : COLORS.primary}
+        color="white"
       />
-      <Text
-        style={[
-          styles.buttonText,
-          { backgroundColor: isFavorite ? COLORS.error : COLORS.white },
-        ]}
-      >
+      <Text style={styles.buttonText}>
         {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
       </Text>
     </TouchableOpacity>
@@ -58,25 +49,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 24, // Pill shape
     marginVertical: 8,
-  },
-  defaultButton: {
-    backgroundColor: 'white',
-    borderColor: COLORS.primary,
-  },
-  favoritedButton: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-    borderColor: COLORS.error,
+    backgroundColor: '#388E3C', // Primary green
   },
   loadingButton: {
     backgroundColor: 'white',
-    borderColor: COLORS.lightGray,
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
   },
   buttonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
+    color: 'white',
   },
 });

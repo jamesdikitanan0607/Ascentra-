@@ -30,7 +30,7 @@ export const TrailMapSection: React.FC<TrailMapSectionProps> = ({
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Trail Map</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.fullscreenButton}
           onPress={onFullscreenPress}
           disabled={!trailRoutes || trailRoutes.length === 0}
@@ -45,6 +45,7 @@ export const TrailMapSection: React.FC<TrailMapSectionProps> = ({
           onTrailSelect={handleTrailSelect}
           style={styles.mapStyle}
           showFullscreenButton={false}
+          routes={trailRoutes}
         />
       </View>
     </View>

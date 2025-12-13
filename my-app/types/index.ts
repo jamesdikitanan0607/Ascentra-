@@ -22,7 +22,7 @@ export interface TrailRoute {
     id: string;
     hiking_spot_id: string;
     name: string;
-    difficulty: 'Easy' | 'Moderate' | 'Hard';
+    difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert';
     distance_km: number;
     elevation_gain_m: number;
     estimated_time_hours: number;
@@ -32,6 +32,19 @@ export interface TrailRoute {
         elevation?: number;
     }[];
     color?: string;
+    // UI Properties (Optional to support UI usage)
+    route_name?: string;
+    distance?: number;
+    elevation_gain?: number;
+    estimated_duration?: number;
+    route_description?: string;
+    highlights?: string;
+    start_coordinates?: { latitude: number; longitude: number };
+    end_coordinates?: { latitude: number; longitude: number };
+    coordinates?: number[][];
+    route_color?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface User {

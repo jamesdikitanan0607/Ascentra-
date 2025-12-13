@@ -6,12 +6,19 @@ import { getHikingSpotImages } from '../utils/imageHelpers';
 interface ImageCarouselProps {
   spotName: string;
   customImages?: any[];
+  height?: number;
+  resizeMode?: 'cover' | 'contain' | 'stretch' | 'center';
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const CAROUSEL_HEIGHT = 250;
+const DEFAULT_HEIGHT = 250;
 
-export const ImageCarousel: React.FC<ImageCarouselProps> = ({ spotName, customImages }) => {
+export const ImageCarousel: React.FC<ImageCarouselProps> = ({
+  spotName,
+  customImages,
+  height = DEFAULT_HEIGHT,
+  resizeMode = 'cover'
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [images, setImages] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -53,7 +60,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({ spotName, customIm
   if (!images || images.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height }]}>
       <ScrollView
         ref={scrollViewRef}
         horizontal
@@ -62,14 +69,14 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({ spotName, customIm
         onMomentumScrollEnd={handleScroll}
         scrollEventThrottle={16}
         decelerationRate="fast"
-        style={styles.scrollView}
+        style={[styles.scrollView, { height }]}
       >
         {images.map((image, index) => (
-          <View key={index} style={styles.imageContainer}>
+          <View key={index} style={[styles.imageContainer, { height }]}>
             <Image
               source={typeof image === 'string' ? { uri: image } : image}
               style={styles.image}
-              resizeMode="cover"
+              resizeMode={resizeMode}
             />
           </View>
         ))}
@@ -120,15 +127,15 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({ spotName, customIm
 
 const styles = StyleSheet.create({
   container: {
-    height: CAROUSEL_HEIGHT,
+    // Height is set via prop
     position: 'relative',
   },
   scrollView: {
-    height: CAROUSEL_HEIGHT,
+    // Height is set via prop
   },
   imageContainer: {
     width: screenWidth,
-    height: CAROUSEL_HEIGHT,
+    // Height is set via prop
   },
   image: {
     width: '100%',

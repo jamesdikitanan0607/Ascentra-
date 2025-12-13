@@ -106,34 +106,111 @@ export const useHikingSpotData = (hikingSpotId: string) => {
           };
 
           // Generate mocks for routes from GPX files if available
-          const fallbackRoutes = (localSpot.gpx_files || []).map((gpx: any, index: number) => ({
-            id: `fallback-${index}`,
-            route_id: `fallback-${index}`,
-            route_name: gpx.name,
-            difficulty: localSpot.difficulty,
-            distance: localSpot.trail_length,
-            elevation_gain: localSpot.elevation,
-            estimated_duration: 120, // Default 2 hours
-            route_description: 'Route data loaded from local file',
-            highlights: (localSpot.highlights || []).join(', '),
-            route_color: '#388E3C',
-            start_coordinates: null,
-            end_coordinates: null,
-            coordinates: [],
-            waypoints: '',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            hiking_spot_id: '84',
-            name: gpx.name,
-            description: 'Route data loaded from local file',
-            length: localSpot.trail_length,
-            estimated_time: 120,
-            trail_type: 'trail',
-            gpx_data: null,
-            is_active: true,
-            route_coordinates: null,
-            geojson_path: null
-          }));
+          const fallbackRoutes = (localSpot.gpx_files || []).map((gpx: any, index: number) => {
+            let routeCoordinates = null;
+            let startCoordinates = null;
+            let endCoordinates = null;
+
+            // Lugsangan Peak coordinates (simplified from GPX)
+            if (gpx.name.includes('Lugsangan Peak')) {
+              startCoordinates = { latitude: 9.81116, longitude: 123.4611 };
+              endCoordinates = { latitude: 9.8101, longitude: 123.4409 };
+              routeCoordinates = [
+                { latitude: 9.81116, longitude: 123.4611 },
+                { latitude: 9.81193, longitude: 123.46032 },
+                { latitude: 9.81199, longitude: 123.45987 },
+                { latitude: 9.81153, longitude: 123.45865 },
+                { latitude: 9.81223, longitude: 123.45596 },
+                { latitude: 9.81162, longitude: 123.45539 },
+                { latitude: 9.81110, longitude: 123.45399 },
+                { latitude: 9.81197, longitude: 123.45193 },
+                { latitude: 9.81155, longitude: 123.45053 },
+                { latitude: 9.81145, longitude: 123.44896 },
+                { latitude: 9.81178, longitude: 123.44824 },
+                { latitude: 9.81236, longitude: 123.44710 },
+                { latitude: 9.81216, longitude: 123.44606 },
+                { latitude: 9.81158, longitude: 123.44496 },
+                { latitude: 9.81189, longitude: 123.44428 },
+                { latitude: 9.81297, longitude: 123.44312 },
+                { latitude: 9.81331, longitude: 123.44273 },
+                { latitude: 9.81213, longitude: 123.44193 },
+                { latitude: 9.81089, longitude: 123.44127 },
+                { latitude: 9.81010, longitude: 123.44090 }
+              ];
+            }
+            // Mount Labalasan coordinates (simplified from GPX)
+            else if (gpx.name.includes('Mount Labalasan')) {
+              startCoordinates = { latitude: 9.79578, longitude: 123.4088 };
+              endCoordinates = { latitude: 9.81304, longitude: 123.44249 };
+              routeCoordinates = [
+                { latitude: 9.79578, longitude: 123.4088 },
+                { latitude: 9.79609, longitude: 123.4091 },
+                { latitude: 9.79554, longitude: 123.41081 },
+                { latitude: 9.79524, longitude: 123.41155 },
+                { latitude: 9.79449, longitude: 123.4126 },
+                { latitude: 9.79335, longitude: 123.413 },
+                { latitude: 9.79216, longitude: 123.41379 },
+                { latitude: 9.79203, longitude: 123.41607 },
+                { latitude: 9.79221, longitude: 123.41705 },
+                { latitude: 9.79249, longitude: 123.41853 },
+                { latitude: 9.79306, longitude: 123.42002 },
+                { latitude: 9.79180, longitude: 123.42258 },
+                { latitude: 9.79159, longitude: 123.42451 },
+                { latitude: 9.79229, longitude: 123.42555 },
+                { latitude: 9.79343, longitude: 123.42674 },
+                { latitude: 9.79407, longitude: 123.4281 },
+                { latitude: 9.79494, longitude: 123.43004 },
+                { latitude: 9.79562, longitude: 123.43129 },
+                { latitude: 9.79670, longitude: 123.43293 },
+                { latitude: 9.79771, longitude: 123.43363 },
+                { latitude: 9.79927, longitude: 123.43441 },
+                { latitude: 9.80089, longitude: 123.43526 },
+                { latitude: 9.80190, longitude: 123.43626 },
+                { latitude: 9.80345, longitude: 123.43696 },
+                { latitude: 9.80527, longitude: 123.43744 },
+                { latitude: 9.80685, longitude: 123.43899 },
+                { latitude: 9.80879, longitude: 123.43949 },
+                { latitude: 9.81041, longitude: 123.44109 },
+                { latitude: 9.81230, longitude: 123.44387 },
+                { latitude: 9.81304, longitude: 123.44249 }
+              ];
+            }
+
+            return {
+              id: `fallback-${index}`,
+              route_id: `fallback-${index}`,
+              route_name: gpx.name,
+              difficulty: localSpot.difficulty,
+              distance: localSpot.trail_length,
+              elevation_gain: localSpot.elevation,
+              estimated_duration: 120, // Default 2 hours
+              route_description: 'Route data loaded from local file',
+              highlights: (localSpot.highlights || []).join(', '),
+              route_color: '#388E3C',
+              start_coordinates: startCoordinates,
+              end_coordinates: endCoordinates,
+              coordinates: routeCoordinates || [],
+              waypoints: '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              hiking_spot_id: '84',
+              name: gpx.name,
+              description: 'Route data loaded from local file',
+              length: localSpot.trail_length,
+              estimated_time: 120,
+              trail_type: 'trail',
+              gpx_data: routeCoordinates ? {
+                type: 'LineString',
+                coordinates: routeCoordinates.map(c => [c.longitude, c.latitude])
+              } : null,
+              is_active: true,
+              route_coordinates: routeCoordinates,
+              geojson_path: routeCoordinates ? {
+                type: 'LineString',
+                coordinates: routeCoordinates.map(c => [c.longitude, c.latitude])
+              } : null
+            };
+          });
 
           setHikingSpot(fallbackSpot);
           setTrailRoutes(fallbackRoutes);
