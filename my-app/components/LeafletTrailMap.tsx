@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Dimensions, 
-  Platform, 
-  TouchableOpacity, 
-  Modal, 
-  Text, 
-  StatusBar, 
-  ScrollView, 
-  StyleProp, 
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  TouchableOpacity,
+  Modal,
+  Text,
+  StatusBar,
+  ScrollView,
+  StyleProp,
   ViewStyle,
   ActivityIndicator
 } from 'react-native';
@@ -294,13 +294,13 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 2,
   },
-  
+
 });
 
 const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   selectedHikingSpotId,
   selectedTrailId,
-  onTrailSelect = () => {},
+  onTrailSelect = () => { },
   style = {},
   showFullscreenButton = false,
   includeCarouselBelowMap = false,
@@ -392,14 +392,14 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
 
         const validatedRoutes = routesArray.map(route => {
           let geojsonPath: GeoJSONPath = { type: 'LineString', coordinates: [] };
-          
+
           console.log('[TRAIL_MAP] Processing route:', route.route_name);
           console.log('[TRAIL_MAP] Raw geojson_path:', route.geojson_path);
-          
+
           if (route.geojson_path) {
             if (typeof (route as any).geojson_path === 'string') {
-              try { 
-                geojsonPath = JSON.parse((route as any).geojson_path) as GeoJSONPath; 
+              try {
+                geojsonPath = JSON.parse((route as any).geojson_path) as GeoJSONPath;
                 console.log('[TRAIL_MAP] Parsed string geojson_path:', geojsonPath);
               } catch (e) {
                 console.error('[TRAIL_MAP] Failed to parse geojson_path string:', e);
@@ -409,16 +409,16 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
               console.log('[TRAIL_MAP] Using object geojson_path:', geojsonPath);
             }
           }
-          
+
           // Validate coordinates
           if (!geojsonPath.coordinates || geojsonPath.coordinates.length < 2) {
             console.error('[TRAIL_MAP] Missing or invalid coordinates for route:', route.route_name, 'coords:', geojsonPath.coordinates?.length || 0);
             return null; // Skip invalid routes
           }
-          
+
           console.log('[TRAIL_MAP] Valid route:', route.route_name, 'with', geojsonPath.coordinates.length, 'coordinate points');
           console.log('[TRAIL_MAP] First coord:', geojsonPath.coordinates[0], 'Last coord:', geojsonPath.coordinates[geojsonPath.coordinates.length - 1]);
-          
+
           return {
             ...route,
             id: route.route_id || route.id,
@@ -656,7 +656,7 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
 
       {includeCarouselBelowMap && (
         <View style={styles.routesSection}>
-          <TrailRoutesSection 
+          <TrailRoutesSection
             routes={preparedRoutes}
             onRoutePress={handleTrailSelect}
           />

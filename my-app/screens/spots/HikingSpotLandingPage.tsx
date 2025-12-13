@@ -23,9 +23,9 @@ import WeatherWidget from '../../components/WeatherWidget';
 import ReviewSystem from '../../components/ReviewSystem';
 import { HikingSpotHeader } from './components/HikingSpotHeader';
 import { TrailMapSection } from './components/TrailMapSection';
-import { AvailableTrailsSection } from './components/AvailableTrailsSection';
 import { TrailInfoSection } from './components/TrailInfoSection';
 import { FavoriteButton } from './components/FavoriteButton';
+import { LeaveNoTraceSection } from './components/LeaveNoTraceSection';
 import { useHikingSpotData } from './hooks/useHikingSpotData';
 import { TrailRoute } from '../../types';
 import LeafletTrailMap from '../../components/LeafletTrailMap';
@@ -326,6 +326,77 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
     );
   }
 
+  // Helper function to get local images based on spot name/id
+  // This is a temporary fix to ensure carousel images appear until backend data is populated
+  const getImagesForSpot = (spotName: string) => {
+    const name = spotName.toLowerCase();
+    if (name.includes('naupa')) {
+      return [
+        require('../../assets/images/mt naupa/thumbnail.jpg'),
+        require('../../assets/images/mt naupa/2.jpg'),
+        require('../../assets/images/mt naupa/3.jpg'),
+        require('../../assets/images/mt naupa/4.jpg'),
+        require('../../assets/images/mt naupa/5.jpg'),
+      ];
+    }
+    if (name.includes('babag')) {
+      return [
+        require('../../assets/images/mount-babag/thumbnail.webp'),
+        require('../../assets/images/mount-babag/2.jpg'),
+        require('../../assets/images/mount-babag/3.webp'),
+        require('../../assets/images/mount-babag/4.webp'),
+        require('../../assets/images/mount-babag/5.jpg'),
+      ];
+    }
+    if (name.includes('tagaytay')) {
+      return [
+        require('../../assets/images/Mount Tagaytay/5.jpg'),
+        // Add more if available/renamed in folder
+      ];
+    }
+    if (name.includes('mauyog')) {
+      return [
+        require('../../assets/images/mt mauyog/thumbnail.jpg'),
+        require('../../assets/images/mt mauyog/2.jpg'),
+        require('../../assets/images/mt mauyog/3.jpg'),
+        require('../../assets/images/mt mauyog/4.jpg'),
+        require('../../assets/images/mt mauyog/5.jpg'),
+      ];
+    }
+    if (name.includes('lantoy') || name.includes('latoy')) {
+      return [
+        require('../../assets/images/mount latoy/thumbnail.webp'),
+        require('../../assets/images/mount latoy/2.jpg'),
+        require('../../assets/images/mount latoy/3.jpg'),
+        require('../../assets/images/mount latoy/4.png'),
+        require('../../assets/images/mount latoy/5.jpg'),
+      ];
+    }
+    if (name.includes('lugsangan')) {
+      return [
+        require('../../assets/images/Lugsangan Peak/1.jpg'),
+        require('../../assets/images/Lugsangan Peak/2.webp'),
+        require('../../assets/images/Lugsangan Peak/3.jpg'),
+        require('../../assets/images/Lugsangan Peak/4.jpg'),
+        require('../../assets/images/Lugsangan Peak/5.jpg'),
+      ];
+    }
+
+    // Return null to indicate no local override found
+    return null;
+  };
+
+  // Determine images to show:
+  // 1. Local override (if exists)
+  // 2. Remote images (from DB)
+  // 3. Placeholder
+  const localImages = getImagesForSpot(hikingSpot.name);
+  const carouselImages = localImages
+    ? localImages
+    : (hikingSpot.images && hikingSpot.images.length > 0)
+      ? hikingSpot.images
+      : [require('../../assets/images/placeholder-mountain.jpg')];
+
   return (
     <ErrorBoundary
       navigation={navigation}
@@ -342,7 +413,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
           name={hikingSpot.name}
           rating={hikingSpot.average_rating || 4.5}
           location={hikingSpot.location_text || hikingSpot.name}
-          images={hikingSpot.images || []}
+          images={carouselImages}
           onBackPress={() => navigation.goBack()}
         />
 
@@ -354,34 +425,34 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         >
           {/* Main Content Container */}
           <View style={styles.contentContainer}>
-            {/* Available Trails Section */}
-            <AvailableTrailsSection
-              trailRoutes={uiRoutes}
-              selectedTrailId={selectedTrail?.id}
-              onSelectTrail={(trail) => {
-                handleTrailSelect(trail.id);
-              }}
-              hikingSpotId={hiking_spot_id}
-            />
+
+            {/* Description Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.description}>
+                {hikingSpot.description || 'No description available for this hiking spot.'}
+              </Text>
+            </View>
 
             {/* Trail Map Section */}
-            {coordinates && (
-              <TrailMapSection
-                hikingSpotId={hiking_spot_id}
-                selectedTrailId={selectedTrail?.id}
-                trailRoutes={uiRoutes}
-                onTrailSelect={handleTrailSelect}
-                onFullscreenPress={handleFullscreenMap}
-              />
-            )}
+            <TrailMapSection
+              hikingSpotId={hiking_spot_id}
+              selectedTrailId={selectedTrail?.id}
+              trailRoutes={uiRoutes}
+              onTrailSelect={handleTrailSelect}
+              onFullscreenPress={handleFullscreenMap}
+            />
 
-            {/* Trail Routes Slider */}
+            {/* Trail Routes Slider Section */}
             {trailRoutes && (
-              <TrailRoutesSlider
-                routes={trailRoutes}
-                selectedRoute={selectedRoute ? findTrailRouteDetails(trailRoutes, selectedRoute.id) : null}
-                onRouteSelect={(route: TrailRouteDetails) => handleTrailSelect(route.route_id)}
-              />
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Trail Routes</Text>
+                <TrailRoutesSlider
+                  routes={trailRoutes}
+                  selectedRoute={selectedRoute ? findTrailRouteDetails(trailRoutes, selectedRoute.id) : null}
+                  onRouteSelect={(route: TrailRouteDetails) => handleTrailSelect(route.route_id)}
+                />
+              </View>
             )}
 
             {/* Trail Information Section */}
@@ -390,6 +461,20 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               onFocusOnMap={handleTrailSelect}
             />
 
+            {/* Weather Widget */}
+            {coordinates && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Current Weather</Text>
+                <WeatherWidget
+                  latitude={coordinates.latitude}
+                  longitude={coordinates.longitude}
+                />
+              </View>
+            )}
+
+            {/* Leave No Trace Section */}
+            <LeaveNoTraceSection />
+
             {/* Reviews Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Reviews</Text>
@@ -397,17 +482,6 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
                 hikingSpotId={hiking_spot_id}
               />
             </View>
-
-            {/* Weather Widget */}
-            {coordinates && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Weather Forecast</Text>
-                <WeatherWidget
-                  latitude={coordinates.latitude}
-                  longitude={coordinates.longitude}
-                />
-              </View>
-            )}
 
             {/* Favorite Button */}
             <FavoriteButton

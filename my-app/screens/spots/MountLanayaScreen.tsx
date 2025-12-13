@@ -9,7 +9,7 @@ export function MountLanayaScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '80' } }}
+      route={{ params: { hiking_spot_id: '83' } }}
     />
   );
 }

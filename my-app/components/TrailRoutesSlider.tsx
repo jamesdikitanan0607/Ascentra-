@@ -71,21 +71,21 @@ const DIFFICULTY_LEVELS = {
 
 const getDifficultyConfig = (difficulty: string) => {
   const normalized = difficulty?.toLowerCase();
-  return DIFFICULTY_LEVELS[normalized as keyof typeof DIFFICULTY_LEVELS] || 
-         { color: COLORS.primary, icon: 'terrain' };
+  return DIFFICULTY_LEVELS[normalized as keyof typeof DIFFICULTY_LEVELS] ||
+    { color: COLORS.primary, icon: 'terrain' };
 };
 
-const TrailRouteCard = React.memo(({ 
-  route, 
-  isSelected, 
-  onPress 
-}: { 
-  route: TrailRouteDetails; 
-  isSelected: boolean; 
-  onPress: () => void 
+const TrailRouteCard = React.memo(({
+  route,
+  isSelected,
+  onPress
+}: {
+  route: TrailRouteDetails;
+  isSelected: boolean;
+  onPress: () => void
 }) => {
   const { color: difficultyColor, icon } = getDifficultyConfig(route.difficulty_level || 'moderate');
-  
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -104,10 +104,10 @@ const TrailRouteCard = React.memo(({
           {route.route_name}
         </Text>
         <View style={[styles.difficultyBadge, { backgroundColor: `${difficultyColor}20` }]}>
-          <MaterialIcons 
-            name={icon as any} 
-            size={16} 
-            color={difficultyColor} 
+          <MaterialIcons
+            name={icon as any}
+            size={16}
+            color={difficultyColor}
             style={styles.difficultyIcon}
           />
           <Text style={[styles.difficultyText, { color: difficultyColor }]}>
@@ -115,7 +115,7 @@ const TrailRouteCard = React.memo(({
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.cardBody}>
         <View style={styles.metric}>
           <MaterialIcons name="directions-walk" size={20} color={COLORS.textLight} />
@@ -123,14 +123,14 @@ const TrailRouteCard = React.memo(({
             {route.distance_km ? `${route.distance_km} km` : 'N/A'}
           </Text>
         </View>
-        
+
         <View style={styles.metric}>
           <MaterialIcons name="terrain" size={20} color={COLORS.textLight} />
           <Text style={styles.metricText}>
             {route.elevation_gain_m ? `${route.elevation_gain_m} m` : 'N/A'}
           </Text>
         </View>
-        
+
         <View style={styles.metric}>
           <MaterialIcons name="schedule" size={20} color={COLORS.textLight} />
           <Text style={styles.metricText}>
@@ -145,7 +145,7 @@ const TrailRouteCard = React.memo(({
 const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
   routes = [],
   selectedRoute,
-  onRouteSelect = () => {},
+  onRouteSelect = () => { },
   loading = false,
   error,
   onRetry,
@@ -220,14 +220,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
 
   // Default routes if none available
   const routesToDisplay = routes.length > 0 ? routes : [
-    { 
-      route_id: '1', 
+    {
+      route_id: '1',
       hiking_spot_id: '1',
-      route_name: 'Summit Trail', 
+      route_name: 'Summit Trail',
       difficulty_level: 'Easy',
-      difficulty: 'Easy', 
-      distance_km: 2.5, 
-      elevation_gain_m: 200, 
+      difficulty: 'Easy',
+      distance_km: 2.5,
+      elevation_gain_m: 200,
       estimated_duration_hr: 1.5,
       start_coordinates: null,
       end_coordinates: null,
@@ -242,14 +242,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
       highlights: 'Beautiful views and gentle slopes',
       geojson_path: null,
     },
-    { 
-      route_id: '2', 
+    {
+      route_id: '2',
       hiking_spot_id: '1',
-      route_name: 'Summit Route', 
+      route_name: 'Summit Route',
       difficulty_level: 'Moderate',
-      difficulty: 'Moderate', 
-      distance_km: 4.2, 
-      elevation_gain_m: 450, 
+      difficulty: 'Moderate',
+      distance_km: 4.2,
+      elevation_gain_m: 450,
       estimated_duration_hr: 2.5,
       start_coordinates: null,
       end_coordinates: null,
@@ -264,14 +264,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
       highlights: 'Moderate trail with scenic views',
       geojson_path: null,
     },
-    { 
-      route_id: '3', 
+    {
+      route_id: '3',
       hiking_spot_id: '1',
-      route_name: 'Scenic Path', 
+      route_name: 'Scenic Path',
       difficulty_level: 'Challenging',
-      difficulty: 'Challenging', 
-      distance_km: 6.1, 
-      elevation_gain_m: 680, 
+      difficulty: 'Challenging',
+      distance_km: 6.1,
+      elevation_gain_m: 680,
       estimated_duration_hr: 3.5,
       start_coordinates: null,
       end_coordinates: null,
@@ -286,14 +286,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
       highlights: 'Challenging trail with beautiful scenery',
       geojson_path: null,
     },
-    { 
-      route_id: '4', 
+    {
+      route_id: '4',
       hiking_spot_id: '1',
-      route_name: 'Advanced Trail', 
+      route_name: 'Advanced Trail',
       difficulty_level: 'Hard',
-      difficulty: 'Hard', 
-      distance_km: 8.3, 
-      elevation_gain_m: 920, 
+      difficulty: 'Hard',
+      distance_km: 8.3,
+      elevation_gain_m: 920,
       estimated_duration_hr: 4.5,
       start_coordinates: null,
       end_coordinates: null,
@@ -308,14 +308,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
       highlights: 'Advanced trail for experienced hikers',
       geojson_path: null,
     },
-    { 
-      route_id: '5', 
+    {
+      route_id: '5',
       hiking_spot_id: '1',
-      route_name: 'Expert Route', 
+      route_name: 'Expert Route',
       difficulty_level: 'Expert',
-      difficulty: 'Expert', 
-      distance_km: 10.7, 
-      elevation_gain_m: 1200, 
+      difficulty: 'Expert',
+      distance_km: 10.7,
+      elevation_gain_m: 1200,
       estimated_duration_hr: 6.0,
       start_coordinates: null,
       end_coordinates: null,
@@ -335,7 +335,7 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
   const renderRouteCard = ({ item: route }: ListRenderItemInfo<TrailRouteDetails>) => {
     const isSelected = selectedRoute?.route_id === route.route_id;
     const { color: difficultyColor, icon } = getDifficultyConfig(route.difficulty_level || 'moderate');
-    
+
     return (
       <View style={styles.cardWrapper}>
         <TouchableOpacity
@@ -355,18 +355,18 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
               {route.route_name}
             </Text>
             <View style={[styles.difficultyBadge, { backgroundColor: `${difficultyColor}20` }]}>
-              <MaterialIcons 
-                name={icon as any} 
-                size={16} 
-                color={difficultyColor} 
-                style={styles.difficultyIcon} 
+              <MaterialIcons
+                name={icon as any}
+                size={16}
+                color={difficultyColor}
+                style={styles.difficultyIcon}
               />
               <Text style={[styles.difficultyText, { color: difficultyColor }]}>
                 {route.difficulty_level}
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.cardBody}>
             <View style={styles.metric}>
               <MaterialIcons name="directions-walk" size={20} color={COLORS.textLight} />
@@ -374,14 +374,14 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
                 {route.distance_km ? `${route.distance_km} km` : 'N/A'}
               </Text>
             </View>
-            
+
             <View style={styles.metric}>
               <MaterialIcons name="terrain" size={20} color={COLORS.textLight} />
               <Text style={styles.metricText}>
                 {route.elevation_gain_m ? `${route.elevation_gain_m} m` : 'N/A'}
               </Text>
             </View>
-            
+
             <View style={styles.metric}>
               <MaterialIcons name="schedule" size={20} color={COLORS.textLight} />
               <Text style={styles.metricText}>
@@ -389,7 +389,7 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
               </Text>
             </View>
           </View>
-          
+
           {isSelected && (
             <View style={styles.selectionIndicator}>
               <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
@@ -399,6 +399,44 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
         </TouchableOpacity>
       </View>
     );
+  };
+
+  const scrollToIndex = (index: number) => {
+    if (index >= 0 && index < routesToDisplay.length) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+      // Optionally select the route when scrolling to it
+      // onRouteSelect(routesToDisplay[index]);
+    }
+  };
+
+  const handleNext = () => {
+    if (!selectedRoute) return;
+    const currentIndex = routesToDisplay.findIndex(r => r.route_id === selectedRoute.route_id);
+    if (currentIndex < routesToDisplay.length - 1) {
+      scrollToIndex(currentIndex + 1);
+      onRouteSelect(routesToDisplay[currentIndex + 1]);
+    } else {
+      // Loop to start
+      scrollToIndex(0);
+      onRouteSelect(routesToDisplay[0]);
+    }
+  };
+
+  const handlePrev = () => {
+    if (!selectedRoute) return;
+    const currentIndex = routesToDisplay.findIndex(r => r.route_id === selectedRoute.route_id);
+    if (currentIndex > 0) {
+      scrollToIndex(currentIndex - 1);
+      onRouteSelect(routesToDisplay[currentIndex - 1]);
+    } else {
+      // Loop to end
+      scrollToIndex(routesToDisplay.length - 1);
+      onRouteSelect(routesToDisplay[routesToDisplay.length - 1]);
+    }
   };
 
   return (
@@ -420,14 +458,93 @@ const TrailRoutesSlider: FC<TrailRoutesSliderProps> = ({
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        renderItem={renderRouteCard}
+        renderItem={({ item, index }) => {
+          // Pass formatted item to renderRouteCard logic
+          // But since renderRouteCard is defined above and used as renderItem, we inline the extra text logic here or modify TrailRouteCard component
+          // I will use the RenderItem directly here to include the footer text easily
+
+          const isSelected = selectedRoute?.route_id === item.route_id;
+          const { color: difficultyColor, icon } = getDifficultyConfig(item.difficulty_level || 'moderate');
+
+          return (
+            <View style={styles.cardWrapper}>
+              <TouchableOpacity
+                key={item.route_id}
+                style={[
+                  styles.card,
+                  isSelected && styles.cardSelected,
+                  { borderLeftColor: difficultyColor }
+                ]}
+                onPress={() => onRouteSelect(item)}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.routeName} numberOfLines={1} ellipsizeMode="tail">
+                    {item.route_name}
+                  </Text>
+                  <View style={[styles.difficultyBadge, { backgroundColor: difficultyColor }]}>
+                    <Text style={[styles.difficultyText]}>
+                      {item.difficulty_level?.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardBody}>
+                  <View style={styles.metric}>
+                    <MaterialIcons name="directions-walk" size={24} color={COLORS.text} />
+                    <Text style={styles.metricText}>
+                      {item.distance_km ? `${item.distance_km} km` : 'N/A'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metric}>
+                    <MaterialIcons name="terrain" size={24} color={COLORS.text} />
+                    <Text style={styles.metricText}>
+                      {item.elevation_gain_m ? `${item.elevation_gain_m} m` : 'N/A'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metric}>
+                    <MaterialIcons name="schedule" size={24} color={COLORS.text} />
+                    <Text style={styles.metricText}>
+                      {item.estimated_duration_hr ? `${item.estimated_duration_hr}h` : 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+
+                {isSelected && (
+                  <View style={styles.selectionIndicator}>
+                    <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
+                    <Text style={styles.selectedText}>Selected</Text>
+                  </View>
+                )}
+
+                <Text style={styles.autoGeneratedText}>
+                  Auto-generated from GPX import
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
         getItemLayout={(data, index) => ({
           length: CARD_TOTAL_WIDTH,
           offset: CARD_TOTAL_WIDTH * index,
           index,
         })}
       />
-      
+
+      {/* Navigation Arrows */}
+      <View pointerEvents="box-none" style={styles.arrowContainer}>
+        <TouchableOpacity style={styles.navButton} onPress={handlePrev}>
+          <MaterialIcons name="chevron-left" size={32} color={COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navButton} onPress={handleNext}>
+          <MaterialIcons name="chevron-right" size={32} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+
       {/* Swipe Hint */}
       <View style={styles.swipeHint}>
         <MaterialIcons name="swipe" size={16} color={COLORS.textMuted} />
@@ -441,7 +558,29 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
     position: 'relative',
-    minHeight: 200,
+    minHeight: 220,
+  },
+  arrowContainer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 40, // Avoid overlapping swipe hint
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 0,
+  },
+  navButton: {
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 20,
+    padding: 4,
+    marginHorizontal: 4,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   header: {
     paddingHorizontal: 16,
@@ -462,17 +601,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
   },
   scrollContainer: {
-    paddingHorizontal: CARD_MARGIN,
+    paddingHorizontal: CARD_MARGIN + 20, // Add padding for arrows
     paddingVertical: 8,
   },
   cardWrapper: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_MARGIN,
-    height: 180,
+    height: 200, // Increased height for footer text
   },
   card: {
     flex: 1,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     borderLeftWidth: 6,
@@ -481,9 +620,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    justifyContent: 'space-between'
   },
   cardSelected: {
-    backgroundColor: COLORS.cardSelected,
+    backgroundColor: '#E8F5E9',
     borderWidth: 1,
     borderColor: COLORS.primaryLight,
     shadowOpacity: 0.2,
@@ -497,7 +637,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   routeName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     flex: 1,
@@ -505,7 +645,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   difficultyBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     flexDirection: 'row',
@@ -517,9 +657,8 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     color: 'white',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
-    textTransform: 'uppercase',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   cardBody: {
@@ -527,6 +666,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
     flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
   metric: {
     alignItems: 'center',
@@ -542,16 +683,11 @@ const styles = StyleSheet.create({
   },
   selectionIndicator: {
     position: 'absolute',
-    bottom: 8,
+    bottom: 30, // Adjusted
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.primaryLight,
   },
   selectedText: {
     fontSize: 12,
@@ -559,6 +695,13 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  autoGeneratedText: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    marginTop: 12,
+    fontStyle: 'italic',
+    textAlign: 'left',
   },
   selectedRouteCard: {
     borderColor: COLORS.primary,
@@ -603,6 +746,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    marginTop: 8,
   },
   swipeHintText: {
     fontSize: 12,

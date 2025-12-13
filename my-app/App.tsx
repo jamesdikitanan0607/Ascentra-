@@ -134,26 +134,26 @@ function AppContent(): JSX.Element {
   // Simplified deep link handler
   const handleDeepLink = async ({ url }: { url: string }): Promise<void> => {
     if (!url) return;
-    
+
     console.log("Received deep link:", url);
-    
+
     if (url.includes('auth/callback') || url.includes('login')) {
       try {
         const parsedUrl = Linking.parse(url);
-        
+
         if (parsedUrl.queryParams?.access_token) {
-          const accessToken = Array.isArray(parsedUrl.queryParams.access_token) 
-            ? parsedUrl.queryParams.access_token[0] 
+          const accessToken = Array.isArray(parsedUrl.queryParams.access_token)
+            ? parsedUrl.queryParams.access_token[0]
             : parsedUrl.queryParams.access_token;
-          const refreshToken = Array.isArray(parsedUrl.queryParams.refresh_token) 
-            ? parsedUrl.queryParams.refresh_token[0] 
+          const refreshToken = Array.isArray(parsedUrl.queryParams.refresh_token)
+            ? parsedUrl.queryParams.refresh_token[0]
             : parsedUrl.queryParams.refresh_token || '';
-            
+
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          
+
           if (!error && data?.session) {
             console.log("Session established via deep link");
           }
@@ -167,12 +167,12 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     // Handle deep links
     const subscription = Linking.addEventListener('url', handleDeepLink);
-    
+
     // Check for initial link
     Linking.getInitialURL().then(url => {
       if (url) handleDeepLink({ url });
     });
-    
+
     return () => subscription.remove();
   }, []);
 
@@ -187,96 +187,96 @@ function AppContent(): JSX.Element {
 
   // For debugging purposes, log the screens we have available
   console.log("Available screens in navigator:", [
-    "Home", "HikingSpotDetails", "ActivityDetails", 
+    "Home", "HikingSpotDetails", "ActivityDetails",
     "Tracking", "HikeHistory", "SaveActivity", "Login", "Register", "EmailConfirmation",
     "Posts", "Comments", "Profile", "EditProfile", "ChangePassword", "MediaViewer"
   ]);
 
   return (
     <Stack.Navigator>
-          {user ? (
-          <>
-            <Stack.Screen name="MainTabs" component={BottomTabNavigator} options={{ headerShown: false }} />
-            <Stack.Screen name="Comments" component={CommentsScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="HikingSpotDetails" 
-              component={HikingSpotDetailsScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="HikingSpotLandingPage" 
-              component={HikingSpotLandingPage} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="HikingTrailDetails" 
-              component={HikingTrailDetailsScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="TestHikingTrailDetails" 
-              component={TestHikingTrailDetailsScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="TrailMapFullScreen" 
-              component={TrailMapFullScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="Tracking" component={TrackingScreen} options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="HikeHistory" 
-              component={HikeHistoryScreen} 
-              options={{ headerShown: false }} 
-              initialParams={{ userId: null }} // Allow passing userId parameter
-            />
-            <Stack.Screen name="SaveActivity" component={SaveActivityScreen} options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="MediaViewer" 
-              component={MediaViewerScreen} 
-              options={{ headerShown: false }} 
-            />
-            <Stack.Screen 
-              name="HikeDetail" 
-              component={HikeDetailScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="ActivityComments" component={ActivityCommentsScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="SaveConfirmation" component={SaveConfirmationScreen} options={{ headerShown: false }} />
-    
-            
-            {/* Individual hiking spot screens (15 official spots) */}
-            <Stack.Screen name="MountBabag" component={MountBabagScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountKanirag" component={MountKaniragScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountNaupa" component={MountNaupaScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountManunggal" component={MountManunggalScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountMago" component={MountMagoScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountKapayas" component={MountKapayasScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="LugsanganPeakScreen" component={LugsanganPeakScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountKalbasaanScreen" component={MountKalbasaanScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="OsmenaPeak" component={OsmenaPeakScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="CasinoPeakScreen" component={CasinoPeakScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MountTagaytayScreen" component={MountTagaytayScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="SpartanTrailScreen" component={SpartanTrailScreen} options={{ headerShown: false }} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="EmailConfirmation" 
-              component={EmailConfirmationScreen} 
-              options={{ headerShown: false }} 
-            />
-          </>
-          )}
-        </Stack.Navigator>
+      {user ? (
+        <>
+          <Stack.Screen name="MainTabs" component={BottomTabNavigator} options={{ headerShown: false }} />
+          <Stack.Screen name="Comments" component={CommentsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="HikingSpotDetails"
+            component={HikingSpotDetailsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="HikingSpotLandingPage"
+            component={HikingSpotLandingPage}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="HikingTrailDetails"
+            component={HikingTrailDetailsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="TestHikingTrailDetails"
+            component={TestHikingTrailDetailsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="TrailMapFullScreen"
+            component={TrailMapFullScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="Tracking" component={TrackingScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="HikeHistory"
+            component={HikeHistoryScreen}
+            options={{ headerShown: false }}
+            initialParams={{ userId: null }} // Allow passing userId parameter
+          />
+          <Stack.Screen name="SaveActivity" component={SaveActivityScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="MediaViewer"
+            component={MediaViewerScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="HikeDetail"
+            component={HikeDetailScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="ActivityComments" component={ActivityCommentsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SaveConfirmation" component={SaveConfirmationScreen} options={{ headerShown: false }} />
+
+
+          {/* Individual hiking spot screens (15 official spots) */}
+          <Stack.Screen name="MountBabag" component={MountBabagScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountKanirag" component={MountKaniragScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountNaupa" component={MountNaupaScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountManunggal" component={MountManunggalScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountMago" component={MountMagoScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountKapayas" component={MountKapayasScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountLantoy" component={MountLantoyScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountMauyog" component={MountMauyogScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountLanaya" component={MountLanayaScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="LugsanganPeakScreen" component={LugsanganPeakScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountKalbasaanScreen" component={MountKalbasaanScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="OsmenaPeak" component={OsmenaPeakScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CasinoPeakScreen" component={CasinoPeakScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MountTagaytayScreen" component={MountTagaytayScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SpartanTrailScreen" component={SpartanTrailScreen} options={{ headerShown: false }} />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="EmailConfirmation"
+            component={EmailConfirmationScreen}
+            options={{ headerShown: false }}
+          />
+        </>
+      )}
+    </Stack.Navigator>
   );
 }
 

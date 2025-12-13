@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'r
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../../styles/colors';
 import { TrailRoute } from '../../../types';
+import { HikingSpotData } from '../../../data/hikingSpotData';
 
 interface TrailInfoSectionProps {
   selectedRoute: TrailRoute | null;
   onFocusOnMap: (routeId: string) => void;
+  spot?: HikingSpotData;
 }
 
 interface TrailInfoCard {
@@ -19,6 +21,7 @@ interface TrailInfoCard {
 export const TrailInfoSection: React.FC<TrailInfoSectionProps> = ({
   selectedRoute,
   onFocusOnMap,
+  spot,
 }) => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -30,7 +33,7 @@ export const TrailInfoSection: React.FC<TrailInfoSectionProps> = ({
       id: 'safety',
       title: 'Safety Tips',
       icon: 'security',
-      content: '• Always carry enough water and snacks\n• Stay on marked trails\n• Check weather conditions before hiking\n• Let someone know your plans\n• Bring a map and compass/GPS',
+      content: spot?.tips ? spot.tips.map(t => `• ${t}`).join('\n') : '• Always carry enough water and snacks\n• Stay on marked trails\n• Check weather conditions before hiking\n• Let someone know your plans\n• Bring a map and compass/GPS',
     },
     {
       id: 'etiquette',
@@ -59,6 +62,21 @@ export const TrailInfoSection: React.FC<TrailInfoSectionProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.sectionTitle}>Trail Information</Text>
+
+        {spot && spot.highlights && (
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionSubtitle}>Highlights</Text>
+            <View style={{ marginBottom: 16 }}>
+              {spot.highlights.map((highlight, index) => (
+                <View key={index} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} style={{ marginRight: 8, marginTop: 2 }} />
+                  <Text style={styles.description}>{highlight}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.infoGrid}>
           {trailInfo.map((info) => (
             <View key={info.id} style={styles.infoCard}>
@@ -77,49 +95,49 @@ export const TrailInfoSection: React.FC<TrailInfoSectionProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Trail Information</Text>
-      
+
       <View style={styles.trailHeader}>
         <Text style={styles.trailName}>{selectedRoute.route_name}</Text>
         <View style={[
-          styles.difficultyBadge, 
+          styles.difficultyBadge,
           { backgroundColor: getDifficultyColor(selectedRoute.difficulty) }
         ]}>
           <Text style={styles.difficultyText}>{selectedRoute.difficulty}</Text>
         </View>
       </View>
-      
+
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Ionicons name="walk" size={20} color={COLORS.primary} />
-          <Text style={styles.statValue}>{selectedRoute.distance?.toFixed(1) || 'N/A'} km</Text>
+          <Text style={styles.statValue}>{selectedRoute.distance_km?.toFixed(1) || 'N/A'} km</Text>
           <Text style={styles.statLabel}>Distance</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Ionicons name="trending-up" size={20} color={COLORS.primary} />
-          <Text style={styles.statValue}>{selectedRoute.elevation_gain || 'N/A'} m</Text>
+          <Text style={styles.statValue}>{selectedRoute.elevation_gain_m || 'N/A'} m</Text>
           <Text style={styles.statLabel}>Elevation</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Ionicons name="time" size={20} color={COLORS.primary} />
           <Text style={styles.statValue}>
-            {selectedRoute.estimated_duration ? 
-              `${Math.floor(selectedRoute.estimated_duration / 60)}h ${selectedRoute.estimated_duration % 60}m` : 'N/A'}
+            {selectedRoute.estimated_time_hours ?
+              `${Math.floor(selectedRoute.estimated_time_hours)}h ${Math.round((selectedRoute.estimated_time_hours % 1) * 60)}m` : 'N/A'}
           </Text>
           <Text style={styles.statLabel}>Duration</Text>
         </View>
       </View>
-      
-      {(selectedRoute.highlights || selectedRoute.route_description) && (
+
+      {(selectedRoute.waypoints && selectedRoute.waypoints.length > 0) && (
         <View style={styles.descriptionSection}>
-          <Text style={styles.sectionSubtitle}>Trail Highlights</Text>
+          <Text style={styles.sectionSubtitle}>Route Details</Text>
           <Text style={styles.description}>
-            {selectedRoute.highlights || selectedRoute.route_description}
+            This route contains {selectedRoute.waypoints.length} waypoints.
           </Text>
         </View>
       )}
-      
+
       <View style={styles.infoGrid}>
         {trailInfo.map((info) => (
           <View key={info.id} style={styles.infoCard}>
@@ -131,9 +149,9 @@ export const TrailInfoSection: React.FC<TrailInfoSectionProps> = ({
           </View>
         ))}
       </View>
-      
-      <TouchableOpacity 
-        style={styles.mapButton} 
+
+      <TouchableOpacity
+        style={styles.mapButton}
         onPress={() => onFocusOnMap(selectedRoute.id.toString())}
       >
         <Ionicons name="map" size={20} color="white" />

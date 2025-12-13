@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  ScrollView, 
-  Image, 
-  TouchableOpacity, 
-  TextInput, 
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  TextInput,
   ActivityIndicator,
   Alert,
   Linking,
@@ -45,7 +45,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: Missing hiking spot information</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.errorBackButton}
             onPress={() => navigation.goBack()}
           >
@@ -65,16 +65,16 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState(null);
   const [coordinates, setCoordinates] = useState(
-    route.params.spot?.latitude && route.params.spot?.longitude 
-      ? { 
-          latitude: parseFloat(route.params.spot.latitude), 
-          longitude: parseFloat(route.params.spot.longitude) 
-        } 
+    route.params.spot?.latitude && route.params.spot?.longitude
+      ? {
+        latitude: parseFloat(route.params.spot.latitude),
+        longitude: parseFloat(route.params.spot.longitude)
+      }
       : null
   );
   const [userEmails, setUserEmails] = useState({});
   const [commentsError, setCommentsError] = useState(null);
-  
+
   // Profile context for favorites functionality
   const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
 
@@ -82,15 +82,15 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     if (path && (path.startsWith('http://') || path.startsWith('https://'))) {
       return { uri: path };
     }
-    
+
     const imageMap = {
       '../assets/images/spot1.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
-      '../assets/images/spot2.jpg': require('../assets/images/budlaanfalls/thumbnail.jpg'),
+      '../assets/images/spot2.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
       '../assets/images/spot3.jpg': require('../assets/images/mt naupa/thumbnail.jpg'),
       '../assets/images/spot4.jpg': require('../assets/images/mt mago/thumbnail.jpg'),
       '../assets/images/spot5.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
     };
-    
+
     try {
       return imageMap[path] || require('../assets/images/mt manunggal/thumbnail.jpg');
     } catch (error) {
@@ -113,14 +113,14 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
 
   async function fetchUserEmails(commentData) {
     if (!commentData.length || !user) return;
-    
+
     try {
       const emails = {};
-      
+
       if (user.email) {
         emails[user.id] = user.email;
       }
-      
+
       setUserEmails(emails);
     } catch (error) {
       console.error("Error fetching user emails:", error);
@@ -129,10 +129,10 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
 
   async function fetchSpotDetails() {
     if (!spotId) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Only fetch spot details if not already provided in route params
       if (!spot) {
         const { data: spotData, error: spotError } = await supabase
@@ -140,10 +140,10 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           .select('*')
           .eq('hiking_spot_id', spotId)
           .single();
-        
+
         if (spotError) throw spotError;
         setSpot(spotData);
-        
+
         if (spotData.latitude && spotData.longitude) {
           setCoordinates({
             latitude: parseFloat(spotData.latitude),
@@ -151,7 +151,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           });
         }
       }
-      
+
       try {
         // Try to fetch comments, but don't fail if the table doesn't exist
         const { data: commentData, error: commentError } = await supabase
@@ -165,7 +165,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           `)
           .eq('hiking_spot_id', spotId)
           .order('created_at', { ascending: false });
-        
+
         if (!commentError && commentData) {
           // Only process comments if we got data back
           const commentsWithUsernames = await Promise.all(
@@ -175,14 +175,14 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
                 .select('username')
                 .eq('id', comment.user_id)
                 .single();
-              
+
               return {
                 ...comment,
                 profiles: profileData ? { username: profileData.username } : { username: 'Unknown User' }
               };
             })
           );
-          
+
           setComments(commentsWithUsernames);
           fetchUserEmails(commentData);
         }
@@ -190,7 +190,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
         console.warn('Could not load comments:', commentsError.message);
         setCommentsError('Could not load comments');
       }
-      
+
     } catch (error) {
       console.error('Error fetching spot details:', error.message);
       Alert.alert('Error', 'Failed to load hiking spot details');
@@ -204,20 +204,20 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
       Alert.alert('Sign In Required', 'Please sign in to leave a review');
       return;
     }
-    
+
     if (!userRating) {
       Alert.alert('Rating Required', 'Please select a rating');
       return;
     }
-    
+
     if (!commentText.trim()) {
       Alert.alert('Comment Required', 'Please share your experience');
       return;
     }
-    
+
     try {
       setSubmitting(true);
-      
+
       const { error } = await supabase
         .from('hiking_spot_comments')
         .insert({
@@ -226,14 +226,14 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           comment_text: commentText.trim(),
           rating: userRating
         });
-      
+
       if (error) throw error;
-      
+
       setCommentText('');
       setUserRating(0);
-      
+
       fetchSpotDetails();
-      
+
       Alert.alert('Success', 'Your review has been submitted!');
     } catch (error) {
       console.error('Error submitting comment:', error.message);
@@ -245,7 +245,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
 
   const handleFavoriteToggle = async () => {
     if (favoritesLoading || !spot || !spot.hiking_spot_id) return;
-    
+
     try {
       const isCurrentlyFavorited = isSpotFavorited(spot.hiking_spot_id);
       if (isCurrentlyFavorited) {
@@ -272,7 +272,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
       ios: `${scheme}${label}@${latLng}`,
       android: `${scheme}${latLng}(${label})`
     });
-    
+
     Linking.openURL(url);
   };
 
@@ -294,16 +294,16 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
     return (
       <View style={styles.ratingStarsContainer}>
         {[1, 2, 3, 4, 5].map(star => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={star}
             disabled={disabled}
             onPress={() => onRatingChange && onRatingChange(star)}
             style={styles.starButton}
           >
-            <FontAwesome 
-              name={star <= rating ? "star" : "star-o"} 
-              size={size} 
-              color={COLORS.star} 
+            <FontAwesome
+              name={star <= rating ? "star" : "star-o"}
+              size={size}
+              color={COLORS.star}
             />
           </TouchableOpacity>
         ))}
@@ -330,7 +330,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
         <View style={styles.errorContainer}>
           <Ionicons name="warning-outline" size={60} color={COLORS.error} />
           <Text style={styles.errorText}>Hiking spot not found</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.goBackButton}
             onPress={() => navigation.goBack()}
           >
@@ -347,7 +347,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.contentContainer}>
           <Text style={styles.title}>{spot.name}</Text>
-          
+
           <View style={styles.ratingRow}>
             <View style={styles.ratingContainer}>
               <Text style={styles.ratingText}>
@@ -359,12 +359,12 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.locationContainer}>
             <MaterialIcons name="location-on" size={18} color={COLORS.textLight} />
             <Text style={styles.location}>{spot.location}</Text>
           </View>
-          
+
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -389,9 +389,9 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               <Text style={styles.statLabel}>Difficulty</Text>
             </View>
           </View>
-          
+
           {/* Favorite Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.favoriteButton,
               isSpotFavorited(spot?.hiking_spot_id) && styles.favoriteButtonActive
@@ -399,10 +399,10 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
             onPress={handleFavoriteToggle}
             disabled={favoritesLoading}
           >
-            <Ionicons 
-              name={isSpotFavorited(spot?.hiking_spot_id) ? 'heart' : 'heart-outline'} 
-              size={24} 
-              color={isSpotFavorited(spot?.hiking_spot_id) ? '#FF6B6B' : COLORS.primary} 
+            <Ionicons
+              name={isSpotFavorited(spot?.hiking_spot_id) ? 'heart' : 'heart-outline'}
+              size={24}
+              color={isSpotFavorited(spot?.hiking_spot_id) ? '#FF6B6B' : COLORS.primary}
             />
             <Text style={[
               styles.favoriteButtonText,
@@ -425,7 +425,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Location</Text>
             <View style={styles.mapContainer}>
               {coordinates ? (
-                <TrailMapComponent 
+                <TrailMapComponent
                   latitude={coordinates.latitude}
                   longitude={coordinates.longitude}
                   locationName={spot.location}
@@ -443,7 +443,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
           {coordinates && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Current Weather</Text>
-              <WeatherWidget 
+              <WeatherWidget
                 latitude={coordinates.latitude}
                 longitude={coordinates.longitude}
               />
@@ -455,7 +455,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>
               Reviews {comments.length > 0 && `(${comments.length})`}
             </Text>
-            
+
             {comments.length === 0 ? (
               <View style={styles.emptyReviewsContainer}>
                 <Ionicons name="chatbubble-ellipses-outline" size={40} color={COLORS.textMuted} />
@@ -469,15 +469,15 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
                       <View style={styles.userInfo}>
                         <View style={styles.userAvatar}>
                           <Text style={styles.userInitial}>
-                            {comment.profiles?.username 
-                              ? comment.profiles.username[0].toUpperCase() 
+                            {comment.profiles?.username
+                              ? comment.profiles.username[0].toUpperCase()
                               : (userEmails[comment.user_id] ? userEmails[comment.user_id][0].toUpperCase() : 'A')}
                           </Text>
                         </View>
                         <View>
                           <Text style={styles.commentUser}>
-                            {comment.profiles?.username || 
-                            (userEmails[comment.user_id] ? userEmails[comment.user_id] : 'Anonymous')}
+                            {comment.profiles?.username ||
+                              (userEmails[comment.user_id] ? userEmails[comment.user_id] : 'Anonymous')}
                           </Text>
                           <Text style={styles.commentDate}>
                             {new Date(comment.created_at).toLocaleDateString(undefined, {
@@ -501,7 +501,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               </View>
             )}
           </View>
-          
+
           {/* Add Review Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Leave a Review</Text>
@@ -509,9 +509,9 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               <View>
                 <View style={styles.ratingInputContainer}>
                   <Text style={styles.ratingLabel}>Your Rating:</Text>
-                  <RatingStars 
-                    rating={userRating} 
-                    onRatingChange={setUserRating} 
+                  <RatingStars
+                    rating={userRating}
+                    onRatingChange={setUserRating}
                     disabled={submitting}
                   />
                 </View>
@@ -549,7 +549,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
           </View>
-          
+
           {/* Add bottom spacing */}
           <View style={{ height: 30 }} />
         </View>

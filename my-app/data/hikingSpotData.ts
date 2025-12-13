@@ -1,6 +1,6 @@
 export interface HikingSpotData {
   id: string;
-  hikingSpotId: string; // Added for consistency with components
+  hikingSpotId: string;
   name: string;
   description: string;
   difficulty: 'Easy' | 'Moderate' | 'Hard';
@@ -17,6 +17,7 @@ export interface HikingSpotData {
   highlights: string[];
   tips: string[];
   imageSource: any;
+  gpx_files?: { name: string; file: any }[];
 }
 
 export const HIKING_SPOTS_DATA: HikingSpotData[] = [
@@ -50,7 +51,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Check weather conditions before hiking',
       'Respect the environment and leave no trace'
     ],
-    imageSource: require('../assets/images/mount-babag/thumbnail.webp')
+    imageSource: require('../assets/images/mount-babag/thumbnail.webp'),
+    gpx_files: [
+      { name: 'Babag Ridge Trail', file: require('../gpx/Mount Babag/Babag Ridge Trail via Babag.gpx') },
+      { name: 'Mount Babag via Malubog', file: require('../gpx/Mount Babag/Mount Babag via Malubog.gpx') },
+      { name: 'Babag Loop', file: require('../gpx/Mount Babag/babag-1-bonbon-sudlon-1-bitlang-sinsin-campo-6-campo-4-talis.gpx') }
+    ]
   },
   {
     id: '72',
@@ -82,7 +88,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Inform someone of your hiking plans',
       'Check weather conditions carefully'
     ],
-    imageSource: require('../assets/images/mt kan-irag/thumbnail.jpg')
+    imageSource: require('../assets/images/mt kan-irag/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Talamban-Budlaan-Kan-irag', file: require('../gpx/Mount Kan-irag/talamban-budlaan-kan-irag.gpx') },
+      { name: 'Budlaan-Sirao', file: require('../gpx/Mount Kan-irag/budlaan-sirao.gpx') },
+      { name: 'Budlaan-Sirao-Malubog-Babag', file: require('../gpx/Mount Kan-irag/budlaan-sirao-malubog-babag-napo-guadalupe-church.gpx') }
+    ]
   },
   {
     id: '73',
@@ -114,7 +125,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Bring plenty of water',
       'Respect wildlife and plants'
     ],
-    imageSource: require('../assets/images/mt naupa/thumbnail.jpg')
+    imageSource: require('../assets/images/mt naupa/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mount Naupa', file: require('../gpx/Mount Naupa/Mount Naupa.gpx') },
+      { name: 'Guindaruhan - Naupa Trail', file: require('../gpx/Mount Naupa/Guindaruhan - Naupa Trail.gpx') },
+      { name: 'Budlaan-Sirao-Malubog-Babag-Napo', file: require('../gpx/Mount Naupa/budlaan-sirao-malubog-babag-napo-guadalupe-church.gpx') }
+    ]
   },
   {
     id: '74',
@@ -146,7 +162,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Respect the memorial site',
       'Prepare for challenging terrain'
     ],
-    imageSource: require('../assets/images/mt manunggal/thumbnail.jpg')
+    imageSource: require('../assets/images/mt manunggal/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mount Manunggal Campsite', file: require('../gpx/Mount Manunggal/Mount Manunggal Campsite.gpx') },
+      { name: 'Cebu Highlands Trail Segment IV', file: require('../gpx/Mount Manunggal/segment-iv-a-cebu-highlands-trail-project.gpx') },
+      { name: 'Balamban Race to Manunggal', file: require('../gpx/Mount Manunggal/7th-annual-balamban-race-to-mt-manunggal-march-21-2010.gpx') }
+    ]
   },
   {
     id: '75',
@@ -178,7 +199,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Start early to avoid heat',
       'Carry sufficient water'
     ],
-    imageSource: require('../assets/images/mt mago/thumbnail.jpg')
+    imageSource: require('../assets/images/mt mago/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mount Mago', file: require('../gpx/Mount Mago/Mount Mago.gpx') },
+      { name: 'Mago Peak', file: require('../gpx/Mount Mago/Mago Peak.gpx') }
+    ]
   },
   {
     id: '76',
@@ -210,7 +235,10 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Ensure good physical condition',
       'Have emergency contact plan'
     ],
-    imageSource: require('../assets/images/mt kapayas/thumbnail.webp')
+    imageSource: require('../assets/images/mt kapayas/thumbnail.webp'),
+    gpx_files: [
+      { name: 'Mt. Kapayas', file: require('../gpx/Mount Kapayas/Mt. Kapayas in Catmon.gpx') }
+    ]
   },
   {
     id: '77',
@@ -242,7 +270,10 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Bring field guide for birds',
       'Move quietly to observe wildlife'
     ],
-    imageSource: require('../assets/images/mount latoy/thumbnail.webp')
+    imageSource: require('../assets/images/mount latoy/thumbnail.webp'),
+    gpx_files: [
+      { name: 'Mount Lantoy', file: require('../gpx/Mount Lantoy/lantoy.gpx') }
+    ]
   },
   {
     id: '78',
@@ -274,7 +305,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Respect the pristine environment',
       'Leave no trace behind'
     ],
-    imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg')
+    imageSource: require('../assets/images/mt kalbasan/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Kalibasan Peak', file: require('../gpx/Mount Kalbasaan/Kalibasan Peak.gpx') },
+      { name: 'Kalbasaan-Naupa', file: require('../gpx/Mount Kalbasaan/kalbasaan-naupa.gpx') },
+      { name: 'Kalbasaan Soloista', file: require('../gpx/Mount Kalbasaan/kalbasaan-both-ends-soloista.gpx') }
+    ]
   },
   {
     id: '79',
@@ -306,7 +342,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Wear appropriate hiking gear',
       'Stay hydrated throughout hike'
     ],
-    imageSource: require('../assets/images/mt mauyog/thumbnail.jpg')
+    imageSource: require('../assets/images/mt mauyog/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mount Mauyog', file: require('../gpx/Mount Mauyog/Mount Mauyog.gpx') },
+      { name: 'Mount Mauyog via Tagbao', file: require('../gpx/Mount Mauyog/Mount Mauyog via Tagbao.gpx') }
+    ]
   },
   {
     id: '80',
@@ -338,7 +378,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Check weather conditions',
       'Hike with experienced companions'
     ],
-    imageSource: require('../assets/images/mt lanaya/thumbnail.jpg')
+    imageSource: require('../assets/images/mt lanaya/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mount Lanaya', file: require('../gpx/Mount Lanaya/Mount Lanaya.gpx') },
+      { name: 'Mount Lanaya via Legaspi', file: require('../gpx/Mount Lanaya/Mount Lanaya via Legaspi.gpx') }
+    ]
   },
   {
     id: '81',
@@ -370,7 +414,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Stay on designated trails',
       'Enjoy the peaceful environment'
     ],
-    imageSource: require('../assets/images/Lugsangan Peak/1.jpg')
+    imageSource: require('../assets/images/Lugsangan Peak/1.jpg'),
+    gpx_files: [
+      { name: 'Lugsangan Peak', file: require('../gpx/Lugsangan Peak/Lugsangan Peak.gpx') },
+      { name: 'Mount Labalasan', file: require('../gpx/Lugsangan Peak/Mount Labalasan.gpx') }
+    ]
   },
   {
     id: '82',
@@ -402,7 +450,12 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Great for family trips',
       'Bring camera for stunning views'
     ],
-    imageSource: require('../assets/images/osmena peak/thumbnail.jpg')
+    imageSource: require('../assets/images/osmena peak/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Mantalongon-Osmena Peak-Kawasan Falls', file: require('../gpx/Osmena Peak/mantalongon-osmena-peak-kawasan-falls.gpx') },
+      { name: 'Osmena Peak Route', file: require('../gpx/Osmena Peak/osmenas-peak-hiking-route-from-mantalongon-to-peak.gpx') },
+      { name: 'Osmena Peak from Badian', file: require('../gpx/Osmena Peak/osmena-peak-from-badian.gpx') }
+    ]
   },
   {
     id: '83',
@@ -434,7 +487,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Enjoy the scenic mountain views',
       'Perfect for photography'
     ],
-    imageSource: require('../assets/images/casino peak/thumbnail.jpg')
+    imageSource: require('../assets/images/casino peak/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Lugsangan Peak (Casino Peak)', file: require('../gpx/Casino Peak/Lugsangan Peak.gpx') },
+      { name: 'Mount Labalasan', file: require('../gpx/Casino Peak/Mount Labalasan.gpx') }
+    ]
   },
   {
     id: '84',
@@ -462,7 +519,11 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Bring water and sun protection',
       'Respect local communities and trails'
     ],
-    imageSource: require('../assets/images/Mount Tagaytay/5.jpg')
+    imageSource: require('../assets/images/Mount Tagaytay/5.jpg'),
+    gpx_files: [
+      { name: 'Malubog Lake Loop', file: require('../gpx/Mount Tagaytay/Malubog Lake Loop.gpx') },
+      { name: 'Malubog Lake', file: require('../gpx/Mount Tagaytay/Malubog Lake.gpx') }
+    ]
   },
   {
     id: '85',
@@ -494,9 +555,13 @@ export const HIKING_SPOTS_DATA: HikingSpotData[] = [
       'Great for interval training',
       'Combine with city exploration'
     ],
-    imageSource: require('../assets/images/spartantrail/thumbnail.jpg')
+    imageSource: require('../assets/images/spartantrail/thumbnail.jpg'),
+    gpx_files: [
+      { name: 'Spartan Trail', file: require('../gpx/Spartan Trail/Spartan Trail.gpx') },
+      { name: 'Spartan Trail Detour', file: require('../gpx/Spartan Trail/spartan-trail-with-detour-paseo-to-pamutan.gpx') },
+      { name: 'Cebu TCH Passing Tagbao River', file: require('../gpx/Spartan Trail/cebu-tch-passing-tagbao-river.gpx') }
+    ]
   }
-
 ];
 
 export function getSpotById(id: string): HikingSpotData | undefined {

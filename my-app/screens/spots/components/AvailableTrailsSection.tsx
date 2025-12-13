@@ -50,7 +50,7 @@ export const AvailableTrailsSection: React.FC<AvailableTrailsSectionProps> = ({
       >
         {trailRoutes.map((trail) => {
           const isSelected = selectedTrailId === trail.id?.toString();
-          
+
           return (
             <TouchableOpacity
               key={trail.id?.toString()}
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   noRoutesText: {
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     fontSize: 16,
     textAlign: 'center',
   },

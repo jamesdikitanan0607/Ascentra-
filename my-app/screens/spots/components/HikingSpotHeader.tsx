@@ -2,14 +2,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../../../styles/colors';
+import { COLORS } from '../../../styles/colors';
 import { ImageCarousel } from '../../../components/ImageCarousel';
 
 interface HikingSpotHeaderProps {
   name: string;
   rating?: number;
   location: string;
-  images: string[];
+  images: any[];
   onBackPress: () => void;
 }
 
@@ -24,23 +24,31 @@ export const HikingSpotHeader: React.FC<HikingSpotHeaderProps> = ({
     <View style={styles.container}>
       {/* Image Carousel */}
       <View style={styles.imageContainer}>
-        <ImageCarousel images={images} />
+        <ImageCarousel spotName={name} customImages={images} />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.gradientOverlay}
         />
-        
+
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        
+
         {/* Header Content */}
         <View style={styles.headerContent}>
           <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
             {name}
           </Text>
-          
+
+          {/* Location */}
+          <View style={styles.locationContainer}>
+            <Ionicons name="location" size={16} color="white" />
+            <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+              {location}
+            </Text>
+          </View>
+
           {/* Rating */}
           <View style={styles.ratingContainer}>
             <View style={styles.ratingStars}>
@@ -54,14 +62,6 @@ export const HikingSpotHeader: React.FC<HikingSpotHeaderProps> = ({
               ))}
             </View>
             <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-          </View>
-          
-          {/* Location */}
-          <View style={styles.locationContainer}>
-            <Ionicons name="location" size={16} color="white" />
-            <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
-              {location}
-            </Text>
           </View>
         </View>
       </View>
@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    height: '50%',
+    bottom: 50,
+    height: '60%',
   },
   backButton: {
     position: 'absolute',
@@ -104,9 +104,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 50,
     padding: 20,
-    paddingBottom: 30,
+    paddingBottom: 20,
     zIndex: 5,
   },
   title: {
@@ -121,7 +121,6 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   ratingStars: {
     flexDirection: 'row',
@@ -136,6 +135,7 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 8,
   },
   locationText: {
     color: 'white',

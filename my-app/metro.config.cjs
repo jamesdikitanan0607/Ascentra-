@@ -3,6 +3,8 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+config.resolver.assetExts.push('gpx');
+
 // Add resolver configuration to handle Node.js modules
 config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 config.resolver.platforms = ['ios', 'android', 'native', 'web'];
@@ -37,7 +39,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'empty',
     };
   }
-  
+
   // Use default resolver for other modules
   return context.resolveRequest(context, moduleName, platform);
 };

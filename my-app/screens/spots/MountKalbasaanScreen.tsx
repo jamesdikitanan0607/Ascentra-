@@ -9,7 +9,7 @@ export function MountKalbasaanScreen({ navigation }: NavigationProps) {
   return (
     <HikingSpotWrapper
       navigation={navigation}
-      route={{ params: { hiking_spot_id: '78' } }}
+      route={{ params: { hiking_spot_id: '81' } }}
     />
   );
 }

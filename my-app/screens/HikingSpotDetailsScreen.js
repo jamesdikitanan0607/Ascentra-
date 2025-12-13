@@ -119,7 +119,7 @@ export default function HikingSpotDetailsScreen({ route, navigation }) {
 
     const imageMap = {
       '../assets/images/spot1.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
-      '../assets/images/spot2.jpg': require('../assets/images/budlaanfalls/thumbnail.jpg'),
+      '../assets/images/spot2.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
       '../assets/images/spot3.jpg': require('../assets/images/mt naupa/thumbnail.jpg'),
       '../assets/images/spot4.jpg': require('../assets/images/mt mago/thumbnail.jpg'),
       '../assets/images/spot5.jpg': require('../assets/images/mt manunggal/thumbnail.jpg'),
