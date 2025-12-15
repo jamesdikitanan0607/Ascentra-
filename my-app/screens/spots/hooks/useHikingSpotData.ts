@@ -91,7 +91,7 @@ export const useHikingSpotData = (hikingSpotId: string) => {
 
         if (localSpot) {
           const fallbackSpot: HikingSpot = {
-            id: '84', // Keep the requested ID
+            id: 84, // Keep the requested ID
             name: localSpot.name,
             description: localSpot.description,
             difficulty: localSpot.difficulty,
@@ -101,6 +101,7 @@ export const useHikingSpotData = (hikingSpotId: string) => {
             coordinates: { type: 'Point', coordinates: [localSpot.longitude, localSpot.latitude] },
             cover_image_url: localSpot.image_url,
             images: localSpot.imageSource ? [localSpot.imageSource] : [],
+            is_verified: true, // Mock verified
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };

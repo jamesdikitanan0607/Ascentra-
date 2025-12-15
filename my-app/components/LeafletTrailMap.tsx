@@ -54,6 +54,9 @@ interface LeafletTrailMapProps {
   includeCarouselBelowMap?: boolean;
   navigation?: any;
   routes?: any[];
+  userLocation?: { latitude: number; longitude: number } | null;
+  isNavigating?: boolean;
+  onToggleNavigation?: () => void;
 }
 
 const DIFFICULTY_ORDER: Record<string, number> = {
@@ -61,18 +64,18 @@ const DIFFICULTY_ORDER: Record<string, number> = {
   'Moderate': 1,
   'Hard': 2,
   'Very Hard': 3,
-  'Extreme': 4
+  'Expert': 4,
+  'Advanced': 4
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   'Easy': '#2ecc71',
   'Moderate': '#f39c12',
   'Hard': '#e74c3c',
+  'Very Hard': '#c0392b',
   'Advanced': '#8e44ad',
   'Expert': '#2c3e50'
 };
-
-const DEBUG_MAP = true;
 
 const styles = StyleSheet.create({
   container: {
@@ -83,6 +86,7 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     minHeight: 320,
+    backgroundColor: '#e0e0e0',
   },
   webview: {
     flex: 1,
@@ -295,7 +299,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 2,
   },
-
 });
 
 const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
@@ -306,7 +309,10 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   showFullscreenButton = false,
   includeCarouselBelowMap = false,
   navigation,
-  routes
+  routes,
+  userLocation,
+  isNavigating,
+  onToggleNavigation
 }: LeafletTrailMapProps) => {
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -321,6 +327,8 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
       if (data.type === 'mapReady') {
         setIsMapReady(true);
         console.log('[LEAFLET_MAP] Map is ready');
+      } else if (data.type === 'log') {
+        console.log('[LEAFLET_MAP_JS]', data.message);
       }
     } catch (error) {
       console.error('[LEAFLET_MAP] Error handling WebView message:', error);
@@ -337,6 +345,18 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
       console.log('[LEAFLET_MAP] Selected route on map:', trailId);
     }
   }, [isMapReady]);
+
+  // Update user location on the map
+  useEffect(() => {
+    if (webViewRef.current && isMapReady && userLocation) {
+      const message = JSON.stringify({
+        type: 'updateUserLocation',
+        location: userLocation,
+        isNavigating: isNavigating
+      });
+      webViewRef.current.postMessage(message);
+    }
+  }, [userLocation, isMapReady, isNavigating]);
 
   const handleTrailSelect = useCallback((trailId: string) => {
     console.log('[LEAFLET_MAP] Trail selected:', trailId);
@@ -510,160 +530,352 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
     const mapHTML = `
       <!DOCTYPE html>
       <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Trail Map</title>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <style>
-          body, html { margin: 0; padding: 0; height: 100%; }
-          #map { height: 100%; width: 100%; }
-          .custom-marker {
-            background-color: #22C55E;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 12px;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        <head>
+          <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Trail Map</title>
+              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+              <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+              <style>
+                body, html {margin: 0; padding: 0; height: 100%; }
+                #map {height: 100%; width: 100%; }
+                .custom-marker {
+                  background-color: #22C55E;
+                color: white;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 12px;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           }
-          .end-marker {
-            background-color: #EF4444 !important;
+                .end-marker {
+                  background-color: #EF4444 !important;
           }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <script>
+                .user-marker-container {
+                  width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000 !important;
+          }
+                .user-marker-pulse {
+                  position: absolute;
+                width: 100%;
+                height: 100%;
+                border-radius: 50%;
+                background-color: #2196F3;
+                opacity: 0.3;
+                animation: pulse 2s infinite;
+          }
+                @keyframes pulse {
+                  0 % { transform: scale(1); opacity: 0.5; }
+             100% {transform: scale(2.5); opacity: 0; }
+           }
+                /* Hide the itinerary container for cleaner mobile view, 
+                   expand if needed or show minimal info */
+                .leaflet-routing-container {
+                  display: none !important;
+           }
+              </style>
+            </head>
+            <body>
+              <div id="map"></div>
+              <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+              <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+              <script>
           // Initialize map - will be recentered to actual trail coordinates
-          const map = L.map('map').setView([10.3157, 123.8854], 13);
-          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+                const map = L.map('map').setView([10.3157, 123.8854], 13);
+                const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  attribution: '&copy; OpenStreetMap contributors'
           }).addTo(map);
-          
-          // Prepared routes injected from React Native
-          const routes = ${JSON.stringify(preparedRoutes)};
-          let selectedRouteId = null;
-          let currentPolyline = null;
-          
-          console.log('[TRAIL_MAP] Map initialized, routes available:', routes.length);
-          
-          // Log each route for debugging
-          routes.forEach(function(route, index) {
+
+                // Prepared routes injected from React Native
+                const routes = ${JSON.stringify(preparedRoutes)};
+                let selectedRouteId = null;
+                let currentPolyline = null;
+                let userMarker = null;
+                let navLine = null;
+                let routingControl = null;
+                let currentRouteStart = null;
+
+                console.log('[TRAIL_MAP] Map initialized, routes available:', routes.length);
+
+                // Log each route for debugging
+                routes.forEach(function(route, index) {
             const count = route && route.geojson_path && route.geojson_path.coordinates ? route.geojson_path.coordinates.length : 0;
-            console.log('[TRAIL_MAP] Route ' + (index + 1) + ':', route.route_name);
-            console.log('[TRAIL_MAP] Coordinates:', count, 'points');
+                console.log('[TRAIL_MAP] Route ' + (index + 1) + ':', route.route_name);
+                console.log('[TRAIL_MAP] Coordinates:', count, 'points');
             if (count > 0) {
-              console.log('[TRAIL_MAP] First point:', route.geojson_path.coordinates[0]);
-              console.log('[TRAIL_MAP] Last point:', route.geojson_path.coordinates[count - 1]);
+                  console.log('[TRAIL_MAP] First point:', route.geojson_path.coordinates[0]);
+                console.log('[TRAIL_MAP] Last point:', route.geojson_path.coordinates[count - 1]);
             }
           });
-          
+
           // Create custom icons
           const createIcon = (html, className) => {
             return L.divIcon({
-              html: html,
-              className: className,
-              iconSize: [24, 24],
-              iconAnchor: [12, 12]
+                  html: html,
+                className: className,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
             });
           };
-          
-          const startIcon = createIcon('S', 'custom-marker');
-          const endIcon = createIcon('E', 'custom-marker end-marker');
 
-          const getColorByDifficulty = function(difficulty) {
+                const startIcon = createIcon('S', 'custom-marker');
+                const endIcon = createIcon('E', 'custom-marker end-marker');
+                const userIcon = L.divIcon({
+                  html: '<div class="user-marker-pulse"></div><div style="background-color: #2196F3; width: 100%; height: 100%; border-radius: 50%; border: 2px solid white;"></div>',
+                className: 'user-marker-container',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+          });
+
+                const getColorByDifficulty = function(difficulty) {
             if (difficulty === 'Easy') return '#22C55E';
-            if (difficulty === 'Moderate') return '#F59E0B';
-            if (difficulty === 'Hard') return '#EF4444';
-            return '#22C55E';
+                if (difficulty === 'Moderate') return '#F59E0B';
+                if (difficulty === 'Hard') return '#EF4444';
+                return '#22C55E';
           };
-          
-          function drawRoute(route) {
+
+                function drawRoute(route) {
             const raw = route && route.geojson_path && route.geojson_path.coordinates ? route.geojson_path.coordinates : [];
-            if (!raw || raw.length < 3) {
-              console.error('[TRAIL_MAP] Missing or invalid coordinates for route', route && route.id, 'count:', raw ? raw.length : 0);
-              return;
+                if (!raw || raw.length < 3) {
+                  console.error('[TRAIL_MAP] Missing or invalid coordinates for route', route && route.id, 'count:', raw ? raw.length : 0);
+                return;
             }
-            
-            // Convert [lng, lat] to [lat, lng] for Leaflet
-            const coordinates = raw.map(function(coord){ return [coord[1], coord[0]]; });
-            const color = getColorByDifficulty(route.difficulty);
-            console.log('[TRAIL_MAP] Redrawing polyline + markers');
-            console.log('[TRAIL_MAP] Coordinate count:', coordinates.length);
-            console.log('[TRAIL_MAP] Example point:', coordinates[0]);
-            
-            currentPolyline = L.polyline(coordinates, {
-              color: color,
-              weight: 5,
-              opacity: 0.9,
-              smoothFactor: 1.5,
-              lineCap: 'round',
-              lineJoin: 'round'
+
+                // Convert [lng, lat] to [lat, lng] for Leaflet
+                const coordinates = raw.map(function(coord){ return [coord[1], coord[0]]; });
+                const color = getColorByDifficulty(route.difficulty);
+
+                // Store start point for navigation
+                currentRouteStart = coordinates[0];
+
+                currentPolyline = L.polyline(coordinates, {
+                  color: color,
+                weight: 5,
+                opacity: 0.9,
+                smoothFactor: 1.5,
+                lineCap: 'round',
+                lineJoin: 'round'
             }).addTo(map);
-            
-            // Add start marker at first coordinate
-            L.marker(coordinates[0], { icon: startIcon }).addTo(map).bindPopup('Start');
-            console.log('[TRAIL_MAP] Added Start marker at', coordinates[0]);
-            
-            // Add end marker at last coordinate
-            L.marker(coordinates[coordinates.length - 1], { icon: endIcon }).addTo(map).bindPopup('End');
-            console.log('[TRAIL_MAP] Added End marker at', coordinates[coordinates.length - 1]);
-            
-            // Fit bounds to the polyline
-            map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
-            console.log('[TRAIL_MAP] Fit bounds applied');
+
+                // Add start marker at first coordinate
+                L.marker(coordinates[0], {icon: startIcon }).addTo(map).bindPopup('Start');
+
+                // Add end marker at last coordinate
+                L.marker(coordinates[coordinates.length - 1], {icon: endIcon }).addTo(map).bindPopup('End');
+
+                // Fit bounds to the polyline
+                const bounds = currentPolyline.getBounds();
+                // If user location exists and we are navigating, include it in bounds
+                if (userMarker && (navLine || routingControl)) {
+                  bounds.extend(userMarker.getLatLng());
+            }
+
+                map.fitBounds(bounds, {padding: [30, 30] });
           }
-          
-          function selectRoute(routeId) {
+
+                function selectRoute(routeId) {
             selectedRouteId = routeId;
             console.log('[TRAIL_MAP] Selected trail changed →', routeId);
             
-            // Clear previous non-tile layers (preserve tile layer)
+            // Clear previous layers but keep tile layer and user marker
             map.eachLayer(function(layer){
-              // tile layers have _url
-              if (!layer._url) {
-                map.removeLayer(layer);
+              // Don't remove tile layer
+              if (layer._url) return;
+              // Don't remove user marker
+              if (userMarker && layer === userMarker) return;
+              
+              // Remove everything else (markers, polylines, controls)
+              if (layer !== userMarker && !(layer instanceof L.TileLayer) && layer !== routingControl) {
+                  map.removeLayer(layer);
               }
             });
             currentPolyline = null;
+            if (navLine) { map.removeLayer(navLine); navLine = null; }
+            // Note: We don't remove routingControl here, we update it if it exists
             
             // Find the selected route and draw it
             const route = routes.find(function(r){ return r.id === routeId; });
             if (route) {
               drawRoute(route);
+              // Update current route start for navigation usage
+              const raw = route.geojson_path && route.geojson_path.coordinates ? route.geojson_path.coordinates : [];
+              if (raw.length > 0) {
+                  // GeoJSON is [lng, lat], Leaflet needs [lat, lng]
+                  const startPoint = raw[0];
+                  currentRouteStart = [startPoint[1], startPoint[0]];
+                  console.log('[TRAIL_MAP] Updated route start point:', currentRouteStart);
+              }
+
+              // If logic required to re-trigger navigation update
+              if (userMarker) {
+                 const latLng = userMarker.getLatLng();
+                 // Re-run update location to refresh routing if active
+                 // We need to know 'isNavigating' state here, which we don't store locally in JS variable easily
+                 // But React updates will trigger 'updateUserLocation' message anyway relative to state change
+              }
             }
           }
           
+          
+           function updateUserLocation(location, isNavigating) {
+                if (!location) return;
+                console.log('[TRAIL_MAP] Updating location:', location, 'Navigating:', isNavigating);
+                const latLng = [location.latitude, location.longitude];
+                
+                if (!userMarker) {
+                    console.log('[TRAIL_MAP] Creating user marker');
+                    userMarker = L.marker(latLng, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+                } else {
+                    userMarker.setLatLng(latLng);
+                    userMarker.setOpacity(1);
+                }
+
+                // Handle Navigation
+                if (isNavigating) {
+                    if (!currentRouteStart && routes.length > 0) {
+                        const r = routes.find(r => r.id === selectedRouteId) || routes[0];
+                        if (r && r.geojson_path && r.geojson_path.coordinates && r.geojson_path.coordinates.length > 0) {
+                            const sp = r.geojson_path.coordinates[0];
+                            currentRouteStart = [sp[1], sp[0]];
+                        }
+                    }
+
+                    if (currentRouteStart) {
+                         const navPoints = [latLng, currentRouteStart];
+
+                         // 1. Always draw dashed line first (Immediate Feedback)
+                         if (!navLine) {
+                             console.log('[TRAIL_MAP] Drawing fallback navigation line');
+                             navLine = L.polyline(navPoints, {
+                                 color: '#2196F3',
+                                 weight: 4,
+                                 opacity: 0.5,
+                                 dashArray: '10, 10', 
+                                 lineCap: 'round'
+                             }).addTo(map);
+                             
+                             const bounds = L.latLngBounds(navPoints);
+                             map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                         } else {
+                             navLine.setLatLngs(navPoints);
+                         }
+
+                         // 2. Try to calculate real route (Turn-by-Turn)
+                         if (!routingControl) {
+                             console.log('[TRAIL_MAP] Initializing Routing Control (Foot Profile)');
+                             try {
+                                 routingControl = L.Routing.control({
+                                      waypoints: [
+                                           L.latLng(latLng[0], latLng[1]),
+                                           L.latLng(currentRouteStart[0], currentRouteStart[1])
+                                      ],
+                                      router: L.Routing.osrmv1({
+                                          serviceUrl: 'https://router.project-osrm.org/route/v1',
+                                          profile: 'foot' // Optimization for hiking
+                                      }),
+                                      routeWhileDragging: false,
+                                      showAlternatives: false,
+                                      fitSelectedRoutes: false, // We handle fitting manually
+                                      lineOptions: {
+                                           styles: [{color: '#2196F3', opacity: 1, weight: 6}]
+                                      },
+                                      createMarker: function() { return null; },
+                                      addWaypoints: false,
+                                      draggableWaypoints: false,
+                                      show: false // Hide the itinerary container
+                                 })
+                                 .on('routesfound', function(e) {
+                                     console.log('[TRAIL_MAP] Route found!');
+                                     // If we found a real road route, hide the fallback dashed line
+                                     if (navLine) { 
+                                         navLine.setStyle({ opacity: 0 }); 
+                                     }
+                                 })
+                                 .on('routingerror', function(e) {
+                                     console.log('[TRAIL_MAP] Routing error:', e);
+                                     // Ensure fallback line is visible
+                                     if (navLine) { 
+                                         navLine.setStyle({ opacity: 0.5 }); 
+                                     }
+                                 })
+                                 .addTo(map);
+                             } catch (e) {
+                                 console.error('[TRAIL_MAP] Error creating routing control:', e);
+                             }
+                         } else {
+                             // Update Start Point for existing control
+                             routingControl.setWaypoints([
+                                  L.latLng(latLng[0], latLng[1]),
+                                  L.latLng(currentRouteStart[0], currentRouteStart[1])
+                             ]);
+                         }
+
+                    } else {
+                        console.warn('[TRAIL_MAP] No start point for navigation found.');
+                    }
+                } else {
+                    // Stop Navigation: cleanup both
+                    if (navLine) {
+                         map.removeLayer(navLine);
+                         navLine = null;
+                    }
+                    if (routingControl) {
+                         map.removeControl(routingControl);
+                         routingControl = null;
+                    }
+                }
+           }
+
           // Auto-select first route
           if (routes.length > 0) {
             const firstRouteId = ${selectedTrailId ? `'${selectedTrailId}'` : 'routes[0].id'};
             selectRoute(firstRouteId);
           }
           
-          
+          // Initial user location centering check
+          // If we receive the first location update and map is ready, we could center? 
+          // But maybe wait for user to ask for it / navigate.
+
           // Handle messages from React Native
-          window.addEventListener('message', function(event) {
+          const handleMessage = function(event) {
             try {
-              const data = JSON.parse(event.data);
-              if (data.type === 'selectRoute' && data.routeId) {
-                selectRoute(data.routeId);
-              }
+               const data = JSON.parse(event.data);
+               // Send log back to RN for debugging
+               if (data.type !== 'log') { // Avoid loop
+                   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: 'WebView received: ' + data.type }));
+               }
+               
+               if (data.type === 'selectRoute' && data.routeId) {
+                 selectRoute(data.routeId);
+               } else if (data.type === 'updateUserLocation') {
+                 updateUserLocation(data.location, data.isNavigating);
+               }
             } catch (e) {
-              // Ignore parsing errors
+               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: 'Error parsing message: ' + e.toString() }));
             }
-          });
+          };
+
+          // Listen on both window and document for maximum compatibility
+          window.addEventListener('message', handleMessage);
+          document.addEventListener('message', handleMessage);
           
           // Notify React Native that map is ready
           setTimeout(() => {
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'mapReady'
+            }));
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'log',
+              message: 'Map Ready Event Sent'
             }));
           }, 500);
         </script>
@@ -724,11 +936,41 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
                 <MaterialIcons name="arrow-back" size={24} color="#333" />
                 <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
-              <Text style={styles.fullscreenTitle}>Trail Map - Full Screen</Text>
+              <Text style={styles.fullscreenTitle}>Trail Map</Text>
               <TouchableOpacity style={styles.closeButton} onPress={toggleFullscreen}>
                 <MaterialIcons name="close" size={24} color="#212121" />
               </TouchableOpacity>
             </View>
+
+            {onToggleNavigation && (
+              <View style={{
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: '#EEEEEE',
+                flexDirection: 'row',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                backgroundColor: '#FAFAFA'
+              }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: isNavigating ? '#F44336' : '#2196F3',
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}
+                  onPress={onToggleNavigation}
+                >
+                  <MaterialIcons name={isNavigating ? "navigation" : "directions"} size={18} color="white" />
+                  <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 8, fontSize: 14 }}>
+                    {isNavigating ? "Stop Navigation" : "Get Directions"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.fullscreenMapContainer}>
               {renderMap(styles.fullscreenMap)}

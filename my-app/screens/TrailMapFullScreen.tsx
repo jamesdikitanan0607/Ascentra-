@@ -10,14 +10,16 @@ import {
   ActivityIndicator,
   Alert,
   useWindowDimensions,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getTrailRoutesBySpotId, TrailRoute } from '../services/supabaseService';
+import { getTrailRoutesBySpotId } from '../services/supabaseService';
 import TrailInfo from '../components/TrailInfo';
 import LeafletTrailMap from '../components/LeafletTrailMap';
 import TrailRoutesSection from '../components/TrailRoutesSection';
 import { formatDistance, formatElevation } from '../utils/formatters';
 import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 
 const COLORS = {
   primary: '#2E7D32',
@@ -60,12 +62,12 @@ interface TrailMapFullScreenProps {
 function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
   const { hiking_spot_id, spotName } = route.params;
   const { width, height } = useWindowDimensions();
-  
+
   // Responsive breakpoints
   const isTablet = width >= 768;
   const isDesktop = width >= 1024;
   const isLandscape = width > height;
-  
+
   const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,9 +75,58 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
   const [webViewRef, setWebViewRef] = useState<WebView | null>(null);
   const [showTrailInfo, setShowTrailInfo] = useState(true);
 
+  // User Location & Navigation State
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
+  const [locationStatus, setLocationStatus] = useState<string>('Searching...');
+
   useEffect(() => {
     fetchTrailRoutes();
   }, [hiking_spot_id]);
+
+  useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+    const setupLocationTracking = async () => {
+      try {
+        setLocationStatus('Requesting permissions...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setPermissionStatus(status);
+        if (status !== 'granted') {
+          console.log('Location permission denied');
+          setLocationStatus('Permission Denied');
+          Alert.alert('Permission Denied', 'Location access is required for navigation.');
+          return;
+        }
+
+        setLocationStatus('Acquiring location...');
+
+        // Start watching immediately
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 2000,
+            distanceInterval: 5
+          },
+          (newLocation) => {
+            console.log('Location update:', newLocation.coords.latitude, newLocation.coords.longitude);
+            setUserLocation({
+              latitude: newLocation.coords.latitude,
+              longitude: newLocation.coords.longitude
+            });
+            setLocationStatus('Location Found');
+          }
+        );
+      } catch (error) {
+        console.error('Error setting up location tracking:', error);
+        setLocationStatus('Error: ' + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    setupLocationTracking();
+    return () => {
+      if (locationSubscription) locationSubscription.remove();
+    };
+  }, []);
 
   async function fetchTrailRoutes() {
     setIsLoading(true);
@@ -83,13 +134,13 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
     try {
       const routesResponse = await getTrailRoutesBySpotId(hiking_spot_id);
       const routes = routesResponse?.data || [];
-      
+
       if (routesResponse?.error) {
         console.error('Error fetching trail routes:', routesResponse.error);
         setError('Failed to load trail routes. Please try again later.');
         return;
       }
-      
+
       setTrailRoutes(routes);
       if (routes && routes.length > 0) {
         setSelectedRoute(routes[0]);
@@ -101,6 +152,14 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
       setIsLoading(false);
     }
   }
+
+  const handleGetDirections = () => {
+    if (!userLocation) {
+      Alert.alert('Location Required', 'Please enable location services to use this feature.');
+      return;
+    }
+    setIsNavigating(!isNavigating);
+  };
 
   const parseCoordinates = (coord: { latitude: number; longitude: number } | null): [number, number] | null => {
     if (!coord) return null;
@@ -121,7 +180,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
       }
 
       setSelectedRoute(route);
-      
+
       // Validate coordinates
       if (!route.start_coordinates || !route.end_coordinates) {
         console.warn('TrailMapFullScreen: Route missing coordinates:', {
@@ -135,7 +194,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
       const startCoords = parseCoordinates(route.start_coordinates);
       const endCoords = parseCoordinates(route.end_coordinates);
-      
+
       if (!startCoords || !endCoords) {
         console.warn('TrailMapFullScreen: Failed to parse route coordinates:', {
           routeId: route.route_id,
@@ -150,7 +209,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
       // Validate WebView reference
       if (!webViewRef) {
-        console.warn('TrailMapFullScreen: WebView reference not available for route selection');
+        // console.warn('TrailMapFullScreen: WebView reference not available for route selection');
         return;
       }
 
@@ -177,13 +236,14 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
         // Escape route name for JavaScript
         const escapedRouteName = route.route_name.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        
+
         // Extract full trail coordinates
         let trailCoordinates = [];
         if (route.geojson_path && route.geojson_path.coordinates && Array.isArray(route.geojson_path.coordinates)) {
           trailCoordinates = route.geojson_path.coordinates.map(coord => [coord[1], coord[0]]); // Convert [lng, lat] to [lat, lng]
-        } else if (route.route_coordinates && Array.isArray(route.route_coordinates)) {
-          trailCoordinates = route.route_coordinates.map(coord => [coord.latitude, coord.longitude]);
+        } else if (route.end_coordinates && Array.isArray(route.end_coordinates)) { // Typo in original file? Assuming end_coordinates is not an array? Original code had route.route_coordinates check which is not in interface
+          // Assuming fallback
+          trailCoordinates = [startCoords, endCoords];
         } else {
           // Fallback to start and end coordinates only
           trailCoordinates = [startCoords, endCoords];
@@ -236,7 +296,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
             console.error('TrailMapFullScreen JS: Error in route selection:', jsError);
           }
         `;
-        
+
         webViewRef.postMessage(jsCode);
       } catch (jsCodeError) {
         console.error('TrailMapFullScreen: Error creating JavaScript code for route selection:', jsCodeError);
@@ -249,9 +309,9 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
   const handleFitToRoute = () => {
     if (selectedRoute && webViewRef) {
-      const startCoords = parseCoordinates(selectedRoute.start_coordinates);
-      const endCoords = parseCoordinates(selectedRoute.end_coordinates);
-      
+      const startCoords = parseCoordinates(selectedRoute.start_coordinates || null);
+      const endCoords = parseCoordinates(selectedRoute.end_coordinates || null);
+
       if (startCoords && endCoords) {
         const jsCode = `
           if (window.map && window.currentPolyline) {
@@ -327,7 +387,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
         default:
           // Log unhandled message types for debugging
-          console.log('TrailMapFullScreen: Unhandled WebView message type:', data.type);
+          // console.log('TrailMapFullScreen: Unhandled WebView message type:', data.type);
           break;
       }
     } catch (error) {
@@ -353,68 +413,13 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
     }
   };
 
-  const generateMapHTML = () => {
-    const defaultLat = trailRoutes.length > 0 && selectedRoute ? 
-      parseCoordinates(selectedRoute.start_coordinates)?.[0] || 0 : 0;
-    const defaultLng = trailRoutes.length > 0 && selectedRoute ? 
-      parseCoordinates(selectedRoute.start_coordinates)?.[1] || 0 : 0;
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Trail Map</title>
-          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-          <style>
-              body { margin: 0; padding: 0; }
-              #map { height: 100vh; width: 100%; }
-          </style>
-      </head>
-      <body>
-          <div id="map"></div>
-          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-          <script>
-              window.map = L.map('map').setView([${defaultLat}, ${defaultLng}], 13);
-              
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                  attribution: 'OpenStreetMap contributors'
-              }).addTo(window.map);
-              
-              window.currentPolyline = null;
-              window.startMarker = null;
-              window.endMarker = null;
-              
-              // Listen for messages from React Native
-              window.addEventListener('message', function(event) {
-                  try {
-                      eval(event.data);
-                  } catch (error) {
-                      console.error('Error executing JavaScript:', error);
-                  }
-              });
-              
-              document.addEventListener('message', function(event) {
-                  try {
-                      eval(event.data);
-                  } catch (error) {
-                      console.error('Error executing JavaScript:', error);
-                  }
-              });
-          </script>
-      </body>
-      </html>
-    `;
-  };
-
   // Create responsive styles
   const getResponsiveStyles = () => {
     const topBarTop = Platform.OS === 'ios' ? (isTablet ? 60 : 44) : (isTablet ? 40 : 20);
     const routesOverlayTop = Platform.OS === 'ios' ? (isTablet ? 140 : 120) : (isTablet ? 120 : 96);
     const controlButtonsBottom = Platform.OS === 'ios' ? (isTablet ? 140 : 120) : (isTablet ? 120 : 100);
     const trailInfoMaxHeight = isTablet ? height * 0.4 : height * 0.3;
-    
+
     return StyleSheet.create({
       container: {
         flex: 1,
@@ -460,6 +465,26 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
         color: 'white',
         fontWeight: '600',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+      },
+      routesSection: {
+        marginBottom: 20,
+      },
+      routeHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+      },
+      difficultyBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+      },
+      difficultyText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
       },
       mapContainer: {
         flex: 1,
@@ -617,27 +642,34 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
+
       {/* Full-screen Map */}
       <View style={styles.mapContainer}>
-        <LeafletTrailMap hikingSpotId={hiking_spot_id} />
+        <LeafletTrailMap
+          selectedHikingSpotId={hiking_spot_id}
+          selectedTrailId={selectedRoute?.route_id}
+          userLocation={userLocation || null}
+          isNavigating={isNavigating}
+          routes={trailRoutes}
+          onTrailSelect={(trailId: string) => {
+            const r = trailRoutes.find(tr => tr.route_id === trailId);
+            if (r) setSelectedRoute(r);
+          }}
+        />
       </View>
 
-      {/* Trail Routes Section */}
-      <View style={styles.routesSection}>
-        <TrailRoutesSection hikingSpotId={hiking_spot_id} />
-      </View>
 
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.navButton} onPress={handleGoBack}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        
+
         <Text style={styles.topBarTitle} numberOfLines={1}>
           {spotName || 'Trail Map'}
+          {userLocation ? ' • ' + locationStatus : ' • ' + locationStatus}
         </Text>
-        
+
         <TouchableOpacity style={styles.navButton} onPress={handleGoHome}>
           <Ionicons name="home" size={24} color="white" />
         </TouchableOpacity>
@@ -677,13 +709,23 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
 
       {/* Control Buttons */}
       <View style={styles.controlButtons}>
+        <TouchableOpacity
+          style={[styles.controlButton, { backgroundColor: isNavigating ? COLORS.error : COLORS.primary }]}
+          onPress={handleGetDirections}
+        >
+          <Ionicons name={isNavigating ? "navigate" : "navigate-circle"} size={20} color="white" />
+          <Text style={styles.controlButtonText}>
+            {isNavigating ? "Stop" : "Directions"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.controlButton} onPress={handleFitToRoute}>
           <Ionicons name="locate" size={20} color="white" />
           <Text style={styles.controlButtonText}>Fit to Route</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.controlButton} 
+
+        <TouchableOpacity
+          style={styles.controlButton}
           onPress={() => setShowTrailInfo(!showTrailInfo)}
         >
           <Ionicons name={showTrailInfo ? "eye-off" : "eye"} size={20} color="white" />

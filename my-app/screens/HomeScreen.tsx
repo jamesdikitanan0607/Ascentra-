@@ -20,6 +20,7 @@ import { formatDistance, formatElevation } from '../utils/formatters';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { useProfile } from '../contexts/ProfileContext';
+import { useWeather } from '../contexts/WeatherContext';
 import { User } from '@supabase/supabase-js';
 import { hikingSpots, getAllHikingSpots, getTopRatedHikingSpots } from '../data/hikingSpots';
 import HikingSpotCard from '../components/HikingSpotCard';
@@ -94,6 +95,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { profile } = useProfile();
+  const { overallStatus } = useWeather();
 
   // Load hiking spots from centralized data
   const loadHikingSpots = useCallback(async () => {
@@ -187,12 +189,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../assets/images/ascentra.png')}
-              style={[styles.logo, { width: LOGO_TARGET_WIDTH, height: LOGO_TARGET_WIDTH / LOGO_ASPECT }]}
-              resizeMode="contain"
-            />
+          <View style={styles.headerTopRow}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../assets/images/ascentra.png')}
+                style={[styles.logo, { width: LOGO_TARGET_WIDTH, height: LOGO_TARGET_WIDTH / LOGO_ASPECT }]}
+                resizeMode="contain"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => navigation.navigate('Notifications' as any)}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#333" />
+              {overallStatus !== 'safe' && (
+                <View style={[
+                  styles.notificationBadge,
+                  { backgroundColor: overallStatus === 'unsafe' ? '#F44336' : '#FF9800' }
+                ]} />
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Search Bar */}
@@ -206,8 +222,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, user }) => {
               placeholderTextColor="#999"
             />
           </View>
-
-
         </View>
 
         {/* No Results */}
@@ -277,13 +291,35 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 10,
   },
-  logoContainer: {
-    alignItems: 'center',
+  headerTopRow: {
     marginBottom: 12,
     marginTop: 8,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
   },
   logo: {
 
+  },
+  notificationButton: {
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+    marginTop: -12,
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#fff',
   },
   searchContainer: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     StyleSheet,
     View,
@@ -12,111 +12,161 @@ import {
     Platform,
     StatusBar,
     SafeAreaView,
-    Dimensions
+    useWindowDimensions
 } from 'react-native';
-import { supabase } from '../../services/supabaseClient';
-import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
-import { useProfile } from '../../contexts/ProfileContext';
+import * as Location from 'expo-location';
+import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ImageCarousel } from '../../components/ImageCarousel';
-import LeafletTrailMap from '../../components/LeafletTrailMap';
-import ReviewSystem from '../../components/ReviewSystem';
-import TrailInfo from '../../components/TrailInfo';
-import WeatherWidget from '../../components/WeatherWidget';
+import { WebView } from 'react-native-webview';
+
+import { useProfile } from '../../contexts/ProfileContext';
 import { getTrailRoutesBySpotId, TrailRouteDetails } from '../../services/supabaseService';
+import { supabase } from '../../services/supabaseClient';
+import { TrailRoute, HikingSpot } from '../../types/database';
+
+import ImageCarousel from '../../components/ImageCarousel';
+import LeafletTrailMap from '../../components/LeafletTrailMap';
 import { TrailRoutesSection } from './components/TrailRoutesSection';
-import { TrailInfoSection } from './components/TrailInfoSection';
+import TrailInfoSection from './components/TrailInfoSection';
+import WeatherWidget from '../../components/WeatherWidget';
 import { LeaveNoTraceSection } from './components/LeaveNoTraceSection';
-import { TrailRoute } from '../../types';
+import ReviewSystem from '../../components/ReviewSystem';
+import { COLORS as THEME_COLORS } from '../../styles/colors';
 
-
-const { width, height } = Dimensions.get('window');
-
-// Hero section height - responsive to screen size
-const HERO_HEIGHT = Math.min(height * 0.45, 400); // 45% of screen height, max 400px
-
-// Define a consistent color palette
+// Extend COLORS to include used keys that might be missing in the base theme
 const COLORS = {
-    primary: '#2E7D32',
-    secondary: '#2E7D32',
-    text: '#1F2933',
-    textLight: '#546E7A',
-    textMuted: '#9BA4AF',
-    background: '#FAFAF7',
-    card: '#FFFFFF',
-    separator: '#E6E8EB',
-    star: '#2E7D32',
-    error: '#F44336',
-    success: '#4CAF50',
-    mapPlaceholder: '#F5F5F5'
+    ...THEME_COLORS,
+    star: THEME_COLORS.accent5 || '#FF9800',
+    textLight: THEME_COLORS.textSecondary || '#757575',
+    textMuted: THEME_COLORS.textSecondary || '#757575',
+    card: THEME_COLORS.surface || '#FAFAFA',
+    separator: THEME_COLORS.divider || '#EEEEEE'
 };
 
-interface HikingSpotData {
-    id: string;
-    hiking_spot_id?: string; // Added for component consistency
-    name: string;
-    description?: string;
-    difficulty: string;
-    elevation: number;
-    trail_length: number;
-    estimated_duration: string;
-    latitude: number;
-    longitude: number;
-    rating: number;
-    review_count: number;
-    image_url?: string;
-    amenities: string[];
-    best_season: string[];
-    highlights: string[];
-    tips: string[];
-    imageSource?: any;
-    location?: string; // Added: human-readable place name for pinned location
-}
+const HERO_HEIGHT = 400;
 
 interface HikingSpotTemplateProps {
     navigation: any;
-    spotData: HikingSpotData;
+    spotData: HikingSpot;
+}
+
+// Interface for UI-mapped trail routes
+interface UiTrailRoute extends Omit<TrailRoute, 'difficulty'> {
+    id: string; // UI uses string ID
+    // UiTrailRoute interface alignment
+    distance_km: number;
+    elevation_gain: number;
+    estimated_time: number | string;
+    trail_type: string;
+    is_active: boolean;
+    difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert'; // UI specific difficulty
+    start_coordinates: { latitude: number; longitude: number } | null;
+    end_coordinates: { latitude: number; longitude: number } | null;
+    coordinates: [number, number][]; // Array for polyline
+    waypoints: any[];
 }
 
 export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotTemplateProps) {
-    console.log('HikingSpotTemplate - spotData:', spotData);
-    console.log('HikingSpotTemplate - spotData.hiking_spot_id:', spotData.hiking_spot_id);
-    console.log('HikingSpotTemplate - spotData.id:', spotData.id);
+    if (!spotData) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={styles.loadingContainer}>
+                    <Text>No spot data available.</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // console.log('HikingSpotTemplate - spotData:', spotData);
 
     const [isLoading, setIsLoading] = useState(true);
 
     // Trail routes state
     const [trailRoutes, setTrailRoutes] = useState<TrailRouteDetails[]>([]);
     const [selectedRoute, setSelectedRoute] = useState<TrailRouteDetails | null>(null);
-    const [selectedUiRoute, setSelectedUiRoute] = useState<TrailRoute | null>(null);
+    const [selectedUiRoute, setSelectedUiRoute] = useState<UiTrailRoute | null>(null);
     const [trailRoutesLoading, setTrailRoutesLoading] = useState(true);
     const [trailRoutesError, setTrailRoutesError] = useState<string | null>(null);
-    const [effectiveSpotId, setEffectiveSpotId] = useState<string>((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id);
+    const [effectiveSpotId, setEffectiveSpotId] = useState<string>(((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id).toString());
+
+    // User Location & Navigation State
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [isNavigating, setIsNavigating] = useState<boolean>(false);
+    const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
 
     // Profile context for favorites functionality
     const { addToFavorites, removeFromFavorites, isSpotFavorited, favoritesLoading } = useProfile();
 
-    const getImageSource = () => {
-        return spotData.imageSource || null;
-    };
-
     useEffect(() => {
-        fetchTrailRoutes();
-        setIsLoading(false);
+        let locationSubscription: Location.LocationSubscription | null = null;
+
+        const setupLocationTracking = async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                setPermissionStatus(status);
+
+                if (status !== 'granted') {
+                    console.log('Location permission denied');
+                    return;
+                }
+
+                const location = await Location.getCurrentPositionAsync({});
+                setUserLocation({
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude
+                });
+
+                locationSubscription = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.High,
+                        timeInterval: 5000,
+                        distanceInterval: 10
+                    },
+                    (newLocation) => {
+                        setUserLocation({
+                            latitude: newLocation.coords.latitude,
+                            longitude: newLocation.coords.longitude
+                        });
+                    }
+                );
+            } catch (error) {
+                console.error('Error setting up location tracking:', error);
+            }
+        };
+
+        setupLocationTracking();
+
+        return () => {
+            if (locationSubscription) {
+                locationSubscription.remove();
+            }
+        };
     }, []);
 
+    const handleGetDirections = () => {
+        if (!userLocation) {
+            Alert.alert('Location Required', 'Please enable location services to use this feature.');
+            return;
+        }
+        setIsNavigating(!isNavigating);
+    };
+
+    // Fetch Data Effect
+    useEffect(() => {
+        fetchTrailRoutes();
+    }, [spotData]);
+
     async function fetchTrailRoutes() {
-        console.log('fetchTrailRoutes called with spotId:', spotData.id);
+        // console.log('fetchTrailRoutes called with spotId:', spotData.id);
         setTrailRoutesLoading(true);
         setTrailRoutesError(null);
         try {
             const initialId = ((spotData as any).hiking_spot_id || (spotData as any).hikingSpotId || spotData.id).toString();
             const response = await getTrailRoutesBySpotId(initialId);
-            console.log('API Response:', JSON.stringify(response, null, 2));
+            // console.log('API Response:', JSON.stringify(response, null, 2));
 
             let routes = (response.data || []) as TrailRouteDetails[];
-            console.log('Fetched routes:', routes);
+            // console.log('Fetched routes:', routes);
 
             if (!routes || routes.length === 0) {
                 try {
@@ -132,38 +182,40 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                         routes = (retry.data || []) as TrailRouteDetails[];
                     }
                 } catch (e) {
+                    console.error('Error fetching routes in fallback', e)
                 }
             }
 
             setTrailRoutes(routes || []);
             if (routes && routes.length > 0) {
-                console.log('Setting selected route to first route:', routes[0]);
+                // console.log('Setting selected route to first route:', routes[0]);
                 setSelectedRoute(routes[0]);
             } else {
-                console.log('No routes found for this spot');
+                // console.log('No routes found for this spot');
             }
         } catch (error) {
             console.error('Error fetching trail routes:', error);
             setTrailRoutesError('Failed to load trail routes. Please try again later.');
         } finally {
             setTrailRoutesLoading(false);
+            setIsLoading(false);
         }
     }
 
     // Map DB routes to UI routes used by slider/info components
-    const uiRoutes: TrailRoute[] = React.useMemo(() => {
-        console.log('Mapping trail routes. Input trailRoutes:', trailRoutes);
+    const uiRoutes: UiTrailRoute[] = useMemo(() => {
+        // console.log('Mapping trail routes. Input trailRoutes:', trailRoutes);
         if (!Array.isArray(trailRoutes)) {
-            console.log('trailRoutes is not an array');
+            // console.log('trailRoutes is not an array');
             return [];
         }
 
         return trailRoutes.map((r) => {
             // Parse start and end coordinates from the database
-            let startLat = spotData.latitude;
-            let startLng = spotData.longitude;
-            let endLat = spotData.latitude;
-            let endLng = spotData.longitude;
+            let startLat = spotData.latitude || 0;
+            let startLng = spotData.longitude || 0;
+            let endLat = spotData.latitude || 0;
+            let endLng = spotData.longitude || 0;
 
             // Use provided coordinates if available
             if (r.start_coordinates) {
@@ -185,8 +237,9 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
             }
 
             // Map database fields to UI model
-            const route: TrailRoute = {
-                id: r.route_id,  // Using route_id from the database
+            const route: UiTrailRoute = {
+                id: r.route_id.toString(),  // Using route_id from the database
+                route_id: Number(r.route_id),
                 route_name: r.route_name || 'Unnamed Route',
                 difficulty: (() => {
                     const d = (r.difficulty || r.difficulty_level || 'moderate').toLowerCase();
@@ -195,7 +248,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     if (d.includes('hard')) return 'Hard';
                     if (d.includes('expert') || d.includes('challenging')) return 'Expert';
                     return 'Moderate';
-                })() as 'Easy' | 'Moderate' | 'Hard' | 'Expert',
+                })(),
                 distance: r.distance_km || 0,
                 elevation_gain: r.elevation_gain_m || 0,
                 estimated_duration: r.estimated_duration_hr ? Math.round(r.estimated_duration_hr * 60) : 0, // Convert hours to minutes
@@ -211,29 +264,42 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     longitude: endLng
                 },
                 coordinates: coordinates,
-                waypoints: r.waypoints ? JSON.stringify(r.waypoints) : '[]',
-                created_at: r.created_at,
-                updated_at: r.updated_at
+                waypoints: (Array.isArray(r.waypoints)
+                    ? r.waypoints
+                    : (typeof r.waypoints === 'string' ? JSON.parse(r.waypoints) : [])) as any[],
+                created_at: r.created_at || new Date().toISOString(),
+                updated_at: r.updated_at || new Date().toISOString(),
+                hiking_spot_id: typeof spotData.id === 'string' ? parseInt(spotData.id) : spotData.id,
+                name: r.route_name || 'Unnamed Route',
+
+                estimated_time_hours: r.estimated_duration_hr || 0,
+                // UI specifics
+                description: r.route_description || '',
+                // Using distance_km from interface
+                estimated_time: r.estimated_duration_hr ? `${Math.round(r.estimated_duration_hr * 60)} min` : '0 min',
+                trail_type: 'Loop', // Default
+                is_active: true,
+                geojson_path: r.geojson_path
             };
 
-            console.log(`Mapped route ${route.id} (${route.route_name}):`, route);
+            // console.log(`Mapped route ${route.id} (${route.route_name}):`, route);
             return route;
         });
     }, [trailRoutes, spotData.latitude, spotData.longitude]);
 
     // Keep selected UI route in sync with selected DB route
     useEffect(() => {
-        console.log('Selected route changed:', selectedRoute);
-        console.log('Available UI routes:', uiRoutes);
+        // console.log('Selected route changed:', selectedRoute);
+        // console.log('Available UI routes:', uiRoutes);
 
         if (!selectedRoute) {
-            console.log('No selected route, setting selectedUiRoute to null');
+            // console.log('No selected route, setting selectedUiRoute to null');
             setSelectedUiRoute(null);
             return;
         }
 
         const found = uiRoutes.find(u => String(u.id) === String(selectedRoute.route_id));
-        console.log('Found matching UI route for selected route:', found);
+        // console.log('Found matching UI route for selected route:', found);
         setSelectedUiRoute(found || null);
     }, [selectedRoute, uiRoutes]);
 
@@ -261,12 +327,12 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
     }, [uiRoutes, trailRoutes, selectedRoute]);
 
     const handleSelectFromSlider = (trailId: string) => {
-        console.log('handleSelectFromSlider called with trailId:', trailId);
-        console.log('Available trailRoutes:', trailRoutes);
+        // console.log('handleSelectFromSlider called with trailId:', trailId);
+        // console.log('Available trailRoutes:', trailRoutes);
 
         // Find the route in the database routes
         const details = trailRoutes.find(r => String(r.route_id) === String(trailId));
-        console.log('Found route details:', details);
+        // console.log('Found route details:', details);
 
         if (details) {
             setSelectedRoute(details);
@@ -274,7 +340,7 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
             // Also update the selected UI route
             const uiRoute = uiRoutes.find(r => r.id === trailId);
             if (uiRoute) {
-                console.log('Setting selected UI route:', uiRoute);
+                // console.log('Setting selected UI route:', uiRoute);
                 setSelectedUiRoute(uiRoute);
             }
         }
@@ -284,18 +350,22 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
         if (favoritesLoading) return;
 
         try {
-            const isCurrentlyFavorited = isSpotFavorited(spotData.id);
+            const isCurrentlyFavorited = isSpotFavorited(Number(spotData.id));
             if (isCurrentlyFavorited) {
-                await removeFromFavorites(spotData.id);
+                await removeFromFavorites(Number(spotData.id));
             } else {
                 // Ensure hiking_spot_id is present as per user requirement
                 const spotToSave = {
                     ...spotData,
-                    hiking_spot_id: (spotData as any).hiking_spot_id || spotData.id,
+                    description: spotData.description || '',
+                    difficulty: (spotData.difficulty as "Moderate" | "Easy" | "Hard" | "Advanced") || 'Moderate', // Cast to DB type
+                    image_url: spotData.image_url || '',
+                    hiking_spot_id: typeof spotData.id === 'string' ? parseInt(spotData.id) : spotData.id,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
-                await addToFavorites(spotToSave);
+                // Ensure we respect the expected type of addToFavorites
+                await addToFavorites(spotToSave as unknown as HikingSpot);
             }
         } catch (error) {
             // Error toggling favorite
@@ -322,28 +392,12 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     key={i}
                     name={i <= rating ? 'star' : 'star-o'}
                     size={16}
-                    color={COLORS.star}
+                    color={COLORS.star} // Using mapped color
                     style={{ marginRight: 2 }}
                 />
             );
         }
         return stars;
-    };
-
-    const getDifficultyColor = (difficulty: string): string => {
-        switch (difficulty?.toLowerCase()) {
-            case 'easy':
-                return '#4CAF50'; // Green
-            case 'moderate':
-                return '#FF9800'; // Orange
-            case 'hard':
-            case 'very hard':
-                return '#F44336'; // Red
-            case 'expert':
-                return '#9C27B0'; // Purple
-            default:
-                return '#757575'; // Gray
-        }
     };
 
     if (isLoading) {
@@ -379,21 +433,20 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     >
                         <Ionicons name="arrow-back" size={24} color="white" />
                     </TouchableOpacity>
-                    {/* Removed favorite icon per spec */}
 
                     {/* Overlay trail name, rating, location */}
                     <View style={styles.heroContent} pointerEvents="none">
                         <View style={styles.heroTextContainer}>
                             <Text style={styles.heroTitle}>{spotData.name}</Text>
                             <View style={styles.heroRating}>
-                                {renderStars(Math.floor(spotData.rating))}
+                                {renderStars(Math.floor(spotData.average_rating || spotData.rating || 0))}
                                 <Text style={styles.heroRatingText}>
-                                    {spotData.rating} <Text style={{ opacity: 0.85 }}>({spotData.review_count} reviews)</Text>
+                                    {spotData.average_rating || spotData.rating} <Text style={{ opacity: 0.85 }}>({spotData.number_of_reviews || spotData.review_count || 0} reviews)</Text>
                                 </Text>
                             </View>
                             <View style={styles.heroLocation}>
                                 <MaterialIcons name="location-on" size={16} color="#fff" />
-                                <Text style={styles.heroLocationText}>{spotData.location || 'Cebu, Philippines'}</Text>
+                                <Text style={styles.heroLocationText}>{spotData.location_text || 'Cebu, Philippines'}</Text>
                             </View>
                         </View>
                     </View>
@@ -401,28 +454,27 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
 
                 {/* Content Container */}
                 <View style={styles.contentContainer}>
-                    {/* Removed first 'Trail Information' header and stats row for a cleaner layout */}
 
                     {/* Add to Favorites Section */}
                     <View style={styles.section}>
                         <TouchableOpacity
                             style={[
                                 styles.favoriteButton,
-                                isSpotFavorited(spotData.id) && styles.favoriteButtonActive
+                                isSpotFavorited(Number(spotData.id)) && styles.favoriteButtonActive
                             ]}
                             onPress={handleFavoriteToggle}
                             disabled={favoritesLoading}
                         >
                             <Ionicons
-                                name={isSpotFavorited(spotData.id) ? 'heart' : 'heart-outline'}
+                                name={isSpotFavorited(Number(spotData.id)) ? 'heart' : 'heart-outline'}
                                 size={20}
                                 color="#FFFFFF"
                             />
                             <Text style={[
                                 styles.favoriteButtonText,
-                                isSpotFavorited(spotData.id) && styles.favoriteButtonTextActive
+                                isSpotFavorited(Number(spotData.id)) && styles.favoriteButtonTextActive
                             ]}>
-                                {isSpotFavorited(spotData.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                                {isSpotFavorited(Number(spotData.id)) ? 'Remove from Favorites' : 'Add to Favorites'}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -458,13 +510,17 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                                 <LeafletTrailMap
                                     selectedHikingSpotId={effectiveSpotId}
                                     selectedTrailId={selectedRoute?.route_id?.toString()}
-                                    onTrailSelect={(trailId) => {
+                                    onTrailSelect={(trailId: string) => {
                                         const route = trailRoutes.find(r => r.route_id === trailId);
                                         if (route) {
                                             setSelectedRoute(route);
                                         }
                                     }}
                                     showFullscreenButton={true}
+                                    userLocation={userLocation}
+                                    isNavigating={isNavigating}
+                                    onToggleNavigation={handleGetDirections}
+                                    routes={trailRoutes} // Passing route list to map
                                 />
                             ) : (
                                 <View style={styles.noRouteMapContainer}>
@@ -488,13 +544,13 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                             <div id="map"></div>
                             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                             <script>
-                                const map = L.map('map').setView([${spotData.latitude}, ${spotData.longitude}], 15);
+                                const map = L.map('map').setView([${spotData.latitude || 0}, ${spotData.longitude || 0}], 15);
                                 
                                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                     attribution: '© OpenStreetMap contributors'
                                 }).addTo(map);
                                 
-                                const marker = L.marker([${spotData.latitude}, ${spotData.longitude}])
+                                const marker = L.marker([${spotData.latitude || 0}, ${spotData.longitude || 0}])
                                     .addTo(map)
                                     .bindPopup('<b>' + ${JSON.stringify(spotData.name)} + '</b><br>' + ${JSON.stringify(spotData.description || '')});
                                 
@@ -538,9 +594,10 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                             </View>
                         ) : (
                             <TrailRoutesSection
-                                trailRoutes={uiRoutes}
+                                trailRoutes={uiRoutes as any} // Cast to match expected props
                                 onTrailSelect={handleSelectFromSlider}
                                 selectedTrailId={selectedUiRoute?.id || null}
+                                hikingSpotId={effectiveSpotId} // Passing ID if needed by component
                             />
                         )}
                     </View>
@@ -548,46 +605,39 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     {/* Trail Information Panel */}
                     <View style={styles.section}>
                         <TrailInfoSection
-                            selectedRoute={selectedUiRoute}
-                            onFocusOnMap={(rid) => handleSelectFromSlider(rid)}
+                            selectedRoute={selectedUiRoute as any}
+                            onFocusOnMap={(rid: string) => handleSelectFromSlider(rid)}
                         />
                     </View>
-
-
-
-
 
                     {/* Weather Condition Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Current Weather</Text>
-                        <WeatherWidget
-                            latitude={spotData.latitude}
-                            longitude={spotData.longitude}
-                            locationName={spotData.name}
-                        />
-                    </View>
+                    {spotData.latitude && spotData.longitude && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Current Weather</Text>
+                            <WeatherWidget
+                                latitude={spotData.latitude}
+                                longitude={spotData.longitude}
+                                locationName={spotData.name}
+                            />
+                        </View>
+                    )}
 
                     {/* Highlights Section */}
+                    {/* Assuming highlights is string[] based on DB type, need to check data */}
+                    {/* spotData.best_season is the string array in DB interface */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Highlights</Text>
-                        {spotData.highlights.map((highlight, index) => (
+                        <Text style={styles.sectionTitle}>Best Season</Text>
+                        {spotData.best_season && spotData.best_season.map((season, index) => (
                             <View key={index} style={styles.listItem}>
-                                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
-                                <Text style={styles.listItemText}>{highlight}</Text>
+                                <Ionicons name="calendar" size={16} color={COLORS.primary} />
+                                <Text style={styles.listItemText}>{season}</Text>
                             </View>
                         ))}
+                        {!spotData.best_season && <Text style={styles.description}>Year round</Text>}
                     </View>
 
-                    {/* Tips Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Hiking Tips</Text>
-                        {spotData.tips.map((tip, index) => (
-                            <View key={index} style={styles.listItem}>
-                                <Ionicons name="bulb" size={16} color={COLORS.primary} />
-                                <Text style={styles.listItemText}>{tip}</Text>
-                            </View>
-                        ))}
-                    </View>
+                    {/* Tips Section - Not in HikingSpot interface directly, using Description or custom field? */}
+                    {/* Omitted if not in data */}
 
                     {/* Leave No Trace Section */}
                     <LeaveNoTraceSection />
@@ -596,26 +646,19 @@ export default function HikingSpotTemplate({ navigation, spotData }: HikingSpotT
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Amenities</Text>
                         <View style={styles.amenitiesContainer}>
-                            {spotData.amenities.map((amenity, index) => (
+                            {spotData.amenities && spotData.amenities.map((amenity, index) => (
                                 <View key={index} style={styles.amenityTag}>
                                     <Text style={styles.amenityText}>{amenity}</Text>
                                 </View>
                             ))}
+                            {(!spotData.amenities || spotData.amenities.length === 0) && <Text>No amenities listed.</Text>}
                         </View>
                     </View>
-
-
-
-
 
                     {/* Reviews Section */}
                     <View style={styles.section}>
                         <ReviewSystem
-                            hikingSpotId={spotData.hiking_spot_id || spotData.id}
-                            onReviewAdded={() => {
-                                // Optionally refresh hiking spot data to update average rating
-                                // Review added successfully
-                            }}
+                            hikingSpotId={typeof spotData.id === 'number' ? spotData.id : parseInt(spotData.id)}
                         />
                     </View>
                 </View>
@@ -737,7 +780,6 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 24,
         marginTop: -12,
     },
-    // Removed stats cards from initial section
     favoriteButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -841,8 +883,6 @@ const styles = StyleSheet.create({
         marginRight: 8,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
     },
-
-
     trailInfoContainer: {
         backgroundColor: COLORS.card,
         borderRadius: 16,
@@ -889,7 +929,6 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
     },
-
     noRouteMapContainer: {
         position: 'relative',
     },
@@ -957,5 +996,4 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
     },
-
 });

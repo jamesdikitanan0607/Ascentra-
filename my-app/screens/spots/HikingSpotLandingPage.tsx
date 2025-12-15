@@ -307,11 +307,10 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
   // Handle fullscreen map toggle
   const handleFullscreenMap = () => {
-    setIsFullscreenMap(true);
-  };
-
-  const handleCloseFullscreen = () => {
-    setIsFullscreenMap(false);
+    navigation.navigate('TrailMapFullScreen', {
+      hiking_spot_id,
+      spotName: hikingSpot?.name || 'Trail Map'
+    });
   };
 
   // Handle trail selection from map or list
@@ -435,7 +434,7 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         require('../../assets/images/mt mauyog/5.jpg'),
       ];
     }
-    if (name.includes('lantoy') || name.includes('latoy')) {
+    if (name.includes('lantoy')) {
       return [
         require('../../assets/images/mount latoy/thumbnail.webp'),
         require('../../assets/images/mount latoy/2.jpg'),
@@ -606,37 +605,6 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
           </View>
         </ScrollView>
-
-        {/* Fullscreen Map Modal */}
-        <Modal
-          visible={isFullscreenMap}
-          animationType="slide"
-          onRequestClose={handleCloseFullscreen}
-        >
-          <View style={styles.fullscreenMapContainer}>
-            <View style={styles.fullscreenMapHeader}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleCloseFullscreen}
-              >
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-              <Text style={styles.fullscreenMapTitle}>
-                {selectedRoute?.route_name || 'Trail Map'}
-              </Text>
-              <View style={{ width: 40 }} />
-            </View>
-
-            <View style={styles.fullscreenMap}>
-              <LeafletTrailMap
-                selectedHikingSpotId={hiking_spot_id}
-                selectedTrailId={selectedRoute?.id}
-                onTrailSelect={handleTrailSelect}
-                showFullscreenButton={false}
-              />
-            </View>
-          </View>
-        </Modal>
       </SafeAreaView>
     </ErrorBoundary>
   );

@@ -38,6 +38,7 @@ const HikingSpotCard = React.memo(({ spot, thumbnail }: HikingSpotCardProps) => 
     const navigation = useNavigation<NavigationProp>();
     const { isSpotFavorited, addToFavorites, removeFromFavorites } = useProfile();
     const [isToggling, setIsToggling] = useState(false);
+    const [weatherStatus, setWeatherStatus] = useState<'green' | 'orange' | 'red'>('orange'); // Default to risky
 
     // Ensure ID is handled as a string for consistency across UUIDs and numeric IDs
     const spotId = String(spot.id || (spot as any).hiking_spot_id);
@@ -55,6 +56,83 @@ const HikingSpotCard = React.memo(({ spot, thumbnail }: HikingSpotCardProps) => 
             imageSource = typeof spot.cover_image_url === 'number' ? spot.cover_image_url : { uri: spot.cover_image_url };
         }
     }
+
+    // Fetch weather data to determine status
+    React.useEffect(() => {
+        let isMounted = true;
+        const fetchWeather = async () => {
+            // If missing coordinates, keep default orange
+            if (!spot.latitude || !spot.longitude) {
+                return;
+            }
+
+            try {
+                // Import dynamically to avoid circular dependencies if any, though direct import is preferred usually.
+                // Assuming getWeatherData is safe to import.
+                const { getWeatherData } = require('../services/supabaseService');
+                const weather = await getWeatherData(spot.latitude, spot.longitude);
+
+                if (isMounted && weather) {
+                    const status = getWeatherStatusColor(weather);
+                    setWeatherStatus(status);
+                }
+            } catch (err) {
+                console.log('[HikingSpotCard] Weather fetch failed', err);
+                // Keep default orange
+            }
+        };
+
+        fetchWeather();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [spot.latitude, spot.longitude]);
+
+    const getWeatherStatusColor = (weather: any): 'green' | 'orange' | 'red' => {
+        if (!weather) return 'orange';
+
+        const condition = weather.condition?.toLowerCase() || '';
+        const windSpeed = weather.windSpeed || 0; // km/h
+
+        // RED - Unsafe
+        // Heavy rain, storm, strong winds (>30km/h), or extreme conditions
+        if (
+            condition.includes('storm') ||
+            condition.includes('thunder') ||
+            condition.includes('heavy rain') ||
+            condition.includes('snow') ||
+            windSpeed > 30
+        ) {
+            return 'red';
+        }
+
+        // ORANGE - Risky
+        // Light rain, cloudy, moderate wind, or generic 'rain'
+        if (
+            condition.includes('rain') ||
+            condition.includes('drizzle') ||
+            condition.includes('cloud') ||
+            condition.includes('mist') ||
+            condition.includes('fog') ||
+            windSpeed > 20
+        ) {
+            return 'orange';
+        }
+
+        // GREEN - Safe
+        // Clear, sunny, good weather
+        return 'green';
+    };
+
+    const getStatusColorHex = (status: 'green' | 'orange' | 'red') => {
+        switch (status) {
+            case 'green': return '#22c55e';
+            case 'orange': return '#f97316';
+            case 'red': return '#ef4444';
+            default: return '#f97316';
+        }
+    };
 
     const handlePress = useCallback(() => {
         // Robust ID parsing
@@ -143,7 +221,15 @@ const HikingSpotCard = React.memo(({ spot, thumbnail }: HikingSpotCardProps) => 
                 </TouchableOpacity>
             </View>
             <View style={styles.gridCardContent}>
-                <Text style={styles.gridCardTitle} numberOfLines={2}>{spot.name}</Text>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.gridCardTitle} numberOfLines={2}>{spot.name}</Text>
+                    <View
+                        style={[
+                            styles.weatherDot,
+                            { backgroundColor: getStatusColorHex(weatherStatus) }
+                        ]}
+                    />
+                </View>
 
                 {spot.difficulty && (
                     <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(spot.difficulty) }]}>
@@ -214,12 +300,24 @@ const styles = StyleSheet.create({
     gridCardContent: {
         padding: 12,
     },
+    titleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
     gridCardTitle: {
         fontSize: 14,
         fontWeight: 'bold',
         color: '#1a1a1a',
-        marginBottom: 8,
+        flex: 1, // Allow text to take available space
+        marginRight: 8, // Space between title and dot
         lineHeight: 18,
+    },
+    weatherDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     difficultyBadge: {
         paddingHorizontal: 6,
@@ -260,3 +358,4 @@ const styles = StyleSheet.create({
 });
 
 export default HikingSpotCard;
+

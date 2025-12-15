@@ -10,6 +10,7 @@ import { Session } from '@supabase/supabase-js';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { TrailProvider } from './contexts/TrailContext';
+import { WeatherProvider } from './contexts/WeatherContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Navigation types
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   Favorites: undefined;
+  Notifications: undefined;
   HikingSpotDetails: { spot: any };
   HikingSpotLandingPage: { hiking_spot_id: string };
   HikingTrailDetails: { hikingSpot: any };
@@ -103,6 +105,7 @@ const OsmenaPeakScreen = createLazyComponent(() => import('./screens/spots/Osmen
 const CasinoPeakScreen = createLazyComponent(() => import('./screens/spots/CasinoPeakScreen'));
 const MountTagaytayScreen = createLazyComponent(() => import('./screens/spots/MountTagaytayScreen'));
 const SpartanTrailScreen = createLazyComponent(() => import('./screens/spots/SpartanTrailScreen'));
+const NotificationsScreen = createLazyComponent(() => import('./screens/NotificationsScreen'));
 
 import HikingSpotLandingPage from './screens/spots/HikingSpotLandingPage';
 
@@ -246,6 +249,7 @@ function AppContent(): JSX.Element {
           />
           <Stack.Screen name="ActivityComments" component={ActivityCommentsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="SaveConfirmation" component={SaveConfirmationScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
 
 
           {/* Individual hiking spot screens (15 official spots) */}
@@ -292,14 +296,16 @@ export default function App(): JSX.Element {
         <AuthProvider>
           <ProfileProvider>
             <TrailProvider>
-              <Suspense fallback={
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#2E7D32" />
-                  <Text style={styles.loadingText}>Loading screen...</Text>
-                </View>
-              }>
-                <AppContent />
-              </Suspense>
+              <WeatherProvider>
+                <Suspense fallback={
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#2E7D32" />
+                    <Text style={styles.loadingText}>Loading screen...</Text>
+                  </View>
+                }>
+                  <AppContent />
+                </Suspense>
+              </WeatherProvider>
             </TrailProvider>
           </ProfileProvider>
         </AuthProvider>
