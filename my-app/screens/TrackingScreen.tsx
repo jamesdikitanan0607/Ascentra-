@@ -460,8 +460,9 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
 
       logInfo(`Saving activity with ${sanitizedCoordinates.length} valid coordinates`);
 
+      // Allow saving even with 0 or 1 coordinate for testing purposes
       if (sanitizedCoordinates.length < 2) {
-        logError('Warning: Less than 2 valid coordinates for this activity');
+        logInfo('Note: Activity has fewer than 2 valid coordinates (single point or no GPS data)');
       }
 
       // Log the first and last coordinates for debugging
@@ -481,8 +482,8 @@ export default function TrackingScreen({ navigation }: TrackingScreenProps) {
           pace: stats.pace || 0,
           elevation: stats.elevation || 0
         },
-        // date: new Date().toISOString(), // Remove this as it's not part of the expected type
-        // syncReady: syncStatus === 'ready' // Remove this property as it's not part of the expected type
+        date: new Date().toISOString(),
+        syncReady: syncStatus === 'ready'
       });
 
       // Close the modal

@@ -34,11 +34,11 @@ export default function SaveActivityScreen({ navigation, route }) {
   const [privateNotes, setPrivateNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
-  
+
   // Modal visibility state
   const [activityTypeModalVisible, setActivityTypeModalVisible] = useState(false);
   const [feelingModalVisible, setFeelingModalVisible] = useState(false);
-  
+
   // Add state for tracking connection and sync status
   const [isConnected, setIsConnected] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -58,7 +58,7 @@ export default function SaveActivityScreen({ navigation, route }) {
     { icon: 'snow', name: 'Snowshoeing' },
     { icon: 'compass', name: 'Exploring' }
   ];
-  
+
   // Feeling options
   const feelingOptions = [
     { icon: 'happy', name: 'Great' },
@@ -72,7 +72,7 @@ export default function SaveActivityScreen({ navigation, route }) {
   const pickMedia = async () => {
     // Request media library permissions
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Please allow access to your photo library to add photos or videos.');
       return;
@@ -92,10 +92,10 @@ export default function SaveActivityScreen({ navigation, route }) {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         // Limit to 5 media files
         const newMedia = result.assets.slice(0, 5);
-        
+
         // Add selected media to state
         setMediaFiles([...mediaFiles, ...newMedia].slice(0, 10)); // Limit to 10 total
-        
+
         // Media files added successfully
       }
     } catch (error) {
@@ -124,7 +124,7 @@ export default function SaveActivityScreen({ navigation, route }) {
         // Try the improved isUserLoggedIn utility first
         const loggedIn = await isUserLoggedIn();
         setIsLoggedIn(loggedIn);
-        
+
         if (loggedIn) {
           setDebugInfo(prev => `User is logged in\n${prev}`);
         } else {
@@ -132,7 +132,7 @@ export default function SaveActivityScreen({ navigation, route }) {
           const userId = await getCurrentUserId();
           const isNotGuest = userId !== 'guest';
           setIsLoggedIn(isNotGuest);
-          
+
           setDebugInfo(prev => `User ID check: ${userId} (${isNotGuest ? 'logged in' : 'guest'})\n${prev}`);
         }
       } catch (error) {
@@ -161,14 +161,14 @@ export default function SaveActivityScreen({ navigation, route }) {
   const checkSupabaseConnection = async () => {
     try {
       setDebugInfo('Checking Supabase connection...\n');
-      
+
       // Test Supabase connection by listing tables
       const { data: tablesData, error: tablesError } = await supabase
         .rpc('get_tables');
-      
+
       if (tablesError) {
         setDebugInfo(prev => prev + `Tables error: ${tablesError.message}\n`);
-        
+
         // Try a simple endpoint just to check connectivity
         const { data, error } = await supabase.auth.getSession();
         if (error) {
@@ -184,31 +184,31 @@ export default function SaveActivityScreen({ navigation, route }) {
         setDebugInfo(prev => prev + `Tables: ${tables.join(', ')}\n`);
         setDebugInfo(prev => prev + `saveactivity table exists: ${hasActivityTable}\n`);
       }
-      
+
       // Check auth status
       const { data: authData, error: authError } = await supabase.auth.getSession();
-      
+
       if (authError) {
         setDebugInfo(prev => prev + `Auth error: ${authError.message}\n`);
         return false;
       }
-      
+
       const isAuthenticated = !!authData?.session?.user;
-      
+
       setDebugInfo(prev => prev + `User authenticated: ${isAuthenticated}\n`);
       if (isAuthenticated) {
         setDebugInfo(prev => prev + `User ID: ${authData.session.user.id}\n`);
         setDebugInfo(prev => prev + `User email: ${authData.session.user.email}\n`);
         setDebugInfo(prev => prev + `Session expires: ${new Date(authData.session.expires_at * 1000).toISOString()}\n`);
       }
-      
+
       // Try to directly access saveactivity table
       try {
         const { data: activityData, error: activityError } = await supabase
           .from('saveactivity')
           .select('count')
           .limit(1);
-        
+
         if (activityError) {
           setDebugInfo(prev => prev + `Activity table error: ${activityError.message}\n`);
         } else {
@@ -217,7 +217,7 @@ export default function SaveActivityScreen({ navigation, route }) {
       } catch (tableError) {
         setDebugInfo(prev => prev + `Activity table exception: ${tableError.message}\n`);
       }
-      
+
       return isAuthenticated;
     } catch (error) {
       setDebugInfo(prev => prev + `Error: ${error.message}\n`);
@@ -225,28 +225,57 @@ export default function SaveActivityScreen({ navigation, route }) {
     }
   };
 
+  // Validate hike data before saving
+  const validateHikeData = () => {
+    if (!routeCoordinates || !Array.isArray(routeCoordinates)) {
+      return { valid: false, error: 'Missing GPS data for this activity.' };
+    }
+
+    // Warn but allow saving if no distance (e.g. stationary activity)
+    if (typeof stats.distance !== 'number') {
+      console.warn('Distance is missing or invalid');
+    }
+
+    if (!date) {
+      return { valid: false, error: 'Activity date is missing.' };
+    }
+
+    return { valid: true };
+  };
+
   // Handle save activity with improved error handling and diagnostics
   const handleSave = async () => {
+    // Prevent double submission
+    if (saving) return;
+
     try {
       setSaving(true);
-      
+
+      // Validate data first
+      const validation = validateHikeData();
+      if (!validation.valid) {
+        Alert.alert('Cannot Save', validation.error);
+        setSaving(false);
+        return;
+      }
+
       // Use the syncStatus that was determined earlier
       if (syncStatus === 'local-only') {
-        setDebugInfo('Activity will be saved locally only');
+        setDebugInfo(prev => prev + 'Activity will be saved locally only\n');
       } else {
-        setDebugInfo('Attempting to sync with cloud');
+        setDebugInfo(prev => prev + 'Attempting to sync with cloud\n');
       }
-      
+
       // Process media files to extract just the necessary data
       const processedMedia = mediaFiles.map(media => ({
         uri: media.uri,
         type: media.type || (media.uri.endsWith('.mp4') ? 'video' : 'image'),
         name: media.fileName || media.uri.split('/').pop()
       }));
-      
+
       // Processed media files
       setDebugInfo(prev => prev + `Processed ${processedMedia.length} media files\n`);
-      
+
       // Prepare enriched hike data
       const hikeData = {
         title: title.trim() || 'Hiking Activity',
@@ -265,22 +294,22 @@ export default function SaveActivityScreen({ navigation, route }) {
         },
         visibility: 'private'
       };
-      
+
       // Get user ID for direct Supabase sync
       const userId = await getCurrentUserId();
       setDebugInfo(prev => prev + `Current user ID: ${userId}\n`);
-      
+
       // Determine if we can sync now
       const canSync = isConnected && isLoggedIn;
       setDebugInfo(prev => prev + `Can sync? ${canSync} (connected: ${isConnected}, logged in: ${isLoggedIn})\n`);
-      
+
       // Check Supabase connection
       if (canSync) {
-        const connectionOk = await checkSupabaseConnection();
-        setDebugInfo(prev => prev + `Supabase check result: ${connectionOk}\n`);
+        // Just log the check, don't fail on it
+        checkSupabaseConnection().catch(e => console.warn('Background connection check failed:', e));
       }
-      
-      // Save locally first
+
+      // Save locally first - this is the source of truth
       setDebugInfo(prev => prev + 'Saving to local database...\n');
       const savedId = await saveHikeToLocalDB(hikeData);
       setDebugInfo(prev => prev + `Local save successful, assigned ID: ${savedId}\n`);
@@ -292,18 +321,19 @@ export default function SaveActivityScreen({ navigation, route }) {
       try {
         await updateUserStatsWithHike(hikeData.stats.distance || 0, hikeData.stats.elevation || 0);
       } catch (e) {
-        // ignore errors
+        console.warn('Failed to update user stats:', e);
       }
-      
+
       // Try manual sync to Supabase if we're online and logged in
+      let syncSuccess = false;
       if (canSync && userId !== 'guest') {
         try {
           setDebugInfo(prev => prev + 'Attempting direct Supabase sync...\n');
-          
-          const syncResult = await syncHikeToSupabase(hikeData, userId);
-          setDebugInfo(prev => prev + `Direct sync result: ${syncResult ? 'Success' : 'Failed'}\n`);
-          
-          if (syncResult) {
+
+          syncSuccess = await syncHikeToSupabase(hikeData, userId);
+          setDebugInfo(prev => prev + `Direct sync result: ${syncSuccess ? 'Success' : 'Failed'}\n`);
+
+          if (syncSuccess) {
             setSyncStatus('synced');
             // Activity saved and manually synced to cloud
           } else {
@@ -322,42 +352,39 @@ export default function SaveActivityScreen({ navigation, route }) {
         setSyncStatus('local-only');
         // Activity saved locally only (offline)
       }
-      
-      // Show appropriate message
+
+      // Show appropriate message - ALWAYS navigate away on success
       setTimeout(() => {
-        if (syncStatus === 'synced') {
-          Alert.alert('Activity Saved', 'Your activity has been saved and synced to the cloud.');
-        } else if (!isLoggedIn) {
-          Alert.alert('Activity Saved Locally', 'Your activity has been saved locally. Log in to sync across devices.');
-        } else if (!isConnected) {
-          Alert.alert('Activity Saved Offline', 'Your activity has been saved locally and will sync when you reconnect.');
+        if (syncSuccess) {
+          Alert.alert('Success', 'Activity saved and synced!', [
+            { text: 'OK', onPress: () => navigation.replace('HikeHistory') }
+          ]);
         } else {
-          // Show debug option if sync failed
-          Alert.alert(
-            'Activity Saved With Issues', 
-            'Your activity was saved locally but we had trouble syncing to the cloud. Would you like to see more details?',
-            [
-              { text: 'No, continue', onPress: () => navigation.replace('HikeHistory') },
-              { text: 'Show details', onPress: () => setShowDebug(true) }
-            ]
-          );
-          return;
+          // If local save worked but sync failed (or offline/guest), it's still a "Success" for the user
+          const msg = !isLoggedIn
+            ? 'Activity saved to device. Log in to sync.'
+            : (!isConnected
+              ? 'Activity saved to device. Will sync when online.'
+              : 'Activity saved to device. Cloud sync issues detected.');
+
+          Alert.alert('Saved Locally', msg, [
+            { text: 'OK', onPress: () => navigation.replace('HikeHistory') }
+          ]);
         }
-        
-        // Navigate to history screen
-        navigation.replace('HikeHistory');
-      }, 1000);
-      
+      }, 500);
+
     } catch (error) {
-      // Failed to save activity
-      setDebugInfo(prev => prev + `Save error: ${error.message}\n${error.stack || ''}\n`);
+      // Failed to save activity completely (local save failed)
+      setDebugInfo(prev => prev + `FATAL Save error: ${error.message}\n${error.stack || ''}\n`);
       setSyncStatus('failed');
+      console.error('Save activity error:', error);
+
       Alert.alert(
-        'Save Error', 
-        'Could not save your activity. Would you like to see technical details?',
+        'Save Error',
+        'Could not save your activity. Please try again.',
         [
-          { text: 'No', style: 'cancel' },
-          { text: 'Show details', onPress: () => setShowDebug(true) }
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'View Details', onPress: () => setShowDebug(true) }
         ]
       );
     } finally {
@@ -368,18 +395,18 @@ export default function SaveActivityScreen({ navigation, route }) {
   // Render media thumbnail
   const renderMediaItem = ({ item, index }) => {
     const isVideo = item.type === 'video' || item.uri.endsWith('.mp4');
-    
+
     return (
       <View style={styles.mediaThumbnailContainer}>
         <Image source={{ uri: item.uri }} style={styles.mediaThumbnail} />
-        
+
         {isVideo && (
           <View style={styles.videoIndicator}>
             <Ionicons name="play" size={16} color="white" />
           </View>
         )}
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.removeMediaButton}
           onPress={() => removeMediaItem(index)}
         >
@@ -392,7 +419,7 @@ export default function SaveActivityScreen({ navigation, route }) {
   // Render activity type option
   const renderActivityTypeOption = (item) => {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.optionItem,
           activityType === item.name && styles.selectedOptionItem
@@ -402,10 +429,10 @@ export default function SaveActivityScreen({ navigation, route }) {
           setActivityTypeModalVisible(false);
         }}
       >
-        <Ionicons 
-          name={item.icon} 
-          size={24} 
-          color={activityType === item.name ? 'white' : '#2E7D32'} 
+        <Ionicons
+          name={item.icon}
+          size={24}
+          color={activityType === item.name ? 'white' : '#2E7D32'}
         />
         <Text style={[
           styles.optionText,
@@ -420,7 +447,7 @@ export default function SaveActivityScreen({ navigation, route }) {
   // Render feeling option
   const renderFeelingOption = (item) => {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.optionItem,
           feeling === item.name && styles.selectedOptionItem
@@ -430,10 +457,10 @@ export default function SaveActivityScreen({ navigation, route }) {
           setFeelingModalVisible(false);
         }}
       >
-        <Ionicons 
-          name={item.icon} 
-          size={24} 
-          color={feeling === item.name ? 'white' : '#2E7D32'} 
+        <Ionicons
+          name={item.icon}
+          size={24}
+          color={feeling === item.name ? 'white' : '#2E7D32'}
         />
         <Text style={[
           styles.optionText,
@@ -460,14 +487,14 @@ export default function SaveActivityScreen({ navigation, route }) {
       return (
         <View style={styles.syncStatusContainer}>
           <Ionicons name="save" size={18} color="#FF9800" />
-          <Text style={[styles.syncStatusText, {color: '#FF9800'}]}>Saved locally</Text>
+          <Text style={[styles.syncStatusText, { color: '#FF9800' }]}>Saved locally</Text>
         </View>
       );
     } else if (syncStatus === 'failed') {
       return (
         <View style={styles.syncStatusContainer}>
           <Ionicons name="warning" size={18} color="#F44336" />
-          <Text style={[styles.syncStatusText, {color: '#F44336'}]}>Sync failed</Text>
+          <Text style={[styles.syncStatusText, { color: '#F44336' }]}>Sync failed</Text>
         </View>
       );
     }
@@ -483,7 +510,7 @@ export default function SaveActivityScreen({ navigation, route }) {
         </View>
       );
     }
-    
+
     return (
       <TouchableOpacity
         style={styles.saveButton}
@@ -498,7 +525,7 @@ export default function SaveActivityScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2E7D32" />
-      
+
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -506,12 +533,12 @@ export default function SaveActivityScreen({ navigation, route }) {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>Save Activity</Text>
-        
+
         {renderSaveButton()}
       </View>
-      
+
       {/* Connection status indicator */}
       {!isConnected && (
         <View style={styles.offlineBar}>
@@ -519,11 +546,11 @@ export default function SaveActivityScreen({ navigation, route }) {
           <Text style={styles.offlineText}>You are offline</Text>
         </View>
       )}
-      
+
       {/* Show sync status if available */}
       {renderSyncStatus()}
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         style={styles.formContainer}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
@@ -537,7 +564,7 @@ export default function SaveActivityScreen({ navigation, route }) {
             value={title}
             onChangeText={setTitle}
           />
-          
+
           {/* Activity Description */}
           <TextInput
             style={styles.descriptionInput}
@@ -549,9 +576,9 @@ export default function SaveActivityScreen({ navigation, route }) {
             value={description}
             onChangeText={setDescription}
           />
-          
+
           {/* Activity Type Selector */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.selectorButton}
             onPress={() => setActivityTypeModalVisible(true)}
           >
@@ -559,7 +586,7 @@ export default function SaveActivityScreen({ navigation, route }) {
             <Text style={styles.selectorText}>{activityType}</Text>
             <Ionicons name="chevron-down" size={22} color="#8BA989" />
           </TouchableOpacity>
-          
+
           {/* Media Gallery */}
           {mediaFiles.length > 0 && (
             <View style={styles.mediaGallery}>
@@ -573,28 +600,28 @@ export default function SaveActivityScreen({ navigation, route }) {
               />
             </View>
           )}
-          
+
           {/* Add Photos/Videos */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.mediaButton}
             onPress={pickMedia}
           >
             <Ionicons name="image" size={22} color="#2E7D32" />
             <Text style={styles.mediaButtonText}>Add Photos/Videos</Text>
           </TouchableOpacity>
-          
+
           {/* Change Map Type */}
           <TouchableOpacity style={styles.mapButton}>
             <Text style={styles.mapButtonText}>Change Map Type</Text>
           </TouchableOpacity>
-          
+
           {/* Details Section */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>Details</Text>
           </View>
-          
+
           {/* Activity Type Detail */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.detailButton}
             onPress={() => setActivityTypeModalVisible(true)}
           >
@@ -603,9 +630,9 @@ export default function SaveActivityScreen({ navigation, route }) {
             <Text style={styles.detailValueText}>{activityType}</Text>
             <Ionicons name="chevron-down" size={22} color="#8BA989" />
           </TouchableOpacity>
-          
+
           {/* Feeling */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.detailButton}
             onPress={() => setFeelingModalVisible(true)}
           >
@@ -614,7 +641,7 @@ export default function SaveActivityScreen({ navigation, route }) {
             <Text style={styles.detailValueText}>{feeling || 'Select'}</Text>
             <Ionicons name="chevron-down" size={22} color="#8BA989" />
           </TouchableOpacity>
-          
+
           {/* Private Notes */}
           <View style={styles.notesContainer}>
             <Ionicons name="lock-closed" size={22} color="#8BA989" />
@@ -629,21 +656,21 @@ export default function SaveActivityScreen({ navigation, route }) {
               onChangeText={setPrivateNotes}
             />
           </View>
-          
+
           {/* Activity Stats Summary */}
           <View style={styles.statsSummary}>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Distance</Text>
               <Text style={styles.statValue}>{(stats.distance / 1000).toFixed(2)} km</Text>
             </View>
-            
+
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Duration</Text>
               <Text style={styles.statValue}>
                 {Math.floor(stats.duration / 60)}:{String(Math.floor(stats.duration % 60)).padStart(2, '0')}
               </Text>
             </View>
-            
+
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Elevation</Text>
               <Text style={styles.statValue}>{stats.elevation.toFixed(0)} m</Text>
@@ -651,7 +678,7 @@ export default function SaveActivityScreen({ navigation, route }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      
+
       {/* Activity Type Modal */}
       <Modal
         animationType="slide"
@@ -669,7 +696,7 @@ export default function SaveActivityScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView>
               {activityTypes.map((item, index) => (
                 <React.Fragment key={index}>
@@ -681,7 +708,7 @@ export default function SaveActivityScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-      
+
       {/* Feeling Modal */}
       <Modal
         animationType="slide"
@@ -699,7 +726,7 @@ export default function SaveActivityScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView>
               {feelingOptions.map((item, index) => (
                 <React.Fragment key={index}>
@@ -711,7 +738,7 @@ export default function SaveActivityScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-      
+
       {/* Debug Modal */}
       <Modal
         animationType="slide"
@@ -729,20 +756,20 @@ export default function SaveActivityScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.debugScrollView}>
               <Text style={styles.debugText}>{debugInfo}</Text>
             </ScrollView>
-            
+
             <View style={styles.debugActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.debugButton}
                 onPress={() => checkSupabaseConnection()}
               >
                 <Text style={styles.debugButtonText}>Test Connection</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.debugButton, styles.debugCloseButton]}
                 onPress={() => {
                   setShowDebug(false);
