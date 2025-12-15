@@ -217,10 +217,21 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
 
   // Update map coordinates when hiking spot changes
   useEffect(() => {
-    if (hikingSpot?.coordinates?.coordinates) {
+    let lat = 0;
+    let lng = 0;
+
+    if (typeof hikingSpot?.latitude === 'number' && typeof hikingSpot?.longitude === 'number') {
+      lat = hikingSpot.latitude;
+      lng = hikingSpot.longitude;
+    } else if (hikingSpot?.coordinates?.coordinates && Array.isArray(hikingSpot.coordinates.coordinates)) {
+      lng = hikingSpot.coordinates.coordinates[0];
+      lat = hikingSpot.coordinates.coordinates[1];
+    }
+
+    if (lat && lng) {
       setCoordinates({
-        latitude: hikingSpot.coordinates.coordinates[1],
-        longitude: hikingSpot.coordinates.coordinates[0]
+        latitude: lat,
+        longitude: lng
       });
     }
   }, [hikingSpot]);
@@ -266,7 +277,19 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
         success = await removeFromFavorites(spotId);
       } else {
         // Ensure the spot object has a valid ID for context usage
-        const spotToSave = { ...hikingSpot, id: spotId };
+        const spotToSave = {
+          ...hikingSpot,
+          id: spotId,
+          description: hikingSpot.description || '',
+          image_url: hikingSpot.image_url || '',
+          latitude: hikingSpot.latitude || 0,
+          longitude: hikingSpot.longitude || 0,
+          elevation: hikingSpot.elevation || 0,
+          rating: hikingSpot.rating || (hikingSpot.average_rating || 0),
+          review_count: hikingSpot.review_count || (hikingSpot.number_of_reviews || 0),
+          estimated_duration: hikingSpot.estimated_duration ? String(hikingSpot.estimated_duration) : undefined,
+          difficulty: (hikingSpot.difficulty as 'Easy' | 'Moderate' | 'Hard') || 'Moderate'
+        };
         success = await addToFavorites(spotToSave);
       }
 
@@ -549,12 +572,6 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
               </View>
             )}
 
-            {/* Trail Information Section */}
-            <TrailInfoSection
-              selectedRoute={selectedRoute}
-              onFocusOnMap={handleTrailSelect}
-            />
-
             {/* Weather Widget */}
             {coordinates && (
               <View style={styles.section}>
@@ -562,9 +579,18 @@ export default function HikingSpotLandingPage({ navigation, route }: HikingSpotL
                 <WeatherWidget
                   latitude={coordinates.latitude}
                   longitude={coordinates.longitude}
+                  locationName={hikingSpot.name}
                 />
               </View>
             )}
+
+            {/* Trail Information Section */}
+            <TrailInfoSection
+              selectedRoute={selectedRoute}
+              onFocusOnMap={handleTrailSelect}
+            />
+
+
 
             {/* Leave No Trace Section */}
             <LeaveNoTraceSection />

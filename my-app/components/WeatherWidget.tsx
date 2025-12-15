@@ -38,9 +38,9 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
   const fetchWeatherData = useCallback(async (isRetry = false) => {
     // Validate coordinates
-    if (!latitude || !longitude || 
-        latitude < -90 || latitude > 90 || 
-        longitude < -180 || longitude > 180) {
+    if (!latitude || !longitude ||
+      latitude < -90 || latitude > 90 ||
+      longitude < -180 || longitude > 180) {
       setError('Invalid coordinates provided');
       setLoading(false);
       return;
@@ -53,7 +53,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
       }
 
       const weather = await getWeatherData(latitude, longitude);
-      
+
       if (!weather) {
         throw new Error('No weather data received');
       }
@@ -68,9 +68,9 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
       setRetryCount(0);
     } catch (err) {
       ErrorHandlingService.logError(err, 'weather', { latitude, longitude, locationName });
-      
+
       const errorInfo = ErrorHandlingService.analyzeError(err, 'weather');
-      
+
       // Implement retry logic for retryable errors
       if (retryCount < MAX_RETRY_ATTEMPTS && errorInfo.retryable) {
         setRetryCount(prev => prev + 1);
@@ -103,7 +103,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     }
 
     const conditionLower = condition.toLowerCase();
-    
+
     if (conditionLower.includes('sunny') || conditionLower.includes('clear')) {
       return 'sunny';
     } else if (conditionLower.includes('cloud')) {
@@ -117,7 +117,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
       return 'cloudy';
     }
-    
+
     return 'partly-sunny';
   };
 
@@ -136,14 +136,14 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         <Ionicons name="warning-outline" size={24} color="#F44336" />
         <Text style={styles.errorTitle}>Weather Unavailable</Text>
         <Text style={styles.errorMessage}>
-          {error === 'Invalid coordinates provided' 
-            ? 'Location data not available for this hiking spot' 
+          {error === 'Invalid coordinates provided'
+            ? 'Location data not available for this hiking spot'
             : error?.includes('network') || error?.includes('fetch')
-            ? 'Network connection issue - check your internet'
-            : 'Unable to load current weather data'}
+              ? 'Network connection issue - check your internet'
+              : 'Unable to load current weather data'}
         </Text>
         <Text style={styles.errorSubtext}>
-          {error === 'Invalid coordinates provided' 
+          {error === 'Invalid coordinates provided'
             ? 'You can still plan your hike using general weather forecasts for the area.'
             : 'Weather data helps plan safer hikes. Try refreshing or check local forecasts.'}
         </Text>
@@ -178,16 +178,18 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
     return (
       <View style={[styles.container, style]}>
-        <View style={styles.header}>
-          <Ionicons name={iconName} size={32} color="#2E7D32" />
-          <View style={styles.temperatureContainer}>
+        <View style={styles.topRow}>
+          <View style={styles.iconContainer}>
+            <Ionicons name={iconName} size={48} color="#2E7D32" />
+          </View>
+          <View style={styles.tempLocationContainer}>
             <Text style={styles.temperature}>{Math.round(weatherData.temperature)}°C</Text>
             <Text style={styles.location} numberOfLines={1}>{locationName}</Text>
           </View>
         </View>
-        
+
         <Text style={styles.condition}>{weatherData.condition}</Text>
-        
+
         <View style={styles.details}>
           <View style={styles.detailItem}>
             <Ionicons name="water-outline" size={16} color="#757575" />
@@ -216,16 +218,61 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  iconContainer: {
+    marginRight: 16,
+  },
+  tempLocationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  temperature: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    lineHeight: 36,
+  },
+  location: {
+    fontSize: 13,
+    color: '#757575',
+    marginTop: 2,
+  },
+  condition: {
+    fontSize: 16,
+    color: '#212121',
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  details: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 24,
+  },
+  detailText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#757575',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -240,11 +287,12 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     minHeight: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   errorContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
   },
   errorTitle: {
     fontSize: 16,
@@ -264,7 +312,6 @@ const styles = StyleSheet.create({
     color: '#9E9E9E',
     textAlign: 'center',
     marginBottom: 12,
-    lineHeight: 16,
     fontStyle: 'italic',
   },
   retryButton: {
@@ -281,46 +328,7 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '500',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  temperatureContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  temperature: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2E7D32',
-  },
-  location: {
-    fontSize: 12,
-    color: '#757575',
-    marginTop: 2,
-  },
-  condition: {
-    fontSize: 16,
-    color: '#212121',
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  details: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  detailText: {
-    marginLeft: 6,
-    fontSize: 14,
-    color: '#757575',
-  },
-  compactContainer: {
+  compactContainer: { // Keeping simple just in case unused prop is triggered, but primary design is updated above
     padding: 12,
     minHeight: 60,
   },
