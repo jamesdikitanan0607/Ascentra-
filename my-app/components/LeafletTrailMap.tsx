@@ -11,11 +11,13 @@ import {
   ScrollView,
   StyleProp,
   ViewStyle,
-  ActivityIndicator
+  ActivityIndicator,
+  LayoutAnimation,
+  UIManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getTrailRoutesBySpotId } from '../services/supabaseService';
 import TrailRoutesSection from './TrailRoutesSection';
 
@@ -57,6 +59,15 @@ interface LeafletTrailMapProps {
   userLocation?: { latitude: number; longitude: number } | null;
   isNavigating?: boolean;
   onToggleNavigation?: () => void;
+  externalDropdownControl?: boolean;
+  isRoutesDropdownVisible?: boolean;
+  onToggleRoutesDropdown?: () => void;
+}
+
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
 }
 
 const DIFFICULTY_ORDER: Record<string, number> = {
@@ -299,6 +310,83 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 2,
   },
+  routesToggleButton: {
+    position: 'absolute',
+    top: 20,
+    alignSelf: 'center',
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 6,
+    zIndex: 100, // Ensure it's above map elements
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  routesToggleText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    flex: 1,
+  },
+  routesDropdownContainer: {
+    position: 'absolute',
+    top: 80, // Just below the toggle button (20 + ~55 height + 5 gap)
+    alignSelf: 'center',
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: Dimensions.get('window').height * 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  dropdownList: {
+    width: '100%',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownItemSelected: {
+    backgroundColor: 'rgba(56, 142, 60, 0.08)',
+    borderRadius: 12,
+    borderBottomWidth: 0,
+  },
+  dropdownItemContent: {
+    flex: 1,
+  },
+  dropdownItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#212121',
+    marginBottom: 4,
+  },
+  dropdownItemDetails: {
+    fontSize: 12,
+    color: '#757575',
+  },
 });
 
 const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
@@ -312,14 +400,32 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
   routes,
   userLocation,
   isNavigating,
-  onToggleNavigation
+  onToggleNavigation,
+  externalDropdownControl = false,
+  isRoutesDropdownVisible: externalIsRoutesDropdownVisible,
+  onToggleRoutesDropdown: externalOnToggleRoutesDropdown
 }: LeafletTrailMapProps) => {
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoadingRoutes, setIsLoadingRoutes] = useState<boolean>(false);
   const [databaseRoutes, setDatabaseRoutes] = useState<TrailRoute[]>([]);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [internalIsRoutesDropdownVisible, setInternalIsRoutesDropdownVisible] = useState<boolean>(false);
   const webViewRef = useRef<WebView>(null);
+
+  // Determine actual visibility and toggle handler based on props
+  const isRoutesDropdownVisible = externalDropdownControl
+    ? (externalIsRoutesDropdownVisible || false)
+    : internalIsRoutesDropdownVisible;
+
+  const handleToggleRoutes = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (externalDropdownControl && externalOnToggleRoutesDropdown) {
+      externalOnToggleRoutesDropdown();
+    } else {
+      setInternalIsRoutesDropdownVisible(!internalIsRoutesDropdownVisible);
+    }
+  };
 
   const handleWebViewMessage = useCallback((event: { nativeEvent: { data: string } }) => {
     try {
@@ -906,10 +1012,51 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
     console.log('[LEAFLET_MAP] Fullscreen toggled:', !isFullscreen);
   }, [isFullscreen]);
 
+  const renderRoutesDropdown = () => {
+    if (!isRoutesDropdownVisible || isLoadingRoutes || preparedRoutes.length === 0) return null;
+
+    return (
+      <View style={styles.routesDropdownContainer}>
+        <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={true}>
+          {preparedRoutes.map((trail) => (
+            <TouchableOpacity
+              key={trail.id}
+              style={[
+                styles.dropdownItem,
+                selectedTrailId === trail.id && styles.dropdownItemSelected
+              ]}
+              onPress={() => {
+                handleTrailSelect(trail.id);
+                if (!externalDropdownControl) {
+                  setInternalIsRoutesDropdownVisible(false); // Auto-close on selection
+                } else if (externalOnToggleRoutesDropdown) {
+                  externalOnToggleRoutesDropdown(); // Ask parent to close
+                }
+              }}
+            >
+              <View style={[styles.difficultyBadge, { backgroundColor: trail.color, marginRight: 12, width: 8, height: 8, paddingHorizontal: 0, minWidth: 8, borderRadius: 4 }]} />
+              <View style={styles.dropdownItemContent}>
+                <Text style={styles.dropdownItemTitle} numberOfLines={1}>{trail.route_name}</Text>
+                <Text style={styles.dropdownItemDetails}>
+                  {trail.difficulty} • {trail.distance_km}km • {trail.estimated_duration_min}min
+                </Text>
+              </View>
+              {selectedTrailId === trail.id && (
+                <MaterialIcons name="check" size={20} color="#388E3C" />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.mapContainer}>
         {renderMap()}
+        {/* Render dropdown if external control is active or if we want it in main view */}
+        {renderRoutesDropdown()}
       </View>
 
       {includeCarouselBelowMap && (
@@ -927,90 +1074,66 @@ const LeafletTrailMap: React.FC<LeafletTrailMapProps> = ({
         </TouchableOpacity>
       )}
 
-      <Modal visible={isFullscreen} animationType="slide" onRequestClose={toggleFullscreen}>
+      <Modal visible={isFullscreen} animationType="fade" onRequestClose={toggleFullscreen}>
         <View style={styles.fullscreenContainer}>
           <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
           <SafeAreaView style={styles.fullscreenSafeArea}>
+            {/* Header */}
             <View style={styles.fullscreenHeader}>
               <TouchableOpacity onPress={toggleFullscreen} style={styles.backButton}>
-                <MaterialIcons name="arrow-back" size={24} color="#333" />
+                <Ionicons name="arrow-back" size={24} color="#333" />
                 <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
               <Text style={styles.fullscreenTitle}>Trail Map</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={toggleFullscreen}>
-                <MaterialIcons name="close" size={24} color="#212121" />
-              </TouchableOpacity>
-            </View>
 
-            {onToggleNavigation && (
-              <View style={{
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: '#EEEEEE',
-                flexDirection: 'row',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                backgroundColor: '#FAFAFA'
-              }}>
+              {/* Optional: Navigation Toggle in Header for cleaner look */}
+              {onToggleNavigation && (
                 <TouchableOpacity
                   style={{
-                    backgroundColor: isNavigating ? '#F44336' : '#2196F3',
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
+                    backgroundColor: isNavigating ? '#ffebee' : '#e3f2fd',
+                    padding: 8,
                     borderRadius: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: 'auto',
+                    marginRight: 8
                   }}
                   onPress={onToggleNavigation}
                 >
-                  <MaterialIcons name={isNavigating ? "navigation" : "directions"} size={18} color="white" />
-                  <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 8, fontSize: 14 }}>
-                    {isNavigating ? "Stop Navigation" : "Get Directions"}
-                  </Text>
+                  <MaterialIcons
+                    name={isNavigating ? "navigation" : "directions"}
+                    size={20}
+                    color={isNavigating ? '#d32f2f' : '#1976d2'}
+                  />
                 </TouchableOpacity>
-              </View>
-            )}
+              )}
+            </View>
 
             <View style={styles.fullscreenMapContainer}>
               {renderMap(styles.fullscreenMap)}
+
+              {/* Toggle Button for Routes - Only show if NO external control */}
+              {!externalDropdownControl && !isLoadingRoutes && preparedRoutes.length > 0 && (
+                <TouchableOpacity
+                  style={styles.routesToggleButton}
+                  onPress={handleToggleRoutes}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.routesToggleText}>
+                    {selectedRoute ? selectedRoute.route_name : 'Available Routes'}
+                  </Text>
+                  <MaterialIcons
+                    name={isRoutesDropdownVisible ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                    size={24}
+                    color="#333"
+                  />
+                </TouchableOpacity>
+              )}
+
+              {/* Collapsible Routes List */}
+              {renderRoutesDropdown()}
             </View>
 
-            {!isLoadingRoutes && preparedRoutes.length > 0 && (
-              <View style={styles.trailListContainer}>
-                <Text style={styles.trailListTitle}>Available Trails</Text>
-                <ScrollView style={styles.trailList} horizontal contentContainerStyle={styles.trailListContent}>
-                  {preparedRoutes.map((trail) => (
-                    <TouchableOpacity
-                      key={trail.id}
-                      style={[styles.trailItem, selectedTrailId === trail.id && styles.selectedTrailItem]}
-                      onPress={() => handleTrailSelect(trail.id)}
-                    >
-                      <View style={styles.trailHeader}>
-                        <Text style={styles.trailName} numberOfLines={1}>{trail.route_name}</Text>
-                        <View style={[styles.difficultyBadge, { backgroundColor: trail.color }]}>
-                          <Text style={styles.difficultyText}>{trail.difficulty}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.trailStats}>
-                        <View style={styles.trailStat}>
-                          <MaterialIcons name="straighten" size={14} color="#666" />
-                          <Text style={styles.trailStatText}>{trail.distance_km}km</Text>
-                        </View>
-                        <View style={styles.trailStat}>
-                          <MaterialIcons name="trending-up" size={14} color="#666" />
-                          <Text style={styles.trailStatText}>{trail.elevation_gain_m}m</Text>
-                        </View>
-                        <View style={styles.trailStat}>
-                          <MaterialIcons name="schedule" size={14} color="#666" />
-                          <Text style={styles.trailStatText}>{trail.estimated_duration_min}min</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
           </SafeAreaView>
         </View>
       </Modal>

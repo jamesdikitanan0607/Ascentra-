@@ -74,6 +74,7 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [webViewRef, setWebViewRef] = useState<WebView | null>(null);
   const [showTrailInfo, setShowTrailInfo] = useState(true);
+  const [isRoutesDropdownVisible, setIsRoutesDropdownVisible] = useState(false);
 
   // User Location & Navigation State
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -400,6 +401,10 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
     navigation.navigate('Home');
   };
 
+  const handleToggleRoutes = () => {
+    setIsRoutesDropdownVisible(!isRoutesDropdownVisible);
+  };
+
   const handleGoBack = () => {
     navigation.goBack();
   };
@@ -655,6 +660,9 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
             const r = trailRoutes.find(tr => tr.route_id === trailId);
             if (r) setSelectedRoute(r);
           }}
+          externalDropdownControl={true}
+          isRoutesDropdownVisible={isRoutesDropdownVisible}
+          onToggleRoutesDropdown={handleToggleRoutes}
         />
       </View>
 
@@ -670,42 +678,12 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
           {userLocation ? ' • ' + locationStatus : ' • ' + locationStatus}
         </Text>
 
-        <TouchableOpacity style={styles.navButton} onPress={handleGoHome}>
-          <Ionicons name="home" size={24} color="white" />
+        <TouchableOpacity style={styles.navButton} onPress={handleToggleRoutes}>
+          <Ionicons name={isRoutesDropdownVisible ? "list" : "list-outline"} size={24} color="white" />
         </TouchableOpacity>
       </View>
 
-      {/* Available Routes Overlay */}
-      <View style={styles.routesOverlay}>
-        <Text style={styles.routesTitle}>Available Routes</Text>
-        {trailRoutes.map((route, index) => (
-          <TouchableOpacity
-            key={route.route_id}
-            style={[
-              styles.routeItem,
-              selectedRoute?.route_id === route.route_id && styles.selectedRouteItem
-            ]}
-            onPress={() => handleRouteSelect(route)}
-          >
-            <View style={styles.routeHeader}>
-              <Text style={styles.routeName} numberOfLines={1}>
-                {route.route_name}
-              </Text>
-              <View style={[
-                styles.difficultyBadge,
-                { backgroundColor: getDifficultyColor(route.difficulty) }
-              ]}>
-                <Text style={styles.difficultyText}>
-                  {route.difficulty}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.routeStats}>
-              {formatDistance(route.distance_km)} • {formatElevation(route.elevation_gain_m)} elevation
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Available Routes Overlay - REMOVED, using LeafletTrailMap dropdown instead */}
 
       {/* Control Buttons */}
       <View style={styles.controlButtons}>
@@ -736,16 +714,18 @@ function TrailMapFullScreen({ navigation, route }: TrailMapFullScreenProps) {
       </View>
 
       {/* Trail Information Panel */}
-      {showTrailInfo && selectedRoute && (
-        <View style={styles.trailInfoPanel}>
-          <TrailInfo
-            selectedRoute={selectedRoute}
-            isLoading={false}
-            error={null}
-          />
-        </View>
-      )}
-    </SafeAreaView>
+      {
+        showTrailInfo && selectedRoute && (
+          <View style={styles.trailInfoPanel}>
+            <TrailInfo
+              selectedRoute={selectedRoute as any}
+              isLoading={false}
+              error={null}
+            />
+          </View>
+        )
+      }
+    </SafeAreaView >
   );
 }
 
